@@ -9,8 +9,10 @@ def main():
     os.environ["SECRET_KEY"] = "testing_secret_key"
     os.environ["ALGORITHM"] = "HS256"
 
+    wd = os.getcwd()
+    tests_path = os.path.join(wd,"backend", "tests")
     # Run pytest with verbose output
-    return pytest.main(["-v", "backend/tests/"])
+    return pytest.main(["-v", wd])
 
 
 if __name__ == "__main__":
