@@ -1,0 +1,5 @@
+USER=postgres
+PASSWORD=sisma
+AUTH=peer
+HOST=localhost
+DB=netxplore_test

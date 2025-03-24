@@ -1,21 +1,24 @@
 # backend/database.py
-from dotenv import load_dotenv
+
 import os
+
+from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker, declarative_base  # Update this import
+from sqlalchemy.orm import sessionmaker, declarative_base, Session
 
 # Load environment variables
-load_dotenv()
-
-# PostgreSQL connection string
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:password@localhost/netxplore")
+# load_dotenv(".db_config")
+# load_dotenv(".test_db_config")
+load_dotenv("backend/.env")
+url = os.getenv("DATABASE_URL")
+# url = f"postgresql+asyncpg://{user}:{password}@{host}/{db}" # change here
 
 # Create engine
-engine = create_async_engine(DATABASE_URL, echo=True)
+engine = create_async_engine(url)
 
 # Create session factory
-async_session = sessionmaker(
-    engine, expire_on_commit=False, class_=AsyncSession
+async_session: AsyncSession = sessionmaker(
+    engine, expire_on_commit=False, class_=Session
 )
 
 # Create base class for models
@@ -23,7 +26,7 @@ Base = declarative_base()
 
 # Dependency to get database session
 async def get_db():
-    async with async_session() as session:
+    async with async_session as session: # change here.
         try:
             yield session
             await session.commit()
