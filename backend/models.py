@@ -1,5 +1,6 @@
 from sqlalchemy import Column, String, DateTime, Integer, ForeignKey, Boolean, Text, Float
 from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 import uuid
 from datetime import datetime
 from database import Base
@@ -7,7 +8,7 @@ from database import Base
 class User(Base):
     __tablename__ = "users"
     
-    user_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Coluemn(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String, nullable=False)
     email = Column(String, unique=True, nullable=False)
     password = Column(String, nullable=True)  # Nullable for OAuth users
