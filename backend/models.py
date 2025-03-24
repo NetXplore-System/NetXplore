@@ -2,7 +2,7 @@ from sqlalchemy import Column, String, DateTime, Integer, ForeignKey, Boolean, T
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 import uuid
 from datetime import datetime
-from database import Base
+from backend.database import Base
 
 
 class User(Base):

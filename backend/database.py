@@ -1,14 +1,14 @@
+# backend/database.py
 from dotenv import load_dotenv
 import os
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, declarative_base  # Update this import
 
 # Load environment variables
 load_dotenv()
 
 # PostgreSQL connection string
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost/netxplore")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:password@localhost/netxplore")
 
 # Create engine
 engine = create_async_engine(DATABASE_URL, echo=True)

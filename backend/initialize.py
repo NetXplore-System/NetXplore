@@ -1,11 +1,10 @@
 import asyncio
 import os
 import sys
-
-import asyncpg
-import spacy
 from dotenv import load_dotenv
-
+import spacy
+import asyncpg
+from datetime import datetime
 from database import engine
 from models import Base
 
