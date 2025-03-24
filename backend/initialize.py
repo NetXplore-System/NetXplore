@@ -94,8 +94,8 @@ async def main():
     print("=" * 50)
 
     # Check if .env file exists
-    if not os.path.exists(".env"):
-        if os.path.exists(".env.example"):
+    if not os.path.exists("backend/.env"):
+        if os.path.exists("backend/.env.example"):
             print("⚠️ .env file not found, but .env.example exists.")
             print("⚠️ Please copy .env.example to .env and update the values.")
         else:
