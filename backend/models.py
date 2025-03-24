@@ -1,20 +1,20 @@
 from sqlalchemy import Column, String, DateTime, Integer, ForeignKey, Boolean, Text, Float
 from sqlalchemy.dialects.postgresql import UUID, JSONB
-from sqlalchemy.dialects.postgresql import UUID, JSONB
 import uuid
 from datetime import datetime
 from database import Base
 
+
 class User(Base):
     __tablename__ = "users"
-    
-    user_id = Coluemn(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
+    user_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String, nullable=False)
     email = Column(String, unique=True, nullable=False)
     password = Column(String, nullable=True)  # Nullable for OAuth users
     avatar = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+
     def to_dict(self):
         return {
             "id": str(self.user_id),
@@ -23,14 +23,15 @@ class User(Base):
             "avatar": self.avatar or "https://cdn-icons-png.flaticon.com/512/64/64572.png"
         }
 
+
 class Research(Base):
     __tablename__ = "research"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     start_date = Column(String, nullable=True)  # Store as string to match original format
-    end_date = Column(String, nullable=True)    # Store as string to match original format
+    end_date = Column(String, nullable=True)  # Store as string to match original format
     message_limit = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=True)
@@ -47,9 +48,10 @@ class Research(Base):
             "user_id": str(self.user_id) if self.user_id else None
         }
 
+
 class UploadedFile(Base):
     __tablename__ = "uploaded_files"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     filename = Column(String, nullable=False)
     original_filename = Column(String, nullable=False)
@@ -71,9 +73,10 @@ class UploadedFile(Base):
             "research_id": str(self.research_id) if self.research_id else None
         }
 
+
 class NetworkAnalysis(Base):
     __tablename__ = "network_analysis"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     research_id = Column(UUID(as_uuid=True), ForeignKey("research.id"), nullable=True)
     file_id = Column(UUID(as_uuid=True), ForeignKey("uploaded_files.id"), nullable=True)
@@ -93,9 +96,10 @@ class NetworkAnalysis(Base):
             "parameters": self.parameters
         }
 
+
 class Community(Base):
     __tablename__ = "communities"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     analysis_id = Column(UUID(as_uuid=True), ForeignKey("network_analysis.id"), nullable=False)
     community_index = Column(Integer, nullable=False)
@@ -103,7 +107,7 @@ class Community(Base):
     nodes = Column(JSONB, nullable=False)  # Store node IDs as JSON array
     avg_betweenness = Column(Float, nullable=True)
     avg_pagerank = Column(Float, nullable=True)
-    
+
     def to_dict(self):
         return {
             "id": str(self.id),
