@@ -23,7 +23,7 @@ import "./Home.css";
 import { AlertBox, GraphContainer } from "./Form.style.js";
 import AnonymizationToggle from "../components/AnonymizationToggle.jsx";
 import NetworkCustomizationToolbar from "../components/NetworkCustomizationToolbar.jsx";
-
+import ComparisonPanel from "../components/comparison/ComparisonPanel.jsx";
 const Home = () => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -79,14 +79,13 @@ const Home = () => {
   const [nodeToRemove, setNodeToRemove] = useState(null);
   const [showRemoveNodeModal, setShowRemoveNodeModal] = useState(false);
   const [activityFilterEnabled, setActivityFilterEnabled] = useState(false);
-  const [activityThreshold, setActivityThreshold] = useState(2); 
+  const [activityThreshold, setActivityThreshold] = useState(2);
   const forceGraphRef = useRef(null);
   const [networkWasRestored, setNetworkWasRestored] = useState(false);
   const [shouldFetchCommunities, setShouldFetchCommunities] = useState(false);
   const [showOnlyIntraCommunityLinks, setShowOnlyIntraCommunityLinks] =
     useState(false);
-    const [communityMap, setCommunityMap] = useState({});
-
+  const [communityMap, setCommunityMap] = useState({});
 
   const [visualizationSettings, setVisualizationSettings] = useState({
     colorBy: "default",
@@ -267,8 +266,6 @@ const Home = () => {
       setMessage("An error occurred during the delete operation.");
     }
   };
-
-
 
   const formatTime = (time) => {
     return time && time.length === 5 ? `${time}:00` : time;
@@ -564,30 +561,30 @@ const Home = () => {
       });
   };
 
-  const renderComparisonGraph = (index) => {
-    const compData = comparisonNetworkData[index];
-    if (!compData || !compData.nodes || !compData.links) {
-      return <div>No data available for this comparison</div>;
-    }
+  // const renderComparisonGraph = (index) => {
+  //   const compData = comparisonNetworkData[index];
+  //   if (!compData || !compData.nodes || !compData.links) {
+  //     return <div>No data available for this comparison</div>;
+  //   }
 
-    const filteredNodes = compData.nodes.filter((node) =>
-      node.id.toLowerCase().includes(filter.toLowerCase())
-    );
+  //   const filteredNodes = compData.nodes.filter((node) =>
+  //     node.id.toLowerCase().includes(filter.toLowerCase())
+  //   );
 
-    const filteredLinks = compData.links.filter(
-      (link) =>
-        filteredNodes.some(
-          (node) =>
-            node.id === link.source ||
-            (typeof link.source === "object" && node.id === link.source.id)
-        ) &&
-        filteredNodes.some(
-          (node) =>
-            node.id === link.target ||
-            (typeof link.target === "object" && node.id === link.target.id)
-        )
-    );
-  };
+  //   const filteredLinks = compData.links.filter(
+  //     (link) =>
+  //       filteredNodes.some(
+  //         (node) =>
+  //           node.id === link.source ||
+  //           (typeof link.source === "object" && node.id === link.source.id)
+  //       ) &&
+  //       filteredNodes.some(
+  //         (node) =>
+  //           node.id === link.target ||
+  //           (typeof link.target === "object" && node.id === link.target.id)
+  //       )
+  //   );
+  // };
 
   const calculateComparisonStats = (originalData, comparisonData) => {
     if (!originalData || !comparisonData) {
@@ -637,62 +634,66 @@ const Home = () => {
       commonNodesCount,
     };
   };
-  
+
   const fetchCommunityData = () => {
     if (!uploadedFile) {
       setMessage("No file selected for community detection.");
       return;
     }
-  
+
     const params = buildNetworkFilterParams();
     params.append("algorithm", "louvain");
-  
+
     const url = `http://localhost:8001/analyze/communities/${uploadedFile}?${params.toString()}`;
-  
+
     console.log("Community detection URL:", url);
     fetch(url)
       .then((response) => response.json())
       .then((data) => {
         console.log("Community data returned from server:", data);
-  
+
         if (data.communities && data.nodes) {
           setCommunities(data.communities);
-  
+
           const newCommunityMap = {};
-  
+
           data.nodes.forEach((node) => {
             if (node.community !== undefined) {
               newCommunityMap[node.id.toString().trim()] = node.community;
             }
           });
-  
+
           console.log("CommunityMap:", newCommunityMap);
           setCommunityMap(newCommunityMap);
-  
+
           if (networkData && networkData.nodes) {
             const updatedNodes = networkData.nodes.map((node) => {
               const normalizedId = node.id.toString().trim();
               const community = newCommunityMap[normalizedId];
-  
+
               if (community !== undefined) {
-                console.log(`Assigning node ${node.id} to community ${community}`);
+                console.log(
+                  `Assigning node ${node.id} to community ${community}`
+                );
                 return { ...node, community };
               }
-  
+
               return node;
             });
-  
+
             setNetworkData({
               nodes: updatedNodes,
               links: networkData.links,
             });
-  
+
             setOriginalNetworkData({
               nodes: updatedNodes,
               links: networkData.links,
             });
-  
-            setMessage(`Detected ${data.communities.length} communities in the network.`);
+
+            setMessage(
+              `Detected ${data.communities.length} communities in the network.`
+            );
           }
         } else {
           setMessage("No community data returned from server.");
@@ -703,63 +704,66 @@ const Home = () => {
         console.error("Error during community detection:", err);
       });
   };
-
 
   const detectAndApplyCommunityData = () => {
     if (!uploadedFile) {
       setMessage("No file selected for community detection.");
       return;
     }
-  
+
     const params = buildNetworkFilterParams();
     params.append("algorithm", "louvain");
-  
+
     const url = `http://localhost:8001/analyze/communities/${uploadedFile}?${params.toString()}`;
-  
+
     console.log("Community detection URL:", url);
     fetch(url)
       .then((response) => response.json())
       .then((data) => {
         console.log("Community data returned from server:", data);
-  
+
         if (data.communities && data.nodes) {
           setCommunities(data.communities);
-  
+
           const newCommunityMap = {};
-  
+
           data.nodes.forEach((node) => {
             if (node.community !== undefined) {
               newCommunityMap[node.id.toString().trim()] = node.community;
             }
           });
-  
+
           console.log("CommunityMap:", newCommunityMap);
           setCommunityMap(newCommunityMap);
-  
+
           if (networkData && networkData.nodes) {
             const updatedNodes = networkData.nodes.map((node) => {
               const normalizedId = node.id.toString().trim();
               const community = newCommunityMap[normalizedId];
-  
+
               if (community !== undefined) {
-                console.log(`Assigning node ${node.id} to community ${community}`);
+                console.log(
+                  `Assigning node ${node.id} to community ${community}`
+                );
                 return { ...node, community };
               }
-  
+
               return node;
             });
-  
+
             setNetworkData({
               nodes: updatedNodes,
               links: networkData.links,
             });
-  
+
             setOriginalNetworkData({
               nodes: updatedNodes,
               links: networkData.links,
             });
-  
-            setMessage(`Detected ${data.communities.length} communities in the network.`);
+
+            setMessage(
+              `Detected ${data.communities.length} communities in the network.`
+            );
           }
         } else {
           setMessage("No community data returned from server.");
@@ -770,8 +774,7 @@ const Home = () => {
         console.error("Error during community detection:", err);
       });
   };
-  
-  
+
   const handleNetworkCustomization = (settings) => {
     setVisualizationSettings(settings);
     console.log("Applying visualization settings:", settings);
@@ -886,85 +889,7 @@ const Home = () => {
 
     return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
   };
-  const toggleComparisonMetric = (metric) => {
-    if (comparisonMetrics.includes(metric)) {
-      setComparisonMetrics(comparisonMetrics.filter((m) => m !== metric));
-    } else {
-      setComparisonMetrics([...comparisonMetrics, metric]);
-    }
-  };
 
-  const applyComparisonFilters = () => {
-    if (
-      !originalNetworkData ||
-      activeComparisonIndices.length === 0 ||
-      !uploadedFile
-    ) {
-      return;
-    }
-    const backupNetwork = { ...networkData };
-    const params = buildNetworkFilterParams();
-
-    params.append("original_filename", uploadedFile);
-
-    const comparisonPromises = activeComparisonIndices.map((index) => {
-      const comparisonParams = new URLSearchParams(params);
-      comparisonParams.append(
-        "comparison_filename",
-        comparisonData[index].filename
-      );
-      comparisonParams.append("node_filter", comparisonFilter);
-      comparisonParams.append("min_weight", minComparisonWeight);
-      comparisonParams.append("highlight_common", highlightCommonNodes);
-
-      if (comparisonMetrics.length > 0) {
-        comparisonParams.append("metrics", comparisonMetrics.join(","));
-      }
-      return fetch(
-        `http://localhost:8001/analyze/compare-networks?${comparisonParams.toString()}`
-      ).then((response) => response.json());
-    });
-    setMessage("Processing network comparison...");
-
-    Promise.all(comparisonPromises)
-      .then((results) => {
-        if (results.some((data) => data.error)) {
-          const errors = results
-            .filter((data) => data.error)
-            .map((data) => data.error)
-            .join(", ");
-          setMessage(`Error in comparisons: ${errors}`);
-          return;
-        }
-        setFilteredOriginalData(standardizeGraphData(results[0].original));
-
-        const processedComparisons = {};
-        activeComparisonIndices.forEach((index, arrayIndex) => {
-          processedComparisons[index] = standardizeGraphData(
-            results[arrayIndex].comparison
-          );
-        });
-        setFilteredComparisonData(processedComparisons);
-
-        setNetworkData(backupNetwork);
-
-        setMessage(
-          `${results.length} network comparisons completed successfully!`
-        );
-      })
-      .catch((error) => {
-        console.error("Error during network comparisons:", error);
-        setMessage("An error occurred during network comparisons");
-      });
-  };
-  const resetComparisonFilters = () => {
-    setComparisonFilter("");
-    setMinComparisonWeight(1);
-    setComparisonMetrics([]);
-    setHighlightCommonNodes(false);
-    setFilteredOriginalData(null);
-    setFilteredComparisonData({});
-  };
   const standardizeGraphData = (graphData) => {
     if (!graphData || !graphData.nodes || !graphData.links) {
       return graphData;
@@ -1413,47 +1338,49 @@ const Home = () => {
     });
   };
 
-
   const handleToggleCommunitiesFilter = () => {
     if (!networkData || !originalNetworkData) return;
-  
 
     if (!communityMap || Object.keys(communityMap).length === 0) {
       setMessage("Community data not found. Detecting communities...");
-      detectAndApplyCommunityData(); 
-      return; 
+      detectAndApplyCommunityData();
+      return;
     }
 
     const newState = !showOnlyIntraCommunityLinks;
     setShowOnlyIntraCommunityLinks(newState);
-  
+
     if (newState) {
       const filteredLinks = networkData.links.filter((link) => {
-        const sourceId = typeof link.source === "object" ? link.source.id : link.source;
-        const targetId = typeof link.target === "object" ? link.target.id : link.target;
-  
+        const sourceId =
+          typeof link.source === "object" ? link.source.id : link.source;
+        const targetId =
+          typeof link.target === "object" ? link.target.id : link.target;
+
         const sourceCommunity = communityMap[sourceId?.toString().trim()];
         const targetCommunity = communityMap[targetId?.toString().trim()];
-  
+
         if (sourceCommunity === undefined || targetCommunity === undefined) {
           return false;
         }
-  
+
         return sourceCommunity === targetCommunity;
       });
-  
+
       const connectedNodeIds = new Set();
       filteredLinks.forEach((link) => {
-        const sourceId = typeof link.source === "object" ? link.source.id : link.source;
-        const targetId = typeof link.target === "object" ? link.target.id : link.target;
+        const sourceId =
+          typeof link.source === "object" ? link.source.id : link.source;
+        const targetId =
+          typeof link.target === "object" ? link.target.id : link.target;
         connectedNodeIds.add(sourceId);
         connectedNodeIds.add(targetId);
       });
-  
+
       const communities = [...new Set(Object.values(communityMap))];
       const radius = 500;
       const angleStep = (2 * Math.PI) / communities.length;
-  
+
       const communityCenters = {};
       communities.forEach((community, index) => {
         const angle = index * angleStep;
@@ -1462,22 +1389,32 @@ const Home = () => {
           y: radius * Math.sin(angle),
         };
       });
-  
+
       const communityColors = [
-        "#313659", "#5f6289", "#324b4a", "#158582", "#9092bc", "#c4c6f1",
-        "#ff9800", "#4caf50", "#2196f3", "#e91e63", "#9c27b0", "#795548"
+        "#313659",
+        "#5f6289",
+        "#324b4a",
+        "#158582",
+        "#9092bc",
+        "#c4c6f1",
+        "#ff9800",
+        "#4caf50",
+        "#2196f3",
+        "#e91e63",
+        "#9c27b0",
+        "#795548",
       ];
-  
+
       const updatedNodes = networkData.nodes
         .filter((node) => connectedNodeIds.has(node.id))
         .map((node) => {
           const community = communityMap[node.id?.toString().trim()];
           const center = communityCenters[community];
           const jitter = 30;
-  
+
           return {
             ...node,
-            community, 
+            community,
             originalX: node.x,
             originalY: node.y,
             x: center.x + (Math.random() * jitter * 2 - jitter),
@@ -1485,22 +1422,28 @@ const Home = () => {
             color: communityColors[Number(community) % communityColors.length],
           };
         });
-  
+
       console.log("Updated nodes:", updatedNodes);
       console.log("Filtered links:", filteredLinks);
-  
+
       setNetworkData({
         nodes: updatedNodes,
         links: filteredLinks,
       });
-  
+
       setMessage(
-        `Showing only intra-community links and hiding isolated nodes. Removed ${networkData.links.length - filteredLinks.length} cross-community links.`
+        `Showing only intra-community links and hiding isolated nodes. Removed ${
+          networkData.links.length - filteredLinks.length
+        } cross-community links.`
       );
     } else {
       const restoredNodes = originalNetworkData.nodes.map((node) => {
         const currentNode = networkData.nodes.find((n) => n.id === node.id);
-        if (currentNode && currentNode.originalX !== undefined && currentNode.originalY !== undefined) {
+        if (
+          currentNode &&
+          currentNode.originalX !== undefined &&
+          currentNode.originalY !== undefined
+        ) {
           return {
             ...node,
             x: currentNode.originalX,
@@ -1509,15 +1452,15 @@ const Home = () => {
         }
         return node;
       });
-  
+
       setNetworkData({
         nodes: restoredNodes,
         links: originalNetworkData.links,
       });
-  
+
       setMessage("Showing all links in the network.");
     }
-  
+
     if (forceGraphRef.current) {
       setTimeout(() => {
         forceGraphRef.current.d3ReheatSimulation();
@@ -1525,8 +1468,119 @@ const Home = () => {
       }, 100);
     }
   };
-  
+  const applyComparisonFilters = (filters) => {
+    if (
+      !originalNetworkData ||
+      activeComparisonIndices.length === 0 ||
+      !uploadedFile
+    ) {
+      return;
+    }
 
+    const backupNetwork = { ...networkData };
+    const params = buildNetworkFilterParams();
+
+    params.append("original_filename", uploadedFile);
+
+    const comparisonPromises = activeComparisonIndices.map((index) => {
+      const comparisonParams = new URLSearchParams(params);
+      comparisonParams.append(
+        "comparison_filename",
+        comparisonData[index].filename
+      );
+      comparisonParams.append("node_filter", filters.comparisonFilter);
+      comparisonParams.append("min_weight", filters.minComparisonWeight);
+      comparisonParams.append("highlight_common", filters.highlightCommonNodes);
+
+      if (filters.comparisonMetrics.length > 0) {
+        comparisonParams.append("metrics", filters.comparisonMetrics.join(","));
+      }
+      return fetch(
+        `http://localhost:8001/analyze/compare-networks?${comparisonParams.toString()}`
+      ).then((response) => response.json());
+    });
+
+    setMessage("Processing network comparison...");
+
+    Promise.all(comparisonPromises)
+      .then((results) => {
+        if (results.some((data) => data.error)) {
+          const errors = results
+            .filter((data) => data.error)
+            .map((data) => data.error)
+            .join(", ");
+          setMessage(`Error in comparisons: ${errors}`);
+          return;
+        }
+
+        const processedOriginal = standardizeGraphData(results[0].original);
+
+        if (filters.comparisonMetrics && filters.comparisonMetrics.length > 0) {
+          ensureMetricsData(processedOriginal, filters.comparisonMetrics);
+        }
+
+        setFilteredOriginalData(processedOriginal);
+
+        const processedComparisons = {};
+        activeComparisonIndices.forEach((index, arrayIndex) => {
+          const processedComparison = standardizeGraphData(
+            results[arrayIndex].comparison
+          );
+
+          if (
+            filters.comparisonMetrics &&
+            filters.comparisonMetrics.length > 0
+          ) {
+            ensureMetricsData(processedComparison, filters.comparisonMetrics);
+          }
+
+          processedComparisons[index] = processedComparison;
+        });
+
+        setFilteredComparisonData(processedComparisons);
+        setNetworkData(backupNetwork);
+        setMessage(
+          `${results.length} network comparisons completed successfully!`
+        );
+      })
+      .catch((error) => {
+        console.error("Error during network comparisons:", error);
+        setMessage("An error occurred during network comparisons");
+      });
+  };
+
+  const ensureMetricsData = (graphData, metrics) => {
+    if (!graphData || !graphData.nodes || !graphData.links) {
+      return;
+    }
+
+    if (
+      metrics.includes("Degree Centrality") &&
+      !graphData.nodes.some((node) => node.hasOwnProperty("degree"))
+    ) {
+      const degreeMap = {};
+      graphData.nodes.forEach((node) => (degreeMap[node.id] = 0));
+
+      graphData.links.forEach((link) => {
+        const sourceId =
+          typeof link.source === "object" ? link.source.id : link.source;
+        const targetId =
+          typeof link.target === "object" ? link.target.id : link.target;
+
+        degreeMap[sourceId] = (degreeMap[sourceId] || 0) + 1;
+        degreeMap[targetId] = (degreeMap[targetId] || 0) + 1;
+      });
+
+      graphData.nodes.forEach((node) => {
+        node.degree = degreeMap[node.id] || 0;
+      });
+    }
+  };
+
+  const resetComparisonFilters = () => {
+    setFilteredOriginalData(null);
+    setFilteredComparisonData({});
+  };
   return (
     <Container fluid className="upload-section">
       {/* Research Upload */}
@@ -2263,311 +2317,23 @@ const Home = () => {
           )}
 
           <Row className="mt-4">
-            <Card className="comparison-card">
-              <h4 className="fw-bold">Comparison Section</h4>
-              <Row>
-                <Col md={6}>
-                  <Button
-                    className="action-btn mt-3 mb-3"
-                    onClick={() => setComparisonCount(comparisonCount + 1)}
-                  >
-                    {/* <Upload size={16} />  */}
-                    Add New Comparison
-                  </Button>
-                </Col>
-              </Row>
-              {[...Array(comparisonCount)].map((_, index) => (
-                <Card key={index} className="mb-3">
-                  <Card.Body>
-                    <Row className="align-items-center">
-                      <Col md={4}>
-                        <h5>Comparison File #{index + 1}</h5>
-                        {comparisonData[index]?.filename ? (
-                          <p>{comparisonData[index].name}</p>
-                        ) : (
-                          <p>No file selected</p>
-                        )}
-                      </Col>
-                      <Col md={8} className="text-end">
-                        <Button
-                          className="action-btn me-2"
-                          onClick={() =>
-                            document.getElementById(`compFile${index}`).click()
-                          }
-                        >
-                          <Upload size={16} /> Upload File
-                        </Button>
-                        <input
-                          type="file"
-                          id={`compFile${index}`}
-                          style={{ display: "none" }}
-                          accept=".txt"
-                          onChange={(e) => handleComparisonFileChange(e, index)}
-                        />
-                        {comparisonData[index]?.filename && (
-                          <Button
-                            className="action-btn"
-                            onClick={() => handleComparisonAnalysis(index)}
-                          >
-                            Analyze Network
-                          </Button>
-                        )}
-                      </Col>
-                    </Row>
-                  </Card.Body>
-                </Card>
-              ))}
-
-              <Row>
-                {comparisonNetworkData.map((data, index) => {
-                  if (data && data.nodes && data.links) {
-                    return (
-                      <Col md={12} key={index}>
-                        <Card className="mt-3 mb-3">
-                          <Card.Header
-                            as="h5"
-                            className="d-flex justify-content-between"
-                          >
-                            <span>
-                              Comparison #{index + 1}:{" "}
-                              {comparisonData[index]?.name || ""}
-                            </span>
-                            <Form.Check
-                              type="checkbox"
-                              label="Add to comparison view"
-                              checked={activeComparisonIndices.includes(index)}
-                              onChange={() => toggleComparisonActive(index)}
-                              className="mt-1"
-                            />
-                          </Card.Header>
-                          <Card.Body className="text-center">
-                            {renderComparisonGraph(index)}
-                          </Card.Body>
-                        </Card>
-                      </Col>
-                    );
-                  }
-                  return null;
-                })}
-              </Row>
-
-              {networkData && activeComparisonIndices.length > 0 && (
-                <Row className="mt-4">
-                  <h4 className="fw-bold">Network Comparison View</h4>
-                  <div className="comparison-toolbar mb-3">
-                    <div className="toolbar-section">
-                      <span className="toolbar-label">Filter:</span>
-                      <input
-                        type="text"
-                        className="toolbar-input"
-                        placeholder="Filter nodes..."
-                        value={comparisonFilter}
-                        onChange={(e) => setComparisonFilter(e.target.value)}
-                      />
-                    </div>
-
-                    <div className="toolbar-section">
-                      <span className="toolbar-label">Min Weight:</span>
-                      <input
-                        type="number"
-                        className="toolbar-input"
-                        min="1"
-                        value={minComparisonWeight}
-                        onChange={(e) =>
-                          setMinComparisonWeight(parseInt(e.target.value) || 1)
-                        }
-                      />
-                    </div>
-
-                    <div className="toolbar-section metrics-toggles">
-                      <span className="toolbar-label">Metrics:</span>
-                      <div className="toolbar-buttons">
-                        {graphMetrics.slice(0, 5).map((metric) => (
-                          <button
-                            key={metric}
-                            className={`toolbar-button ${
-                              comparisonMetrics.includes(metric) ? "active" : ""
-                            }`}
-                            onClick={() => toggleComparisonMetric(metric)}
-                            title={metric}
-                          >
-                            {metric.split(" ")[0]}
-                          </button>
-                        ))}
-                        <button
-                          className={`toolbar-button ${
-                            highlightCommonNodes ? "active" : ""
-                          }`}
-                          onClick={() =>
-                            setHighlightCommonNodes(!highlightCommonNodes)
-                          }
-                          title="Highlight Common Nodes"
-                        >
-                          Common
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="toolbar-section">
-                      <button
-                        className="toolbar-action-btn"
-                        onClick={applyComparisonFilters}
-                      >
-                        Apply
-                      </button>
-                      <button
-                        className="toolbar-action-btn outline"
-                        onClick={resetComparisonFilters}
-                      >
-                        Reset
-                      </button>
-                    </div>
-                  </div>
-
-                  <Col
-                    md={activeComparisonIndices.length > 1 ? 12 : 6}
-                    className="mb-4"
-                  >
-                    <Card>
-                      <Card.Header as="h5">Original Network</Card.Header>
-                      <Card.Body className="text-center">
-                        <GraphContainer>
-                          {renderForceGraph(
-                            filteredOriginalData || {
-                              nodes: originalNetworkData
-                                ? [...originalNetworkData.nodes]
-                                : [...networkData.nodes],
-                              links: originalNetworkData
-                                ? [...originalNetworkData.links]
-                                : [...networkData.links],
-                            },
-                            activeComparisonIndices.length > 1 ? 1000 : 600,
-                            500,
-                            false
-                          )}
-                        </GraphContainer>
-                      </Card.Body>
-                    </Card>
-                  </Col>
-
-                  {activeComparisonIndices.map((index) => (
-                    <Col
-                      md={activeComparisonIndices.length > 1 ? 6 : 6}
-                      key={`comparison-${index}`}
-                      className="mb-4"
-                    >
-                      <Card>
-                        <Card.Header as="h5">
-                          Comparison Network #{index + 1}
-                        </Card.Header>
-                        <Card.Body className="text-center">
-                          <GraphContainer>
-                            {renderForceGraph(
-                              filteredComparisonData &&
-                                filteredComparisonData[index]
-                                ? filteredComparisonData[index]
-                                : {
-                                    nodes: [
-                                      ...comparisonNetworkData[index].nodes,
-                                    ],
-                                    links: [
-                                      ...comparisonNetworkData[index].links,
-                                    ],
-                                  },
-                              activeComparisonIndices.length > 2 ? 600 : 600,
-                              500,
-                              true
-                            )}
-                          </GraphContainer>
-                        </Card.Body>
-                      </Card>
-                    </Col>
-                  ))}
-                </Row>
-              )}
-            </Card>
+            {uploadedFile && (
+              <ComparisonPanel
+                originalNetworkData={originalNetworkData}
+                comparisonFiles={comparisonFiles}
+                comparisonData={comparisonData}
+                comparisonNetworkData={comparisonNetworkData}
+                activeComparisonIndices={activeComparisonIndices}
+                filteredOriginalData={filteredOriginalData}
+                filteredComparisonData={filteredComparisonData}
+                onFileUpload={handleComparisonFileChange}
+                onAnalyzeNetwork={handleComparisonAnalysis}
+                onToggleComparison={toggleComparisonActive}
+                onApplyComparisonFilters={applyComparisonFilters}
+                onResetComparisonFilters={resetComparisonFilters}
+              />
+            )}
           </Row>
-          {networkData && activeComparisonIndices.length > 0 && (
-            <Row className="mt-4 mb-4">
-              <Card>
-                <Card.Header>
-                  <h5 className="fw-bold">Comparison Statistics</h5>
-                </Card.Header>
-                <Card.Body>
-                  {activeComparisonIndices.map((index) => (
-                    <div key={`stats-${index}`} className="mb-4">
-                      <h6>
-                        Statistics for Comparison #{index + 1}:{" "}
-                        {comparisonData[index]?.name || ""}
-                      </h6>
-                      {(() => {
-                        const compData = comparisonNetworkData[index];
-                        const stats = calculateComparisonStats(
-                          networkData,
-                          compData
-                        );
-
-                        if (!stats)
-                          return (
-                            <p>Could not calculate comparison statistics.</p>
-                          );
-
-                        return (
-                          <Table responsive striped bordered hover>
-                            <thead>
-                              <tr>
-                                <th>Metric</th>
-                                <th>Original Network</th>
-                                <th>Comparison Network</th>
-                                <th>Difference</th>
-                                <th>Change %</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr>
-                                <td>Node Count</td>
-                                <td>{stats.originalNodeCount}</td>
-                                <td>{stats.comparisonNodeCount}</td>
-                                <td>
-                                  {stats.nodeDifference > 0
-                                    ? `+${stats.nodeDifference}`
-                                    : stats.nodeDifference}
-                                </td>
-                                <td>{stats.nodeChangePercent}%</td>
-                              </tr>
-                              <tr>
-                                <td>Edge Count</td>
-                                <td>{stats.originalLinkCount}</td>
-                                <td>{stats.comparisonLinkCount}</td>
-                                <td>
-                                  {stats.linkDifference > 0
-                                    ? `+${stats.linkDifference}`
-                                    : stats.linkDifference}
-                                </td>
-                                <td>{stats.linkChangePercent}%</td>
-                              </tr>
-                              <tr>
-                                <td>Common Nodes</td>
-                                <td colSpan="2">{stats.commonNodesCount}</td>
-                                <td colSpan="2">
-                                  {(
-                                    (stats.commonNodesCount /
-                                      stats.originalNodeCount) *
-                                    100
-                                  ).toFixed(2)}
-                                  % of original network
-                                </td>
-                              </tr>
-                            </tbody>
-                          </Table>
-                        );
-                      })()}
-                    </div>
-                  ))}
-                </Card.Body>
-              </Card>
-            </Row>
-          )}
         </div>
       )}
       {/* Node Removal Modal */}
