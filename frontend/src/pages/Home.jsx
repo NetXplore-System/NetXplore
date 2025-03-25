@@ -21,11 +21,11 @@ import {
 import { ForceGraph2D } from "react-force-graph";
 import "./Home.css";
 import { AlertBox, GraphContainer } from "./Form.style.js";
-import AnonymizationToggle from "../components/AnonymizationToggle.jsx";
 import NetworkCustomizationToolbar from "../components/NetworkCustomizationToolbar.jsx";
 import ComparisonPanel from "../components/comparison/ComparisonPanel.jsx";
 import ResearchCard from "../components/common/ResearchCard.jsx";
 import MetricsButton from "../components/common/MetricsButton.jsx";
+import ActivitySlider from "../components/common/ActivitySlider.jsx";
 
 const Home = () => {
   const [name, setName] = useState("");
@@ -1840,30 +1840,11 @@ const Home = () => {
             )}
           </Card>
           {activityFilterEnabled && (
-            <Card className="research-card mt-3">
-              <h4 className="fw-bold">Activity Threshold</h4>
-              <p>Show users with at least this many connections:</p>
-              <Form.Group>
-                <div className="d-flex align-items-center">
-                  <Form.Range
-                    min={1}
-                    max={10}
-                    value={activityThreshold}
-                    onChange={(e) => {
-                      const newThreshold = parseInt(e.target.value, 10);
-                      setActivityThreshold(newThreshold);
-                      if (activityFilterEnabled && originalNetworkData) {
-                        applyActivityFilter(newThreshold);
-                      }
-                    }}
-                    className="flex-grow-1 me-2"
-                  />
-                  <div className="activity-value-display">
-                    {activityThreshold}
-                  </div>
-                </div>
-              </Form.Group>
-            </Card>
+            <ActivitySlider
+              activityThreshold={activityThreshold}
+              setActivityThreshold={setActivityThreshold}
+              applyActivityFilter={applyActivityFilter}
+            />
           )}
 
           {uploadedFile && (
