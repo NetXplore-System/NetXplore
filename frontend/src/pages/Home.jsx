@@ -2103,22 +2103,36 @@ const Home = () => {
                             const isHighlighted =
                               node.highlighted && highlightCentralNodes;
 
-                            const color = isHighlighted
-                              ? "#ff9900"
-                              : node.color ||
-                                (selectedMetric === "PageRank Centrality"
-                                  ? "orange"
-                                  : selectedMetric === "Eigenvector Centrality"
-                                  ? "purple"
-                                  : selectedMetric === "Closeness Centrality"
-                                  ? "green"
-                                  : selectedMetric === "Betweenness Centrality"
-                                  ? "red"
-                                  : selectedMetric === "Degree Centrality"
-                                  ? "#231d81"
-                                  : node.color || "blue");
-
-                            ctx.fillStyle = color;
+                            // const color = isHighlighted
+                            //   ? "#ff9900"
+                            //   : node.color ||
+                            //     (selectedMetric === "PageRank Centrality"
+                            //       ? "orange"
+                            //       : selectedMetric === "Eigenvector Centrality"
+                            //       ? "purple"
+                            //       : selectedMetric === "Closeness Centrality"
+                            //       ? "green"
+                            //       : selectedMetric === "Betweenness Centrality"
+                            //       ? "red"
+                            //       : selectedMetric === "Degree Centrality"
+                            //       ? "#231d81"
+                            //       : node.color || "blue");
+                            const nodeColor = isHighlighted
+                            ? "#ff9900"
+                            : node.color ||
+                              (selectedMetric === "PageRank Centrality"
+                                ? "orange"
+                                : selectedMetric === "Eigenvector Centrality"
+                                ? "purple"
+                                : selectedMetric === "Closeness Centrality"
+                                ? "green"
+                                : selectedMetric === "Betweenness Centrality"
+                                ? "red"
+                                : selectedMetric === "Degree Centrality"
+                                ? "#231d81"
+                                : "blue");
+                          
+                            ctx.fillStyle = nodeColor;
                             ctx.fill();
 
                             if (isHighlighted) {
