@@ -25,6 +25,7 @@ import AnonymizationToggle from "../components/AnonymizationToggle.jsx";
 import NetworkCustomizationToolbar from "../components/NetworkCustomizationToolbar.jsx";
 import ComparisonPanel from "../components/comparison/ComparisonPanel.jsx";
 import ResearchCard from "../components/common/ResearchCard.jsx";
+import MetricsButton from "../components/common/MetricsButton.jsx";
 
 const Home = () => {
   const [name, setName] = useState("");
@@ -1891,21 +1892,13 @@ const Home = () => {
                   </h4>
                   {showMetrics && (
                     <div className="mt-2">
-                      {graphMetrics.map((metric) => (
-                        <Button
-                          key={metric}
-                          className={`metrics-item ${
-                            selectedMetric === metric ? "active" : ""
-                          }`}
-                          onClick={() => {
-                            handleToggleMetric(metric);
-                            if (metric === "Density") handleDensityMetric();
-                            if (metric === "Diameter") handleDiameterMetric();
-                          }}
-                        >
-                          {metric}
-                        </Button>
-                      ))}
+                      <MetricsButton
+                        graphMetrics={graphMetrics}
+                        selectedMetric={selectedMetric}
+                        onToggleMetric={handleToggleMetric}
+                        onDensity={handleDensityMetric}
+                        onDiameter={handleDiameterMetric}
+                      />
 
                       <Button
                         className={`metrics-item ${
