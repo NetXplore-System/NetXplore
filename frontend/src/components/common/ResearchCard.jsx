@@ -3,6 +3,7 @@ import { Row, Col, Card, Button, Form } from "react-bootstrap";
 import { Upload, Save, Trash } from "react-bootstrap-icons";
 import { AlertBox } from "../../pages/Form.style";
 import AnonymizationToggle from "../AnonymizationToggle.jsx";
+import FileUploader from "../common/FileUploader.jsx";
 
 const ResearchCard = ({
   name,
@@ -68,22 +69,13 @@ const ResearchCard = ({
             md={12}
             className="d-flex flex-column align-items-center mt-3 mt-lg-0"
           >
-            <Button className="upload-btn" onClick={handleUploadClick}>
-              <Upload size={16} /> Upload File
-            </Button>
-            <Form.Control
-              type="file"
-              accept=".txt"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              key={inputKey}
-              style={{ display: "none" }}
+            <FileUploader
+              inputKey={inputKey}
+              fileInputRef={fileInputRef}
+              handleUploadClick={handleUploadClick}
+              handleFileChange={handleFileChange}
+              message={message}
             />
-            {message && (
-              <AlertBox success={message.includes("successfully").toString()}>
-                {message}
-              </AlertBox>
-            )}
           </Col>
         </Row>
       </Form>
