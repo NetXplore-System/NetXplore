@@ -23,6 +23,10 @@ import "./Home.css";
 import { AlertBox, GraphContainer } from "./Form.style.js";
 import AnonymizationToggle from "../components/AnonymizationToggle.jsx";
 import NetworkCustomizationToolbar from "../components/NetworkCustomizationToolbar.jsx";
+import FilterForm from "../components/filters/FilterForm.jsx";
+
+
+import MetricsPanel from "../components/network/MetricsPanel.jsx";
 
 const Home = () => {
   const [name, setName] = useState("");
@@ -46,8 +50,6 @@ const Home = () => {
   const [densityValue, setDensityValue] = useState(0);
   const [showDiameter, setShowDiameter] = useState(false);
   const [diameterValue, setDiameterValue] = useState(0);
-  const [showNetworkStats, setShowNetworkStats] = useState(false);
-  const [networkStats, setNetworkStats] = useState({});
   const [minMessageLength, setMinMessageLength] = useState(10);
   const [maxMessageLength, setMaxMessageLength] = useState(100);
   const [usernameFilter, setUsernameFilter] = useState("");
@@ -79,14 +81,21 @@ const Home = () => {
   const [nodeToRemove, setNodeToRemove] = useState(null);
   const [showRemoveNodeModal, setShowRemoveNodeModal] = useState(false);
   const [activityFilterEnabled, setActivityFilterEnabled] = useState(false);
-  const [activityThreshold, setActivityThreshold] = useState(2); 
+  const [activityThreshold, setActivityThreshold] = useState(2);
   const forceGraphRef = useRef(null);
   const [networkWasRestored, setNetworkWasRestored] = useState(false);
   const [shouldFetchCommunities, setShouldFetchCommunities] = useState(false);
   const [showOnlyIntraCommunityLinks, setShowOnlyIntraCommunityLinks] =
     useState(false);
-    const [communityMap, setCommunityMap] = useState({});
+  const [communityMap, setCommunityMap] = useState({});
 
+  const [networkStats, setNetworkStats] = useState({
+    numNodes: 0,
+    numEdges: 0,
+    reciprocity: 0,
+    inDegreeMap: {},
+    outDegreeMap: {},
+  });
 
   const [visualizationSettings, setVisualizationSettings] = useState({
     colorBy: "default",
@@ -267,8 +276,6 @@ const Home = () => {
       setMessage("An error occurred during the delete operation.");
     }
   };
-
-
 
   const formatTime = (time) => {
     return time && time.length === 5 ? `${time}:00` : time;
@@ -637,62 +644,66 @@ const Home = () => {
       commonNodesCount,
     };
   };
-  
+
   const fetchCommunityData = () => {
     if (!uploadedFile) {
       setMessage("No file selected for community detection.");
       return;
     }
-  
+
     const params = buildNetworkFilterParams();
     params.append("algorithm", "louvain");
-  
+
     const url = `http://localhost:8001/analyze/communities/${uploadedFile}?${params.toString()}`;
-  
+
     console.log("Community detection URL:", url);
     fetch(url)
       .then((response) => response.json())
       .then((data) => {
         console.log("Community data returned from server:", data);
-  
+
         if (data.communities && data.nodes) {
           setCommunities(data.communities);
-  
+
           const newCommunityMap = {};
-  
+
           data.nodes.forEach((node) => {
             if (node.community !== undefined) {
               newCommunityMap[node.id.toString().trim()] = node.community;
             }
           });
-  
+
           console.log("CommunityMap:", newCommunityMap);
           setCommunityMap(newCommunityMap);
-  
+
           if (networkData && networkData.nodes) {
             const updatedNodes = networkData.nodes.map((node) => {
               const normalizedId = node.id.toString().trim();
               const community = newCommunityMap[normalizedId];
-  
+
               if (community !== undefined) {
-                console.log(`Assigning node ${node.id} to community ${community}`);
+                console.log(
+                  `Assigning node ${node.id} to community ${community}`
+                );
                 return { ...node, community };
               }
-  
+
               return node;
             });
-  
+
             setNetworkData({
               nodes: updatedNodes,
               links: networkData.links,
             });
-  
+
             setOriginalNetworkData({
               nodes: updatedNodes,
               links: networkData.links,
             });
-  
-            setMessage(`Detected ${data.communities.length} communities in the network.`);
+
+            setMessage(
+              `Detected ${data.communities.length} communities in the network.`
+            );
           }
         } else {
           setMessage("No community data returned from server.");
@@ -703,63 +714,66 @@ const Home = () => {
         console.error("Error during community detection:", err);
       });
   };
-
 
   const detectAndApplyCommunityData = () => {
     if (!uploadedFile) {
       setMessage("No file selected for community detection.");
       return;
     }
-  
+
     const params = buildNetworkFilterParams();
     params.append("algorithm", "louvain");
-  
+
     const url = `http://localhost:8001/analyze/communities/${uploadedFile}?${params.toString()}`;
-  
+
     console.log("Community detection URL:", url);
     fetch(url)
       .then((response) => response.json())
       .then((data) => {
         console.log("Community data returned from server:", data);
-  
+
         if (data.communities && data.nodes) {
           setCommunities(data.communities);
-  
+
           const newCommunityMap = {};
-  
+
           data.nodes.forEach((node) => {
             if (node.community !== undefined) {
               newCommunityMap[node.id.toString().trim()] = node.community;
             }
           });
-  
+
           console.log("CommunityMap:", newCommunityMap);
           setCommunityMap(newCommunityMap);
-  
+
           if (networkData && networkData.nodes) {
             const updatedNodes = networkData.nodes.map((node) => {
               const normalizedId = node.id.toString().trim();
               const community = newCommunityMap[normalizedId];
-  
+
               if (community !== undefined) {
-                console.log(`Assigning node ${node.id} to community ${community}`);
+                console.log(
+                  `Assigning node ${node.id} to community ${community}`
+                );
                 return { ...node, community };
               }
-  
+
               return node;
             });
-  
+
             setNetworkData({
               nodes: updatedNodes,
               links: networkData.links,
             });
-  
+
             setOriginalNetworkData({
               nodes: updatedNodes,
               links: networkData.links,
             });
-  
-            setMessage(`Detected ${data.communities.length} communities in the network.`);
+
+            setMessage(
+              `Detected ${data.communities.length} communities in the network.`
+            );
           }
         } else {
           setMessage("No community data returned from server.");
@@ -770,8 +784,7 @@ const Home = () => {
         console.error("Error during community detection:", err);
       });
   };
-  
-  
+
   const handleNetworkCustomization = (settings) => {
     setVisualizationSettings(settings);
     console.log("Applying visualization settings:", settings);
@@ -1080,6 +1093,7 @@ const Home = () => {
 
       return 20;
     };
+
     return (
       <ForceGraph2D
         graphData={processedData}
@@ -1413,47 +1427,49 @@ const Home = () => {
     });
   };
 
-
   const handleToggleCommunitiesFilter = () => {
     if (!networkData || !originalNetworkData) return;
-  
 
     if (!communityMap || Object.keys(communityMap).length === 0) {
       setMessage("Community data not found. Detecting communities...");
-      detectAndApplyCommunityData(); 
-      return; 
+      detectAndApplyCommunityData();
+      return;
     }
 
     const newState = !showOnlyIntraCommunityLinks;
     setShowOnlyIntraCommunityLinks(newState);
-  
+
     if (newState) {
       const filteredLinks = networkData.links.filter((link) => {
-        const sourceId = typeof link.source === "object" ? link.source.id : link.source;
-        const targetId = typeof link.target === "object" ? link.target.id : link.target;
-  
+        const sourceId =
+          typeof link.source === "object" ? link.source.id : link.source;
+        const targetId =
+          typeof link.target === "object" ? link.target.id : link.target;
+
         const sourceCommunity = communityMap[sourceId?.toString().trim()];
         const targetCommunity = communityMap[targetId?.toString().trim()];
-  
+
         if (sourceCommunity === undefined || targetCommunity === undefined) {
           return false;
         }
-  
+
         return sourceCommunity === targetCommunity;
       });
-  
+
       const connectedNodeIds = new Set();
       filteredLinks.forEach((link) => {
-        const sourceId = typeof link.source === "object" ? link.source.id : link.source;
-        const targetId = typeof link.target === "object" ? link.target.id : link.target;
+        const sourceId =
+          typeof link.source === "object" ? link.source.id : link.source;
+        const targetId =
+          typeof link.target === "object" ? link.target.id : link.target;
         connectedNodeIds.add(sourceId);
         connectedNodeIds.add(targetId);
       });
-  
+
       const communities = [...new Set(Object.values(communityMap))];
       const radius = 500;
       const angleStep = (2 * Math.PI) / communities.length;
-  
+
       const communityCenters = {};
       communities.forEach((community, index) => {
         const angle = index * angleStep;
@@ -1462,22 +1478,32 @@ const Home = () => {
           y: radius * Math.sin(angle),
         };
       });
-  
+
       const communityColors = [
-        "#313659", "#5f6289", "#324b4a", "#158582", "#9092bc", "#c4c6f1",
-        "#ff9800", "#4caf50", "#2196f3", "#e91e63", "#9c27b0", "#795548"
+        "#313659",
+        "#5f6289",
+        "#324b4a",
+        "#158582",
+        "#9092bc",
+        "#c4c6f1",
+        "#ff9800",
+        "#4caf50",
+        "#2196f3",
+        "#e91e63",
+        "#9c27b0",
+        "#795548",
       ];
-  
+
       const updatedNodes = networkData.nodes
         .filter((node) => connectedNodeIds.has(node.id))
         .map((node) => {
           const community = communityMap[node.id?.toString().trim()];
           const center = communityCenters[community];
           const jitter = 30;
-  
+
           return {
             ...node,
-            community, 
+            community,
             originalX: node.x,
             originalY: node.y,
             x: center.x + (Math.random() * jitter * 2 - jitter),
@@ -1485,22 +1511,28 @@ const Home = () => {
             color: communityColors[Number(community) % communityColors.length],
           };
         });
-  
+
       console.log("Updated nodes:", updatedNodes);
       console.log("Filtered links:", filteredLinks);
-  
+
       setNetworkData({
         nodes: updatedNodes,
         links: filteredLinks,
       });
-  
+
       setMessage(
-        `Showing only intra-community links and hiding isolated nodes. Removed ${networkData.links.length - filteredLinks.length} cross-community links.`
+        `Showing only intra-community links and hiding isolated nodes. Removed ${
+          networkData.links.length - filteredLinks.length
+        } cross-community links.`
       );
     } else {
       const restoredNodes = originalNetworkData.nodes.map((node) => {
         const currentNode = networkData.nodes.find((n) => n.id === node.id);
-        if (currentNode && currentNode.originalX !== undefined && currentNode.originalY !== undefined) {
+        if (
+          currentNode &&
+          currentNode.originalX !== undefined &&
+          currentNode.originalY !== undefined
+        ) {
           return {
             ...node,
             x: currentNode.originalX,
@@ -1509,15 +1541,15 @@ const Home = () => {
         }
         return node;
       });
-  
+
       setNetworkData({
         nodes: restoredNodes,
         links: originalNetworkData.links,
       });
-  
+
       setMessage("Showing all links in the network.");
     }
-  
+
     if (forceGraphRef.current) {
       setTimeout(() => {
         forceGraphRef.current.d3ReheatSimulation();
@@ -1525,7 +1557,6 @@ const Home = () => {
       }, 100);
     }
   };
-  
 
   return (
     <Container fluid className="upload-section">
@@ -1606,242 +1637,43 @@ const Home = () => {
       </Card>
 
       {uploadedFile && (
-        <div>
-          <Card className="research-card">
-            <h4 className="fw-bold d-flex justify-content-between align-items-center">
-              Research Filters
-              <Button
-                variant="link"
-                className="toggle-btn"
-                onClick={() => setShowFilters(!showFilters)}
-              >
-                {showFilters ? (
-                  <ChevronUp size={20} />
-                ) : (
-                  <ChevronDown size={20} />
-                )}
-              </Button>
-            </h4>
-            {showFilters && (
-              <div>
-                <Row className="mt-3">
-                  <Col lg={4} md={4} className="mb-3">
-                    <Form.Group>
-                      <Form.Label className="research-label">
-                        From Date:
-                      </Form.Label>
-                      <Form.Control
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="research-input"
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col lg={4} md={4} className="mb-3">
-                    <Form.Group>
-                      <Form.Label className="research-label">
-                        To Date:
-                      </Form.Label>
-                      <Form.Control
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        className="research-input"
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col lg={4} md={4} className="mb-3">
-                    <Form.Group>
-                      <Form.Label className="research-label">
-                        Start Time:
-                      </Form.Label>
-                      <Form.Control
-                        type="time"
-                        value={startTime}
-                        onChange={(e) => setStartTime(e.target.value)}
-                        className="research-input"
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col lg={4} md={4} className="mb-3">
-                    <Form.Group>
-                      <Form.Label className="research-label">
-                        End Time:
-                      </Form.Label>
-                      <Form.Control
-                        type="time"
-                        value={endTime}
-                        onChange={(e) => setEndTime(e.target.value)}
-                        className="research-input"
-                      />
-                    </Form.Group>
-                  </Col>
-
-                  <Col lg={4} md={4} className="mb-3">
-                    <Form.Group>
-                      <Form.Label className="research-label">
-                        Message Limit:
-                      </Form.Label>
-                      <Form.Control
-                        type="number"
-                        min="1"
-                        max="100"
-                        value={messageLimit}
-                        onChange={handleInputChange(setMessageLimit)}
-                        className="research-input"
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col lg={4} md={4} className="mb-3">
-                    <Form.Group>
-                      <Form.Label className="research-label">
-                        Last/First Limit:
-                      </Form.Label>
-                      <select
-                        value={limitType}
-                        onChange={(e) => setLimitType(e.target.value)}
-                        className="research-input"
-                      >
-                        <option value="first">First Messages</option>
-                        <option value="last">Last Messages</option>
-                        <option value="all">All Messages</option>
-                      </select>
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row className="mt-3">
-                  <Row className="mt-3">
-                    <Col lg={6} md={6} className="mb-3">
-                      <Form.Group>
-                        <Form.Label className="research-label">
-                          Min Message Length (Characters):
-                        </Form.Label>
-                        <Form.Control
-                          type="number"
-                          min="1"
-                          max="1000"
-                          value={minMessageLength}
-                          onChange={handleInputChange(setMinMessageLength)}
-                          className="research-input"
-                        />
-                      </Form.Group>
-                    </Col>
-                    <Col lg={6} md={6} className="mb-3">
-                      <Form.Group>
-                        <Form.Label className="research-label">
-                          Max Message Length (Characters):
-                        </Form.Label>
-                        <Form.Control
-                          type="number"
-                          min="1"
-                          max="1000"
-                          value={maxMessageLength}
-                          onChange={handleInputChange(setMaxMessageLength)}
-                          className="research-input"
-                        />
-                      </Form.Group>
-                    </Col>
-                  </Row>
-
-                  <Col lg={4} md={4} className="mb-3">
-                    <Form.Group>
-                      <Form.Label className="research-label">
-                        Keywords:
-                      </Form.Label>
-                      <Form.Control
-                        type="text"
-                        value={keywords}
-                        onChange={handleInputChange(setKeywords)}
-                        placeholder="Enter keywords, separated by commas"
-                        className="research-input"
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col lg={4} md={4} className="mb-3">
-                    <Form.Group>
-                      <Form.Label className="research-label">
-                        Filter by Username:
-                      </Form.Label>
-                      <Form.Control
-                        type="text"
-                        value={usernameFilter}
-                        onChange={(e) => setUsernameFilter(e.target.value)}
-                        placeholder="Enter username"
-                        className="research-input"
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col lg={4} md={4} className="mb-3">
-                    <Form.Group>
-                      <Form.Label className="research-label">
-                        Min Messages:
-                      </Form.Label>
-                      <Form.Control
-                        type="number"
-                        value={minMessages}
-                        onChange={(e) => setMinMessages(e.target.value)}
-                        placeholder="Enter min messages"
-                        className="research-input"
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col lg={4} md={4} className="mb-3">
-                    <Form.Group>
-                      <Form.Label className="research-label">
-                        Max Messages:
-                      </Form.Label>
-                      <Form.Control
-                        type="number"
-                        value={maxMessages}
-                        onChange={(e) => setMaxMessages(e.target.value)}
-                        placeholder="Enter max messages"
-                        className="research-input"
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col lg={4} md={4} className="mb-3">
-                    <Form.Group>
-                      <Form.Label className="research-label">
-                        Top Active Users:
-                      </Form.Label>
-                      <Form.Control
-                        type="number"
-                        value={activeUsers}
-                        onChange={(e) => setActiveUsers(e.target.value)}
-                        placeholder="Number of top active users"
-                        className="research-input"
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col lg={12} className="mb-3">
-                    <Form.Group>
-                      <Form.Label className="research-label">
-                        Specific Users:
-                      </Form.Label>
-                      <Form.Control
-                        type="text"
-                        value={selectedUsers}
-                        onChange={(e) => setSelectedUsers(e.target.value)}
-                        placeholder="Enter usernames, separated by commas"
-                        className="research-input"
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row className="align-items-center justify-content-between">
-                  <Col>
-                    <Button
-                      onClick={handleNetworkAnalysis}
-                      className="filter-btn"
-                    >
-                      Apply Filters
-                    </Button>
-                  </Col>
-                </Row>
-              </div>
-            )}
-          </Card>
+        <div>      
+          <div>
+          <FilterForm
+            startDate={startDate}
+            setStartDate={setStartDate}
+            endDate={endDate}
+            setEndDate={setEndDate}
+            startTime={startTime}
+            setStartTime={setStartTime}
+            endTime={endTime}
+            setEndTime={setEndTime}
+            messageLimit={messageLimit}
+            setMessageLimit={setMessageLimit}
+            limitType={limitType}
+            setLimitType={setLimitType}
+            minMessageLength={minMessageLength}
+            setMinMessageLength={setMinMessageLength}
+            maxMessageLength={maxMessageLength}
+            setMaxMessageLength={setMaxMessageLength}
+            keywords={keywords}
+            setKeywords={setKeywords}
+            usernameFilter={usernameFilter}
+            setUsernameFilter={setUsernameFilter}
+            minMessages={minMessages}
+            setMinMessages={setMinMessages}
+            maxMessages={maxMessages}
+            setMaxMessages={setMaxMessages}
+            activeUsers={activeUsers}
+            setActiveUsers={setActiveUsers}
+            selectedUsers={selectedUsers}
+            setSelectedUsers={setSelectedUsers}
+            isAnonymized={isAnonymized}
+            setIsAnonymized={setIsAnonymized}
+            handleNetworkAnalysis={handleNetworkAnalysis}
+          />
+        </div>
+           
           {activityFilterEnabled && (
             <Card className="research-card mt-3">
               <h4 className="fw-bold">Activity Threshold</h4>
@@ -1961,58 +1793,7 @@ const Home = () => {
                     </div>
                   )}
                 </Card>
-                <Card className="metrics-card my-2">
-                  <h4 className="fw-bold d-flex justify-content-between align-items-center">
-                    Network Metrics
-                    <Button
-                      variant="link"
-                      className="metrics-toggle"
-                      onClick={() => setShowNetworkStats(!showNetworkStats)}
-                    >
-                      {showNetworkStats ? (
-                        <ChevronUp size={20} />
-                      ) : (
-                        <ChevronDown size={20} />
-                      )}
-                    </Button>
-                  </h4>
-                  {showNetworkStats && (
-                    <div className="mt-2">
-                      <p>
-                        <strong>Nodes:</strong> {networkStats.numNodes}
-                      </p>
-                      <p>
-                        <strong>Edges:</strong> {networkStats.numEdges}
-                      </p>
-                      <p>
-                        <strong>Reciprocity:</strong> {networkStats.reciprocity}
-                      </p>
-                      <h5 className="fw-bold mt-3">Top Nodes by Degree</h5>
-                      <Table striped bordered hover size="sm">
-                        <thead>
-                          <tr>
-                            <th>Node ID</th>
-                            <th>In-Degree</th>
-                            <th>Out-Degree</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {Object.keys(networkStats.inDegreeMap || {})
-                            .slice(0, 10)
-                            .map((nodeId) => (
-                              <tr key={nodeId}>
-                                <td>{nodeId}</td>
-                                <td>{networkStats.inDegreeMap[nodeId] || 0}</td>
-                                <td>
-                                  {networkStats.outDegreeMap[nodeId] || 0}
-                                </td>
-                              </tr>
-                            ))}
-                        </tbody>
-                      </Table>
-                    </div>
-                  )}
-                </Card>
+                <MetricsPanel networkStats={networkStats} />{" "}
               </Col>
 
               {/* Graph Display */}
