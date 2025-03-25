@@ -24,9 +24,18 @@ import { AlertBox, GraphContainer } from "./Form.style.js";
 import AnonymizationToggle from "../components/AnonymizationToggle.jsx";
 import NetworkCustomizationToolbar from "../components/NetworkCustomizationToolbar.jsx";
 import FilterForm from "../components/filters/FilterForm.jsx";
-
+import NetworkGraph from "../components/network/NetworkGraph.jsx";
 
 import MetricsPanel from "../components/network/MetricsPanel.jsx";
+
+import {
+  uploadFile,
+  deleteFile,
+  saveFormToDB,
+  analyzeNetwork,
+  detectCommunities,
+  compareNetworks
+} from "../components/utils/ApiService.jsx"; 
 
 const Home = () => {
   const [name, setName] = useState("");
@@ -222,28 +231,21 @@ const Home = () => {
     setter(e.target.value);
   };
 
+
   const handleSubmit = (selectedFile) => {
     if (!selectedFile) {
       setMessage("Please select a file before uploading.");
       return;
     }
-    const formData = new FormData();
-    formData.append("file", selectedFile);
-    fetch("http://localhost:8001/upload", {
-      method: "POST",
-      body: formData,
-      headers: {
-        Accept: "application/json",
-      },
-    })
-      .then((response) => response.json())
+    
+    uploadFile(selectedFile)
       .then((data) => {
         if (data.message) {
           setMessage(data.message);
           setUploadedFile(data.filename);
         }
       })
-      .catch(() => setMessage("An error occurred during the upload."));
+      .catch((error) => setMessage(error.message));
   };
 
   const handleDelete = async () => {
@@ -251,12 +253,9 @@ const Home = () => {
       setMessage("No file selected to delete.");
       return;
     }
+    
     try {
-      const response = await fetch(
-        `http://localhost:8001/delete/${uploadedFile}`,
-        { method: "DELETE" }
-      );
-      const data = await response.json();
+      const data = await deleteFile(uploadedFile);
       if (data.success) {
         setMessage(data.message || "File deleted successfully!");
         setUploadedFile("");
@@ -273,9 +272,10 @@ const Home = () => {
         setMessage("Error: Could not delete the file.");
       }
     } catch (error) {
-      setMessage("An error occurred during the delete operation.");
+      setMessage(error.message);
     }
   };
+
 
   const formatTime = (time) => {
     return time && time.length === 5 ? `${time}:00` : time;
@@ -286,15 +286,11 @@ const Home = () => {
       setMessage("No file selected for analysis.");
       return;
     }
-
+  
     setNetworkWasRestored(false);
-
     const params = buildNetworkFilterParams();
-    const url = `http://localhost:8001/analyze/network/${uploadedFile}?${params.toString()}`;
-
-    console.log("Request URL:", url);
-    fetch(url)
-      .then((response) => response.json())
+  
+    analyzeNetwork(uploadedFile, params)
       .then((data) => {
         console.log("Data returned from server:", data);
         if (data.nodes && data.links) {
@@ -305,9 +301,8 @@ const Home = () => {
           setMessage("No data returned from server.");
         }
       })
-      .catch((err) => {
-        setMessage("An error occurred during network analysis.");
-        console.error("Error during network analysis:", err);
+      .catch((error) => {
+        setMessage(error.message);
       });
   };
 
@@ -316,6 +311,7 @@ const Home = () => {
       setMessage("Please fill in all required fields.");
       return;
     }
+    
     const formData = {
       name,
       description,
@@ -323,20 +319,14 @@ const Home = () => {
       end_date: endDate,
       message_limit: messageLimit,
     };
-    fetch("http://localhost:8001/save-form", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(formData),
-    })
-      .then((response) => response.json())
+    
+    saveFormToDB(formData)
       .then((data) => {
         if (data.message) {
           setMessage(data.message);
         }
       })
-      .catch(() => setMessage("An error occurred while saving the form."));
+      .catch((error) => setMessage(error.message));
   };
 
   const calculateNetworkStats = () => {
@@ -497,23 +487,16 @@ const Home = () => {
 
     setNetworkWasRestored(false);
   };
+ 
   const handleComparisonFileChange = (event, index) => {
     const selectedFile = event.target.files[0];
     if (!selectedFile) return;
-
+  
     const updatedFiles = [...comparisonFiles];
     updatedFiles[index] = selectedFile;
     setComparisonFiles(updatedFiles);
-
-    const formData = new FormData();
-    formData.append("file", selectedFile);
-
-    fetch("http://localhost:8001/upload", {
-      method: "POST",
-      body: formData,
-      headers: { Accept: "application/json" },
-    })
-      .then((response) => response.json())
+  
+    uploadFile(selectedFile)
       .then((data) => {
         if (data.filename) {
           const updatedData = [...comparisonData];
@@ -526,48 +509,41 @@ const Home = () => {
           console.log(`Comparison file ${index} uploaded: ${data.filename}`);
         }
       })
-      .catch(() => {
-        console.error("Error uploading comparison file");
-        setMessage("An error occurred during comparison file upload.");
+      .catch((error) => {
+        console.error('Error uploading comparison file');
+        setMessage('An error occurred during comparison file upload.');
       });
   };
-
+  
   const handleComparisonAnalysis = (index) => {
     const comparisonFile = comparisonData[index];
     if (!comparisonFile || !comparisonFile.filename) {
       setMessage("Please select a comparison file first.");
       return;
     }
-
+  
     const params = buildNetworkFilterParams();
-    const url = `http://localhost:8001/analyze/network/${
-      comparisonFile.filename
-    }?${params.toString()}`;
-
-    console.log(`Analyzing comparison file ${index}: ${url}`);
-    fetch(url)
-      .then((response) => response.json())
+    
+    analyzeNetwork(comparisonFile.filename, params)
       .then((data) => {
         console.log(`Comparison data ${index} returned:`, data);
         if (data.nodes && data.links) {
           const updatedComparisonData = [...comparisonNetworkData];
           updatedComparisonData[index] = data;
           setComparisonNetworkData(updatedComparisonData);
-
+  
           if (!activeComparisonIndices.includes(index)) {
             setActiveComparisonIndices([...activeComparisonIndices, index]);
           }
-
-          setMessage(
-            `Comparison analysis ${index + 1} completed successfully!`
-          );
+  
+          setMessage(`Comparison analysis ${index + 1} completed successfully!`);
         } else {
           setMessage(`No valid data returned for comparison ${index + 1}.`);
         }
       })
-      .catch((err) => {
+      .catch((error) => {
         setMessage(`Error analyzing comparison file ${index + 1}.`);
-        console.error(`Error during comparison analysis ${index}:`, err);
+        console.error(`Error during comparison analysis ${index}:`, error);
       });
   };
 
@@ -650,68 +626,58 @@ const Home = () => {
       setMessage("No file selected for community detection.");
       return;
     }
-
+  
     const params = buildNetworkFilterParams();
-    params.append("algorithm", "louvain");
-
-    const url = `http://localhost:8001/analyze/communities/${uploadedFile}?${params.toString()}`;
-
-    console.log("Community detection URL:", url);
-    fetch(url)
-      .then((response) => response.json())
+    
+    detectCommunities(uploadedFile, params)
       .then((data) => {
         console.log("Community data returned from server:", data);
-
+  
         if (data.communities && data.nodes) {
           setCommunities(data.communities);
-
+  
           const newCommunityMap = {};
-
+  
           data.nodes.forEach((node) => {
             if (node.community !== undefined) {
               newCommunityMap[node.id.toString().trim()] = node.community;
             }
           });
-
+  
           console.log("CommunityMap:", newCommunityMap);
           setCommunityMap(newCommunityMap);
-
+  
           if (networkData && networkData.nodes) {
             const updatedNodes = networkData.nodes.map((node) => {
               const normalizedId = node.id.toString().trim();
               const community = newCommunityMap[normalizedId];
-
+  
               if (community !== undefined) {
-                console.log(
-                  `Assigning node ${node.id} to community ${community}`
-                );
+                console.log(`Assigning node ${node.id} to community ${community}`);
                 return { ...node, community };
               }
-
+  
               return node;
             });
-
+  
             setNetworkData({
               nodes: updatedNodes,
               links: networkData.links,
             });
-
+  
             setOriginalNetworkData({
               nodes: updatedNodes,
               links: networkData.links,
             });
-
-            setMessage(
-              `Detected ${data.communities.length} communities in the network.`
-            );
+  
+            setMessage(`Detected ${data.communities.length} communities in the network.`);
           }
         } else {
           setMessage("No community data returned from server.");
         }
       })
-      .catch((err) => {
-        setMessage("An error occurred during community detection.");
-        console.error("Error during community detection:", err);
+      .catch((error) => {
+        setMessage(error.message);
       });
   };
 
@@ -720,71 +686,60 @@ const Home = () => {
       setMessage("No file selected for community detection.");
       return;
     }
-
+  
     const params = buildNetworkFilterParams();
-    params.append("algorithm", "louvain");
-
-    const url = `http://localhost:8001/analyze/communities/${uploadedFile}?${params.toString()}`;
-
-    console.log("Community detection URL:", url);
-    fetch(url)
-      .then((response) => response.json())
+    
+    detectCommunities(uploadedFile, params)
       .then((data) => {
         console.log("Community data returned from server:", data);
-
+  
         if (data.communities && data.nodes) {
           setCommunities(data.communities);
-
+  
           const newCommunityMap = {};
-
+  
           data.nodes.forEach((node) => {
             if (node.community !== undefined) {
               newCommunityMap[node.id.toString().trim()] = node.community;
             }
           });
-
+  
           console.log("CommunityMap:", newCommunityMap);
           setCommunityMap(newCommunityMap);
-
+  
           if (networkData && networkData.nodes) {
             const updatedNodes = networkData.nodes.map((node) => {
               const normalizedId = node.id.toString().trim();
               const community = newCommunityMap[normalizedId];
-
+  
               if (community !== undefined) {
-                console.log(
-                  `Assigning node ${node.id} to community ${community}`
-                );
+                console.log(`Assigning node ${node.id} to community ${community}`);
                 return { ...node, community };
               }
-
+  
               return node;
             });
-
+  
             setNetworkData({
               nodes: updatedNodes,
               links: networkData.links,
             });
-
+  
             setOriginalNetworkData({
               nodes: updatedNodes,
               links: networkData.links,
             });
-
-            setMessage(
-              `Detected ${data.communities.length} communities in the network.`
-            );
+  
+            setMessage(`Detected ${data.communities.length} communities in the network.`);
           }
         } else {
           setMessage("No community data returned from server.");
         }
       })
-      .catch((err) => {
-        setMessage("An error occurred during community detection.");
-        console.error("Error during community detection:", err);
+      .catch((error) => {
+        setMessage(error.message);
       });
   };
-
   const handleNetworkCustomization = (settings) => {
     setVisualizationSettings(settings);
     console.log("Applying visualization settings:", settings);
@@ -908,66 +863,56 @@ const Home = () => {
   };
 
   const applyComparisonFilters = () => {
-    if (
-      !originalNetworkData ||
-      activeComparisonIndices.length === 0 ||
-      !uploadedFile
-    ) {
+    if (!originalNetworkData || activeComparisonIndices.length === 0 || !uploadedFile) {
       return;
     }
+    
     const backupNetwork = { ...networkData };
     const params = buildNetworkFilterParams();
-
-    params.append("original_filename", uploadedFile);
-
+  
+    params.append('original_filename', uploadedFile);
+  
     const comparisonPromises = activeComparisonIndices.map((index) => {
       const comparisonParams = new URLSearchParams(params);
-      comparisonParams.append(
-        "comparison_filename",
-        comparisonData[index].filename
-      );
-      comparisonParams.append("node_filter", comparisonFilter);
-      comparisonParams.append("min_weight", minComparisonWeight);
-      comparisonParams.append("highlight_common", highlightCommonNodes);
-
+      comparisonParams.append('comparison_filename', comparisonData[index].filename);
+      comparisonParams.append('node_filter', comparisonFilter);
+      comparisonParams.append('min_weight', minComparisonWeight);
+      comparisonParams.append('highlight_common', highlightCommonNodes);
+  
       if (comparisonMetrics.length > 0) {
-        comparisonParams.append("metrics", comparisonMetrics.join(","));
+        comparisonParams.append('metrics', comparisonMetrics.join(','));
       }
-      return fetch(
-        `http://localhost:8001/analyze/compare-networks?${comparisonParams.toString()}`
-      ).then((response) => response.json());
+      
+      return compareNetworks(comparisonParams);
     });
-    setMessage("Processing network comparison...");
-
+    
+    setMessage('Processing network comparison...');
+  
     Promise.all(comparisonPromises)
       .then((results) => {
         if (results.some((data) => data.error)) {
           const errors = results
             .filter((data) => data.error)
             .map((data) => data.error)
-            .join(", ");
+            .join(', ');
           setMessage(`Error in comparisons: ${errors}`);
           return;
         }
+        
         setFilteredOriginalData(standardizeGraphData(results[0].original));
-
+  
         const processedComparisons = {};
         activeComparisonIndices.forEach((index, arrayIndex) => {
-          processedComparisons[index] = standardizeGraphData(
-            results[arrayIndex].comparison
-          );
+          processedComparisons[index] = standardizeGraphData(results[arrayIndex].comparison);
         });
+        
         setFilteredComparisonData(processedComparisons);
-
         setNetworkData(backupNetwork);
-
-        setMessage(
-          `${results.length} network comparisons completed successfully!`
-        );
+        setMessage(`${results.length} network comparisons completed successfully!`);
       })
       .catch((error) => {
-        console.error("Error during network comparisons:", error);
-        setMessage("An error occurred during network comparisons");
+        console.error('Error during network comparisons:', error);
+        setMessage('An error occurred during network comparisons');
       });
   };
   const resetComparisonFilters = () => {
@@ -1637,43 +1582,43 @@ const Home = () => {
       </Card>
 
       {uploadedFile && (
-        <div>      
+        <div>
           <div>
-          <FilterForm
-            startDate={startDate}
-            setStartDate={setStartDate}
-            endDate={endDate}
-            setEndDate={setEndDate}
-            startTime={startTime}
-            setStartTime={setStartTime}
-            endTime={endTime}
-            setEndTime={setEndTime}
-            messageLimit={messageLimit}
-            setMessageLimit={setMessageLimit}
-            limitType={limitType}
-            setLimitType={setLimitType}
-            minMessageLength={minMessageLength}
-            setMinMessageLength={setMinMessageLength}
-            maxMessageLength={maxMessageLength}
-            setMaxMessageLength={setMaxMessageLength}
-            keywords={keywords}
-            setKeywords={setKeywords}
-            usernameFilter={usernameFilter}
-            setUsernameFilter={setUsernameFilter}
-            minMessages={minMessages}
-            setMinMessages={setMinMessages}
-            maxMessages={maxMessages}
-            setMaxMessages={setMaxMessages}
-            activeUsers={activeUsers}
-            setActiveUsers={setActiveUsers}
-            selectedUsers={selectedUsers}
-            setSelectedUsers={setSelectedUsers}
-            isAnonymized={isAnonymized}
-            setIsAnonymized={setIsAnonymized}
-            handleNetworkAnalysis={handleNetworkAnalysis}
-          />
-        </div>
-           
+            <FilterForm
+              startDate={startDate}
+              setStartDate={setStartDate}
+              endDate={endDate}
+              setEndDate={setEndDate}
+              startTime={startTime}
+              setStartTime={setStartTime}
+              endTime={endTime}
+              setEndTime={setEndTime}
+              messageLimit={messageLimit}
+              setMessageLimit={setMessageLimit}
+              limitType={limitType}
+              setLimitType={setLimitType}
+              minMessageLength={minMessageLength}
+              setMinMessageLength={setMinMessageLength}
+              maxMessageLength={maxMessageLength}
+              setMaxMessageLength={setMaxMessageLength}
+              keywords={keywords}
+              setKeywords={setKeywords}
+              usernameFilter={usernameFilter}
+              setUsernameFilter={setUsernameFilter}
+              minMessages={minMessages}
+              setMinMessages={setMinMessages}
+              maxMessages={maxMessages}
+              setMaxMessages={setMaxMessages}
+              activeUsers={activeUsers}
+              setActiveUsers={setActiveUsers}
+              selectedUsers={selectedUsers}
+              setSelectedUsers={setSelectedUsers}
+              isAnonymized={isAnonymized}
+              setIsAnonymized={setIsAnonymized}
+              handleNetworkAnalysis={handleNetworkAnalysis}
+            />
+          </div>
+
           {activityFilterEnabled && (
             <Card className="research-card mt-3">
               <h4 className="fw-bold">Activity Threshold</h4>
@@ -1823,217 +1768,18 @@ const Home = () => {
                   <div className="graph-placeholder">
                     {networkData && (
                       <GraphContainer>
-                        <ForceGraph2D
-                          key={
-                            showDensity || showDiameter || customizedNetworkData
-                              ? "customized"
-                              : "default"
-                          }
-                          graphData={{
-                            nodes: customizedNetworkData
-                              ? customizedNetworkData.nodes
-                              : filteredNodes,
-                            links: customizedNetworkData
-                              ? customizedNetworkData.links.map((link) => {
-                                  const sourceNode =
-                                    customizedNetworkData.nodes.find(
-                                      (node) =>
-                                        (typeof link.source === "object" &&
-                                          node.id === link.source.id) ||
-                                        node.id === link.source
-                                    );
-
-                                  const targetNode =
-                                    customizedNetworkData.nodes.find(
-                                      (node) =>
-                                        (typeof link.target === "object" &&
-                                          node.id === link.target.id) ||
-                                        node.id === link.target
-                                    );
-
-                                  return {
-                                    source: sourceNode || link.source,
-                                    target: targetNode || link.target,
-                                    weight: link.weight || 1,
-                                  };
-                                })
-                              : filteredLinks.map((link) => {
-                                  const sourceNode = filteredNodes.find(
-                                    (node) =>
-                                      (typeof link.source === "object" &&
-                                        node.id === link.source.id) ||
-                                      node.id === link.source
-                                  );
-
-                                  const targetNode = filteredNodes.find(
-                                    (node) =>
-                                      (typeof link.target === "object" &&
-                                        node.id === link.target.id) ||
-                                      node.id === link.target
-                                  );
-
-                                  return {
-                                    source: sourceNode || link.source,
-                                    target: targetNode || link.target,
-                                    weight: link.weight || 1,
-                                  };
-                                }),
-                          }}
-                          width={showMetrics ? 1200 : 1500}
-                          height={500}
-                          fitView
-                          fitViewPadding={20}
-                          nodeAutoColorBy={customizedNetworkData ? null : "id"}
-                          linkWidth={(link) => Math.sqrt(link.weight || 1)}
-                          linkColor={() => "gray"}
-                          enableNodeDrag={true}
-                          cooldownTicks={100}
-                          d3AlphaDecay={0.03}
-                          d3VelocityDecay={0.2}
-                          onNodeClick={handleNodeClick}
-                          onEngineStop={() =>
-                            forceGraphRef.current?.zoomToFit(400, 100)
-                          }
-                          linkCanvasObject={(link, ctx, globalScale) => {
-                            if (!link.source || !link.target) return;
-                            ctx.beginPath();
-                            ctx.moveTo(link.source.x, link.source.y);
-                            ctx.lineTo(link.target.x, link.target.y);
-                            ctx.strokeStyle = "gray";
-                            ctx.lineWidth = Math.sqrt(link.weight || 1);
-                            ctx.stroke();
-                            const midX = (link.source.x + link.target.x) / 2;
-                            const midY = (link.source.y + link.target.y) / 2;
-                            const fontSize = 10 / globalScale;
-                            ctx.save();
-                            ctx.font = `${fontSize}px Sans-Serif`;
-                            ctx.fillStyle = "black";
-                            ctx.textAlign = "center";
-                            ctx.textBaseline = "middle";
-                            ctx.fillText(link.weight || "1", midX, midY);
-                            ctx.restore();
-                          }}
-                          nodeCanvasObject={(node, ctx, globalScale) => {
-                            const fontSize = 12 / globalScale;
-
-                            const radius =
-                              node.size ||
-                              (selectedMetric === "PageRank Centrality"
-                                ? Math.max(10, node.pagerank * 500)
-                                : selectedMetric === "Eigenvector Centrality"
-                                ? Math.max(10, node.eigenvector * 60)
-                                : selectedMetric === "Closeness Centrality"
-                                ? Math.max(10, node.closeness * 50)
-                                : selectedMetric === "Betweenness Centrality"
-                                ? Math.max(10, node.betweenness * 80)
-                                : selectedMetric === "Degree Centrality"
-                                ? Math.max(10, node.degree * 80)
-                                : 20);
-
-                            ctx.save();
-                            ctx.beginPath();
-                            ctx.arc(
-                              node.x,
-                              node.y,
-                              radius,
-                              0,
-                              2 * Math.PI,
-                              false
-                            );
-
-                            const isHighlighted =
-                              node.highlighted && highlightCentralNodes;
-
-                            const nodeColor = isHighlighted
-                              ? "#ff9900"
-                              : node.color ||
-                                (selectedMetric === "PageRank Centrality"
-                                  ? "orange"
-                                  : selectedMetric === "Eigenvector Centrality"
-                                  ? "purple"
-                                  : selectedMetric === "Closeness Centrality"
-                                  ? "green"
-                                  : selectedMetric === "Betweenness Centrality"
-                                  ? "red"
-                                  : selectedMetric === "Degree Centrality"
-                                  ? "#231d81"
-                                  : "blue");
-
-                            ctx.fillStyle = nodeColor;
-                            ctx.fill();
-
-                            if (node.isHighlightedCommunity) {
-                              ctx.save();
-                              ctx.shadowColor = "#F5BD20";
-                              ctx.shadowBlur = 15;
-                              ctx.shadowOffsetX = 0;
-                              ctx.shadowOffsetY = 0;
-                              ctx.strokeStyle = "#F5BD20";
-                              ctx.lineWidth = 2;
-                              ctx.stroke();
-                              ctx.restore();
-                            } else if (isHighlighted) {
-                              ctx.strokeStyle = "#ffff00";
-                              ctx.lineWidth = 3;
-                              ctx.stroke();
-                            }
-
-                            ctx.font = `${fontSize}px Sans-Serif`;
-                            ctx.textAlign = "center";
-                            ctx.textBaseline = "middle";
-                            ctx.fillStyle = "white";
-                            ctx.fillText(node.id, node.x, node.y);
-
-                            if (selectedMetric === "Degree Centrality") {
-                              ctx.fillStyle = "#231d81";
-                              ctx.fillText(
-                                `Deg: ${node.degree}`,
-                                node.x,
-                                node.y + radius + 5
-                              );
-                            }
-                            if (selectedMetric === "Betweenness Centrality") {
-                              ctx.fillStyle = "DarkRed";
-                              ctx.fillText(
-                                `Btw: ${node.betweenness?.toFixed(2) || 0}`,
-                                node.x,
-                                node.y + radius + 5
-                              );
-                            }
-                            if (selectedMetric === "Closeness Centrality") {
-                              ctx.fillStyle = "green";
-                              ctx.fillText(
-                                `Cls: ${node.closeness?.toFixed(2) || 0}`,
-                                node.x,
-                                node.y + radius + 5
-                              );
-                            }
-                            if (selectedMetric === "Eigenvector Centrality") {
-                              ctx.fillStyle = "purple";
-                              ctx.fillText(
-                                `Eig: ${node.eigenvector?.toFixed(4) || 0}`,
-                                node.x,
-                                node.y + radius + 5
-                              );
-                            }
-                            if (selectedMetric === "PageRank Centrality") {
-                              ctx.fillStyle = "orange";
-                              ctx.fillText(
-                                `PR: ${node.pagerank?.toFixed(4) || 0}`,
-                                node.x,
-                                node.y + radius + 5
-                              );
-                            }
-
-                            ctx.restore();
-                          }}
-                          onNodeHover={(node) => {
-                            if (node && networkWasRestored) {
-                              document.body.style.cursor = "pointer";
-                            } else {
-                              document.body.style.cursor = "default";
-                            }
-                          }}
+                        <NetworkGraph
+                          networkData={networkData}
+                          filteredNodes={filteredNodes}
+                          filteredLinks={filteredLinks}
+                          customizedNetworkData={customizedNetworkData}
+                          selectedMetric={selectedMetric}
+                          highlightCentralNodes={highlightCentralNodes}
+                          showMetrics={showMetrics}
+                          visualizationSettings={visualizationSettings}
+                          handleNodeClick={handleNodeClick}
+                          networkWasRestored={networkWasRestored}
+                          forceGraphRef={forceGraphRef}
                         />
                       </GraphContainer>
                     )}
