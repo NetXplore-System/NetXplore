@@ -14,6 +14,7 @@ import {
   ChevronUp,
   ChevronLeft,
   ChevronRight,
+  FileBarGraph,
 } from "react-bootstrap-icons";
 import { ForceGraph2D } from "react-force-graph";
 import "./Home.css";
@@ -23,6 +24,7 @@ import ComparisonPanel from "../components/comparison/ComparisonPanel.jsx";
 import ResearchCard from "../components/common/ResearchCard.jsx";
 import MetricsButton from "../components/common/MetricsButton.jsx";
 import ActivitySlider from "../components/common/ActivitySlider.jsx";
+import NetworkDataTable from "../components/NetworkDataTable.jsx";
 import useComparison from "../hooks/useComparison.jsx";
 import useFilters from "../hooks/useFilters.jsx";
 
@@ -50,7 +52,7 @@ const Home = () => {
   const [customizedNetworkData, setCustomizedNetworkData] = useState(null);
   const [highlightCentralNodes, setHighlightCentralNodes] = useState(false);
   const [selectedNode, setSelectedNode] = useState(null);
-  const [nodeToRemove, setNodeToRemove] = useState(null);
+  const [showDataTable, setShowDataTable] = useState(false);
   const [showRemoveNodeModal, setShowRemoveNodeModal] = useState(false);
   const [activityFilterEnabled, setActivityFilterEnabled] = useState(false);
   const [activityThreshold, setActivityThreshold] = useState(2);
@@ -381,16 +383,6 @@ const Home = () => {
       inDegreeMap,
       outDegreeMap,
     });
-  };
-
-  const calculateNodeDegree = (nodes, links) => {
-    const degreeMap = {};
-    nodes.forEach((node) => (degreeMap[node.id] = 0));
-    links.forEach((link) => {
-      degreeMap[link.source] += 1;
-      degreeMap[link.target] += 1;
-    });
-    return nodes.map((node) => ({ ...node, degree: degreeMap[node.id] || 0 }));
   };
 
   const handleToggleMetric = (metric) => {
@@ -1637,6 +1629,13 @@ const Home = () => {
                         onDensity={handleDensityMetric}
                         onDiameter={handleDiameterMetric}
                       />
+                      <Button
+                        className="metrics-item"
+                        onClick={() => setShowDataTable(!showDataTable)}
+                        variant={showDataTable ? "primary" : "outline-primary"}
+                      >
+                        <FileBarGraph className="me-1" /> Explore Data Table
+                      </Button>
 
                       <Button
                         className={`metrics-item ${
@@ -1714,6 +1713,7 @@ const Home = () => {
                       <p>
                         <strong>Reciprocity:</strong> {networkStats.reciprocity}
                       </p>
+
                       <h5 className="fw-bold mt-3">Top Nodes by Degree</h5>
                       <Table striped bordered hover size="sm">
                         <thead>
@@ -1985,6 +1985,12 @@ const Home = () => {
                     )}
                   </div>
                 </Card>
+                {showDataTable && networkData && (
+                  <NetworkDataTable
+                    networkData={networkData}
+                    onClose={() => setShowDataTable(false)}
+                  />
+                )}
               </Col>
             </Row>
           )}
