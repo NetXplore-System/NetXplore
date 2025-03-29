@@ -10,9 +10,6 @@ import {
   Card,
 } from "react-bootstrap";
 import {
-  Upload,
-  Save,
-  Trash,
   ChevronDown,
   ChevronUp,
   ChevronLeft,
@@ -20,12 +17,13 @@ import {
 } from "react-bootstrap-icons";
 import { ForceGraph2D } from "react-force-graph";
 import "./Home.css";
-import { AlertBox, GraphContainer } from "./Form.style.js";
+import { GraphContainer } from "./Form.style.js";
 import NetworkCustomizationToolbar from "../components/NetworkCustomizationToolbar.jsx";
 import ComparisonPanel from "../components/comparison/ComparisonPanel.jsx";
 import ResearchCard from "../components/common/ResearchCard.jsx";
 import MetricsButton from "../components/common/MetricsButton.jsx";
 import ActivitySlider from "../components/common/ActivitySlider.jsx";
+import useComparison from "../hooks/useComparison.jsx";
 
 const Home = () => {
   const [name, setName] = useState("");
@@ -64,17 +62,6 @@ const Home = () => {
   const [limitType, setLimitType] = useState("first");
   const [originalNetworkData, setOriginalNetworkData] = useState(null);
   const [strongConnectionsActive, setStrongConnectionsActive] = useState(false);
-  const [comparisonCount, setComparisonCount] = useState(1);
-  const [comparisonFiles, setComparisonFiles] = useState([]);
-  const [comparisonData, setComparisonData] = useState([]);
-  const [activeComparisonIndices, setActiveComparisonIndices] = useState([]);
-  const [comparisonNetworkData, setComparisonNetworkData] = useState([]);
-  const [comparisonFilter, setComparisonFilter] = useState("");
-  const [minComparisonWeight, setMinComparisonWeight] = useState(1);
-  const [comparisonMetrics, setComparisonMetrics] = useState([]);
-  const [highlightCommonNodes, setHighlightCommonNodes] = useState(false);
-  const [filteredOriginalData, setFilteredOriginalData] = useState(null);
-  const [filteredComparisonData, setFilteredComparisonData] = useState({});
   const [communities, setCommunities] = useState([]);
   const [customizedNetworkData, setCustomizedNetworkData] = useState(null);
   const [highlightCentralNodes, setHighlightCentralNodes] = useState(false);
@@ -89,7 +76,26 @@ const Home = () => {
   const [showOnlyIntraCommunityLinks, setShowOnlyIntraCommunityLinks] =
     useState(false);
   const [communityMap, setCommunityMap] = useState({});
-
+  const {
+    comparisonCount,
+    comparisonFiles,
+    comparisonData,
+    activeComparisonIndices,
+    comparisonNetworkData,
+    filteredOriginalData,
+    filteredComparisonData,
+    comparisonFilter,
+    minComparisonWeight,
+    comparisonMetrics,
+    highlightCommonNodes,
+    addComparison,
+    handleComparisonFileChange,
+    toggleComparisonActive,
+    analyzeComparisonNetwork,
+    applyComparisonFilters,
+    resetComparisonFilters,
+    calculateComparisonStats,
+  } = useComparison(originalNetworkData, uploadedFile);
   const [visualizationSettings, setVisualizationSettings] = useState({
     colorBy: "default",
     sizeBy: "default",
@@ -174,11 +180,6 @@ const Home = () => {
       setMessageLimit(50);
       setKeywords("");
       setInputKey(Date.now());
-      setComparisonNetworkData([]);
-      setComparisonData([]);
-      setComparisonFiles([]);
-      setComparisonCount(1);
-      setActiveComparisonIndices([]);
       if (forceGraphRef.current) {
         forceGraphRef.current.zoomToFit(400, 100);
       }
@@ -478,164 +479,6 @@ const Home = () => {
       setNetworkData({ nodes: filteredNodes, links: filteredLinks });
       setStrongConnectionsActive(true);
     }
-  };
-  const toggleComparisonActive = (index) => {
-    if (activeComparisonIndices.includes(index)) {
-      setActiveComparisonIndices(
-        activeComparisonIndices.filter((i) => i !== index)
-      );
-    } else {
-      setActiveComparisonIndices([...activeComparisonIndices, index]);
-    }
-
-    setNetworkWasRestored(false);
-  };
-  const handleComparisonFileChange = (event, index) => {
-    const selectedFile = event.target.files[0];
-    if (!selectedFile) return;
-
-    const updatedFiles = [...comparisonFiles];
-    updatedFiles[index] = selectedFile;
-    setComparisonFiles(updatedFiles);
-
-    const formData = new FormData();
-    formData.append("file", selectedFile);
-
-    fetch("http://localhost:8001/upload", {
-      method: "POST",
-      body: formData,
-      headers: { Accept: "application/json" },
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.filename) {
-          const updatedData = [...comparisonData];
-          updatedData[index] = {
-            id: index,
-            filename: data.filename,
-            name: selectedFile.name,
-          };
-          setComparisonData(updatedData);
-          console.log(`Comparison file ${index} uploaded: ${data.filename}`);
-        }
-      })
-      .catch(() => {
-        console.error("Error uploading comparison file");
-        setMessage("An error occurred during comparison file upload.");
-      });
-  };
-
-  const handleComparisonAnalysis = (index) => {
-    const comparisonFile = comparisonData[index];
-    if (!comparisonFile || !comparisonFile.filename) {
-      setMessage("Please select a comparison file first.");
-      return;
-    }
-
-    const params = buildNetworkFilterParams();
-    const url = `http://localhost:8001/analyze/network/${
-      comparisonFile.filename
-    }?${params.toString()}`;
-
-    console.log(`Analyzing comparison file ${index}: ${url}`);
-    fetch(url)
-      .then((response) => response.json())
-      .then((data) => {
-        console.log(`Comparison data ${index} returned:`, data);
-        if (data.nodes && data.links) {
-          const updatedComparisonData = [...comparisonNetworkData];
-          updatedComparisonData[index] = data;
-          setComparisonNetworkData(updatedComparisonData);
-
-          if (!activeComparisonIndices.includes(index)) {
-            setActiveComparisonIndices([...activeComparisonIndices, index]);
-          }
-
-          setMessage(
-            `Comparison analysis ${index + 1} completed successfully!`
-          );
-        } else {
-          setMessage(`No valid data returned for comparison ${index + 1}.`);
-        }
-      })
-      .catch((err) => {
-        setMessage(`Error analyzing comparison file ${index + 1}.`);
-        console.error(`Error during comparison analysis ${index}:`, err);
-      });
-  };
-
-  // const renderComparisonGraph = (index) => {
-  //   const compData = comparisonNetworkData[index];
-  //   if (!compData || !compData.nodes || !compData.links) {
-  //     return <div>No data available for this comparison</div>;
-  //   }
-
-  //   const filteredNodes = compData.nodes.filter((node) =>
-  //     node.id.toLowerCase().includes(filter.toLowerCase())
-  //   );
-
-  //   const filteredLinks = compData.links.filter(
-  //     (link) =>
-  //       filteredNodes.some(
-  //         (node) =>
-  //           node.id === link.source ||
-  //           (typeof link.source === "object" && node.id === link.source.id)
-  //       ) &&
-  //       filteredNodes.some(
-  //         (node) =>
-  //           node.id === link.target ||
-  //           (typeof link.target === "object" && node.id === link.target.id)
-  //       )
-  //   );
-  // };
-
-  const calculateComparisonStats = (originalData, comparisonData) => {
-    if (!originalData || !comparisonData) {
-      return null;
-    }
-
-    const originalNodeCount = originalData.nodes.length;
-    const comparisonNodeCount = comparisonData.nodes.length;
-    const originalLinkCount = originalData.links.length;
-    const comparisonLinkCount = comparisonData.links.length;
-
-    const nodeDifference = comparisonNodeCount - originalNodeCount;
-    const linkDifference = comparisonLinkCount - originalLinkCount;
-
-    const nodeChangePercent = originalNodeCount
-      ? (
-          ((comparisonNodeCount - originalNodeCount) / originalNodeCount) *
-          100
-        ).toFixed(2)
-      : 0;
-    const linkChangePercent = originalLinkCount
-      ? (
-          ((comparisonLinkCount - originalLinkCount) / originalLinkCount) *
-          100
-        ).toFixed(2)
-      : 0;
-
-    const originalNodeIds = new Set(originalData.nodes.map((node) => node.id));
-    const comparisonNodeIds = new Set(
-      comparisonData.nodes.map((node) => node.id)
-    );
-
-    const commonNodes = [...originalNodeIds].filter((id) =>
-      comparisonNodeIds.has(id)
-    );
-    const commonNodesCount = commonNodes.length;
-
-    return {
-      originalNodeCount,
-      comparisonNodeCount,
-      originalLinkCount,
-      comparisonLinkCount,
-      nodeDifference,
-      linkDifference,
-      nodeChangePercent,
-      linkChangePercent,
-      commonNodesCount,
-    };
   };
 
   const fetchCommunityData = () => {
@@ -1471,86 +1314,6 @@ const Home = () => {
       }, 100);
     }
   };
-  const applyComparisonFilters = (filters) => {
-    if (
-      !originalNetworkData ||
-      activeComparisonIndices.length === 0 ||
-      !uploadedFile
-    ) {
-      return;
-    }
-
-    const backupNetwork = { ...networkData };
-    const params = buildNetworkFilterParams();
-
-    params.append("original_filename", uploadedFile);
-
-    const comparisonPromises = activeComparisonIndices.map((index) => {
-      const comparisonParams = new URLSearchParams(params);
-      comparisonParams.append(
-        "comparison_filename",
-        comparisonData[index].filename
-      );
-      comparisonParams.append("node_filter", filters.comparisonFilter);
-      comparisonParams.append("min_weight", filters.minComparisonWeight);
-      comparisonParams.append("highlight_common", filters.highlightCommonNodes);
-
-      if (filters.comparisonMetrics.length > 0) {
-        comparisonParams.append("metrics", filters.comparisonMetrics.join(","));
-      }
-      return fetch(
-        `http://localhost:8001/analyze/compare-networks?${comparisonParams.toString()}`
-      ).then((response) => response.json());
-    });
-
-    setMessage("Processing network comparison...");
-
-    Promise.all(comparisonPromises)
-      .then((results) => {
-        if (results.some((data) => data.error)) {
-          const errors = results
-            .filter((data) => data.error)
-            .map((data) => data.error)
-            .join(", ");
-          setMessage(`Error in comparisons: ${errors}`);
-          return;
-        }
-
-        const processedOriginal = standardizeGraphData(results[0].original);
-
-        if (filters.comparisonMetrics && filters.comparisonMetrics.length > 0) {
-          ensureMetricsData(processedOriginal, filters.comparisonMetrics);
-        }
-
-        setFilteredOriginalData(processedOriginal);
-
-        const processedComparisons = {};
-        activeComparisonIndices.forEach((index, arrayIndex) => {
-          const processedComparison = standardizeGraphData(
-            results[arrayIndex].comparison
-          );
-
-          if (
-            filters.comparisonMetrics &&
-            filters.comparisonMetrics.length > 0
-          ) {
-            ensureMetricsData(processedComparison, filters.comparisonMetrics);
-          }
-
-          processedComparisons[index] = processedComparison;
-        });
-
-        setFilteredComparisonData(processedComparisons);
-        setNetworkData(backupNetwork);
-        setMessage(
-          `${results.length} network comparisons completed successfully!`
-        );
-      })
-      .catch((error) => {
-        console.error("Error during network comparisons:", error);
-        setMessage("An error occurred during network comparisons");
-      });
-  };
 
   const ensureMetricsData = (graphData, metrics) => {
     if (!graphData || !graphData.nodes || !graphData.links) {
@@ -1580,10 +1343,6 @@ const Home = () => {
     }
   };
 
-  const resetComparisonFilters = () => {
-    setFilteredOriginalData(null);
-    setFilteredComparisonData({});
-  };
   return (
     <Container fluid className="upload-section">
       {/* Research Upload */}
@@ -2243,10 +2002,34 @@ const Home = () => {
                 filteredOriginalData={filteredOriginalData}
                 filteredComparisonData={filteredComparisonData}
                 onFileUpload={handleComparisonFileChange}
-                onAnalyzeNetwork={handleComparisonAnalysis}
+                onAnalyzeNetwork={(index) => {
+                  analyzeComparisonNetwork(
+                    index,
+                    buildNetworkFilterParams()
+                  ).then((result) => {
+                    if (result.message) {
+                      setMessage(result.message);
+                    }
+                  });
+                }}
                 onToggleComparison={toggleComparisonActive}
-                onApplyComparisonFilters={applyComparisonFilters}
+                onApplyComparisonFilters={(filters) => {
+                  const filtersWithNetworkParams = {
+                    ...filters,
+                    networkFilterParams: buildNetworkFilterParams(),
+                  };
+
+                  applyComparisonFilters(filtersWithNetworkParams).then(
+                    (result) => {
+                      if (result.message) {
+                        setMessage(result.message);
+                      }
+                    }
+                  );
+                }}
                 onResetComparisonFilters={resetComparisonFilters}
+                addComparison={addComparison}
+                comparisonCount={comparisonCount}
               />
             )}
           </Row>

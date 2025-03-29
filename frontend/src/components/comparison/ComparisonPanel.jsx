@@ -16,11 +16,12 @@ const ComparisonPanel = ({
   onToggleComparison,
   onApplyComparisonFilters,
   onResetComparisonFilters,
+  addComparison,
+  comparisonCount,
 }) => {
-  const [comparisonCount, setComparisonCount] = useState(1);
 
   const handleAddComparison = () => {
-    setComparisonCount(comparisonCount + 1);
+    addComparison();
   };
 
   return (
