@@ -24,6 +24,7 @@ import ResearchCard from "../components/common/ResearchCard.jsx";
 import MetricsButton from "../components/common/MetricsButton.jsx";
 import ActivitySlider from "../components/common/ActivitySlider.jsx";
 import useComparison from "../hooks/useComparison.jsx";
+import useFilters from "../hooks/useFilters.jsx";
 
 const Home = () => {
   const [name, setName] = useState("");
@@ -34,13 +35,7 @@ const Home = () => {
   const [uploadedFile, setUploadedFile] = useState("");
   const [chartData, setChartData] = useState(null);
   const [networkData, setNetworkData] = useState(null);
-  const [filter, setFilter] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [messageLimit, setMessageLimit] = useState(50);
-  const [keywords, setKeywords] = useState("");
   const [inputKey, setInputKey] = useState(Date.now());
-  const [showFilters, setShowFilters] = useState(true);
   const [showMetrics, setShowMetrics] = useState(true);
   const [selectedMetric, setSelectedMetric] = useState(null);
   const [showDensity, setShowDensity] = useState(false);
@@ -49,17 +44,6 @@ const Home = () => {
   const [diameterValue, setDiameterValue] = useState(0);
   const [showNetworkStats, setShowNetworkStats] = useState(false);
   const [networkStats, setNetworkStats] = useState({});
-  const [minMessageLength, setMinMessageLength] = useState(10);
-  const [maxMessageLength, setMaxMessageLength] = useState(100);
-  const [usernameFilter, setUsernameFilter] = useState("");
-  const [minMessages, setMinMessages] = useState("");
-  const [maxMessages, setMaxMessages] = useState("");
-  const [activeUsers, setActiveUsers] = useState("");
-  const [selectedUsers, setSelectedUsers] = useState("");
-  const [isAnonymized, setIsAnonymized] = useState(false);
-  const [endTime, setEndTime] = useState("");
-  const [startTime, setStartTime] = useState("");
-  const [limitType, setLimitType] = useState("first");
   const [originalNetworkData, setOriginalNetworkData] = useState(null);
   const [strongConnectionsActive, setStrongConnectionsActive] = useState(false);
   const [communities, setCommunities] = useState([]);
@@ -96,6 +80,47 @@ const Home = () => {
     resetComparisonFilters,
     calculateComparisonStats,
   } = useComparison(originalNetworkData, uploadedFile);
+  const filters = useFilters();
+  const {
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    startTime,
+    setStartTime,
+    endTime,
+    setEndTime,
+    messageLimit,
+    setMessageLimit,
+    limitType,
+    setLimitType,
+    minMessageLength,
+    setMinMessageLength,
+    maxMessageLength,
+    setMaxMessageLength,
+    keywords,
+    setKeywords,
+    usernameFilter,
+    setUsernameFilter,
+    minMessages,
+    setMinMessages,
+    maxMessages,
+    setMaxMessages,
+    activeUsers,
+    setActiveUsers,
+    selectedUsers,
+    setSelectedUsers,
+    isAnonymized,
+    setIsAnonymized,
+    showFilters,
+    setShowFilters,
+    filter,
+    setFilter,
+    buildNetworkFilterParams,
+    formatTime,
+    resetFilters,
+    handleInputChange,
+  } = filters;
   const [visualizationSettings, setVisualizationSettings] = useState({
     colorBy: "default",
     sizeBy: "default",
@@ -174,11 +199,11 @@ const Home = () => {
       setFile(null);
       setChartData(null);
       setNetworkData(null);
-      setFilter("");
-      setStartDate("");
-      setEndDate("");
-      setMessageLimit(50);
-      setKeywords("");
+      filters.setFilter("");
+      filters.setStartDate("");
+      filters.setEndDate("");
+      filters.setMessageLimit(50);
+      filters.setKeywords("");
       setInputKey(Date.now());
       if (forceGraphRef.current) {
         forceGraphRef.current.zoomToFit(400, 100);
@@ -210,10 +235,6 @@ const Home = () => {
 
   const handleUploadClick = () => {
     fileInputRef.current.click();
-  };
-
-  const handleInputChange = (setter) => (e) => {
-    setter(e.target.value);
   };
 
   const handleSubmit = (selectedFile) => {
@@ -257,11 +278,11 @@ const Home = () => {
         setFile(null);
         setChartData(null);
         setNetworkData(null);
-        setFilter("");
-        setStartDate("");
-        setEndDate("");
-        setMessageLimit(50);
-        setKeywords("");
+        filters.setFilter("");
+        filters.setStartDate("");
+        filters.setEndDate("");
+        filters.setMessageLimit(50);
+        filters.setKeywords("");
         setInputKey(Date.now());
       } else {
         setMessage("Error: Could not delete the file.");
@@ -269,10 +290,6 @@ const Home = () => {
     } catch (error) {
       setMessage("An error occurred during the delete operation.");
     }
-  };
-
-  const formatTime = (time) => {
-    return time && time.length === 5 ? `${time}:00` : time;
   };
 
   const handleNetworkAnalysis = () => {
@@ -283,7 +300,7 @@ const Home = () => {
 
     setNetworkWasRestored(false);
 
-    const params = buildNetworkFilterParams();
+    const params = filters.buildNetworkFilterParams();
     const url = `http://localhost:8001/analyze/network/${uploadedFile}?${params.toString()}`;
 
     console.log("Request URL:", url);
@@ -487,7 +504,7 @@ const Home = () => {
       return;
     }
 
-    const params = buildNetworkFilterParams();
+    const params = filters.buildNetworkFilterParams();
     params.append("algorithm", "louvain");
 
     const url = `http://localhost:8001/analyze/communities/${uploadedFile}?${params.toString()}`;
@@ -557,7 +574,7 @@ const Home = () => {
       return;
     }
 
-    const params = buildNetworkFilterParams();
+    const params = filters.buildNetworkFilterParams();
     params.append("algorithm", "louvain");
 
     const url = `http://localhost:8001/analyze/communities/${uploadedFile}?${params.toString()}`;
@@ -768,26 +785,7 @@ const Home = () => {
       links: standardizedLinks,
     };
   };
-  const buildNetworkFilterParams = () => {
-    const params = new URLSearchParams();
-    if (startDate) params.append("start_date", startDate);
-    if (endDate) params.append("end_date", endDate);
-    if (messageLimit) params.append("limit", messageLimit);
-    if (minMessageLength) params.append("min_length", minMessageLength);
-    if (maxMessageLength) params.append("max_length", maxMessageLength);
-    if (keywords) params.append("keywords", keywords);
-    if (usernameFilter) params.append("username", usernameFilter);
-    if (minMessages) params.append("min_messages", minMessages);
-    if (maxMessages) params.append("max_messages", maxMessages);
-    if (activeUsers) params.append("active_users", activeUsers);
-    if (selectedUsers) params.append("selected_users", selectedUsers);
-    if (startTime) params.append("start_time", formatTime(startTime));
-    if (endTime) params.append("end_time", formatTime(endTime));
-    if (limitType) params.append("limit_type", limitType);
-    params.append("anonymize", isAnonymized ? "true" : "false");
 
-    return params;
-  };
   const renderForceGraph = (
     graphData,
     width,
