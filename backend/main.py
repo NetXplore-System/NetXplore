@@ -25,6 +25,7 @@ import logging
 import json
 
 load_dotenv()
+origins = os.getenv("ALLOWED_ORIGINS", "").split(",")
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
@@ -36,7 +37,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://alpha-frontend-4rmx.onrender.com"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
