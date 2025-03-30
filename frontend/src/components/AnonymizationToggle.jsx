@@ -24,7 +24,7 @@ const ToggleInput = styled.input`
   transition: 0.3s;
 
   &:checked {
-    background: #4caf50;
+    background: #050d2d;
   }
 
   &::before {

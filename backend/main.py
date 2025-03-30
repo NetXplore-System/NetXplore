@@ -1,33 +1,29 @@
+from fastapi import FastAPI, HTTPException, File, UploadFile, Query, Depends, Request, BackgroundTasks, Form  # type: ignore      
+from fastapi.middleware.cors import CORSMiddleware  # type: ignore
+from fastapi.responses import JSONResponse  # type: ignore
+from fastapi.security import OAuth2PasswordBearer  # type: ignore
 import json
 import logging
 import os
-import re
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
-
-import bcrypt
-import community as community_louvain
-import networkx as nx
-import networkx.algorithms.community as nx_community
-import requests
-from bs4 import BeautifulSoup
+import community.community_louvain as community_louvain
+# from community import best_partition, modularity  # type: ignore        
+import networkx as nx  # type: ignore
+import networkx.algorithms.community as nx_community  # type: ignore
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, UploadFile, Query, Depends, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from fastapi.security import OAuth2PasswordBearer
-from jose import jwt, JWTError
+from jose import jwt, JWTError  # type: ignore
 from pydantic import BaseModel, EmailStr, Field
-from requests import Session
-from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import FastAPI, HTTPException, Depends
-import bcrypt
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-
+from sqlalchemy.ext.asyncio import AsyncSession  # type: ignore
+import bcrypt  # type: ignore
+from sqlalchemy.future import select # type: ignore
+from database import verify_connection
+import asyncio 
 import database
-from models import User
+from typing import List, Optional
+from models import User, Research, ResearchFilter, NetworkAnalysis, Message
+from utils import extract_messages, anonymize_name
 
 load_dotenv()
 
@@ -38,11 +34,19 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 UPLOAD_FOLDER = "./uploads/"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+
 app = FastAPI()
+
+@app.on_event("startup")
+async def startup():
+    await verify_connection()
+    async with database.engine.begin() as conn:
+        await conn.run_sync(database.Base.metadata.create_all)
+
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173", "http://127.0.0.1:3000", "*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -61,7 +65,6 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
-
 class UserUpdate(BaseModel):
     name: str = Field(None)
     email: EmailStr = Field(None)
@@ -72,6 +75,7 @@ class OAuthUser(BaseModel):
     name: str
     email: str
     avatar: str
+
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
@@ -99,6 +103,7 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
+
 @app.get("/protected")
 async def protected_route(current_user: dict = Depends(get_current_user)):
     """
@@ -107,65 +112,80 @@ async def protected_route(current_user: dict = Depends(get_current_user)):
     return {"message": f"Hello, user {current_user['user_id']}"}
 
 
+
 @app.post("/api/auth/google")
-async def google_auth(user: OAuthUser):
+async def google_auth(user: OAuthUser, db: AsyncSession = Depends(database.get_db)):
     """
     Authenticates user using Google OAuth.
     """
-    users_collection = database.get_db().users
-    existing_user = await users_collection.find_one({"email": user.email})
+    async with db as session:
+        # Check if user exists
+        stmt = select(User).where(User.email == user.email)
+        result = await session.execute(stmt)
+        existing_user = result.scalars().first()
 
-    if existing_user:
-        token = create_access_token(data={"user_id": existing_user["user_id"]})
+        if existing_user:
+            token = create_access_token(data={"user_id": str(existing_user.user_id)})
+            return {
+                "access_token": token,
+                "token_type": "bearer",
+                "user": {
+                    "id": str(existing_user.user_id),
+                    "name": existing_user.name,
+                    "email": existing_user.email,
+                    "avatar": existing_user.avatar or "https://cdn-icons-png.flaticon.com/512/64/64572.png"
+                },
+            }
+
+        # Create new user
+        user_id = str(uuid4())
+        new_user = User(
+            user_id=user_id, 
+            name=user.name, 
+            email=user.email, 
+            avatar=user.avatar,
+            password=None  # OAuth users don't have passwords
+        )
+        session.add(new_user)
+        await session.commit()
+        await session.refresh(new_user)
+
+        token = create_access_token(data={"user_id": str(new_user.user_id)})
         return {
             "access_token": token,
             "token_type": "bearer",
             "user": {
-                "id": existing_user["user_id"],
-                "name": existing_user["name"],
-                "email": existing_user["email"],
-                "avatar": existing_user.get("avatar", "https://cdn-icons-png.flaticon.com/512/64/64572.png")
+                "id": str(new_user.user_id), 
+                "name": new_user.name, 
+                "email": new_user.email, 
+                "avatar": new_user.avatar
             },
         }
-
-    user_id = str(uuid4())
-    new_user = {"user_id": user_id, "name": user.name, "email": user.email, "avatar": user.avatar}
-    await users_collection.insert_one(new_user)
-
-    token = create_access_token(data={"user_id": user_id})
-    return {
-        "access_token": token,
-        "token_type": "bearer",
-        "user": {"id": user_id, "name": user.name, "email": user.email, "avatar": user.avatar},
-    }
-
-
-app = FastAPI()
 
 
 @app.post("/register")
 async def register_user(user: UserCreate, db: AsyncSession = Depends(database.get_db)):
     """Registers a new user."""
     async with db as session:
-        async with session.begin():
+        # async with session.begin():
             # Check if email already exists
-            stmt = select(User).where(User.email == user.email)
-            result = await session.execute(stmt)
-            existing_user = result.scalars().first()
+        stmt = select(User).where(User.email == user.email)
+        result = await session.execute(stmt)
+        existing_user = result.scalars().first()
 
-            if existing_user:
-                raise HTTPException(status_code=400, detail="Email already exists")
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Email already exists")
 
-            # Hash the password
-            hashed_password = bcrypt.hashpw(user.password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+        # Hash the password
+        hashed_password = bcrypt.hashpw(user.password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
-            # Create and save the new user
-            new_user = User(name=user.name, email=user.email, password=hashed_password)
-            session.add(new_user)
-            await session.commit()
-            await session.refresh(new_user)
+        # Create and save the new user
+        new_user = User(name=user.name, email=user.email, password=hashed_password)
+        session.add(new_user)
+        await session.commit()
+        await session.refresh(new_user)
 
-            return {"id": str(new_user.user_id), "name": new_user.name, "email": new_user.email}
+        return {"id": str(new_user.user_id), "name": new_user.name, "email": new_user.email}
 
 
 @app.post("/login")
@@ -209,28 +229,28 @@ async def get_all_users(db: AsyncSession = Depends(database.get_db)):
 async def update_user(user_id: str, user_update: UserUpdate, db: AsyncSession = Depends(database.get_db)):
     """Updates a user's details."""
     async with db as session:
-        async with session.begin():
-            user = await session.get(User, user_id)
-            if not user:
-                raise HTTPException(status_code=404, detail="User not found")
+        # async with session.begin():
+        user = await session.get(User, user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
 
-            update_data = user_update.dict(exclude_unset=True)
-            if "password" in update_data:
-                update_data["password"] = bcrypt.hashpw(update_data["password"].encode("utf-8"), bcrypt.gensalt()).decode(
-                    "utf-8")
+        update_data = user_update.dict(exclude_unset=True)
+        if "password" in update_data:
+            update_data["password"] = bcrypt.hashpw(update_data["password"].encode("utf-8"), bcrypt.gensalt()).decode(
+                "utf-8")
 
-            for key, value in update_data.items():
-                setattr(user, key, value)
+        for key, value in update_data.items():
+            setattr(user, key, value)
 
-            await session.commit()
-            await session.refresh(user)
+        await session.commit()
+        await session.refresh(user)
 
-            return {
-                "id": str(user.user_id),
-                "name": user.name,
-                "email": user.email,
-                "avatar": user.avatar or "https://cdn-icons-png.flaticon.com/512/64/64572.png"
-            }
+        return {
+            "id": str(user.user_id),
+            "name": user.name,
+            "email": user.email,
+            "avatar": user.avatar or "https://cdn-icons-png.flaticon.com/512/64/64572.png"
+        }
 
 
 @app.delete("/users/{user_id}")
@@ -248,7 +268,11 @@ async def delete_user(user_id: str, db: AsyncSession = Depends(database.get_db))
 
 
 @app.post("/upload-avatar")
-async def upload_avatar(file: UploadFile = File(...), token: str = Depends(oauth2_scheme)):
+async def upload_avatar(
+    file: UploadFile = File(...), 
+    token: str = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(database.get_db)
+):
     """
     Uploads a new avatar for the authenticated user.
     """
@@ -265,31 +289,45 @@ async def upload_avatar(file: UploadFile = File(...), token: str = Depends(oauth
         avatar_file.write(await file.read())
 
     avatar_url = f"/static/avatars/{avatar_filename}"
-    users_collection = await database.get_db().get_collection("users")
-    await users_collection.update_one({"user_id": current_user["user_id"]}, {"$set": {"avatar": avatar_url}})
+    
+    async with db as session:
+        user = await session.get(User, current_user["user_id"])
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        user.avatar = avatar_url
+        await session.commit()
+    
     return {"avatarUrl": avatar_url}
 
 
-@app.delete("/users/{user_id}")
-async def delete_user(user_id: str):
-    users_collection = database.get_db()["users"]
 
-    result = await users_collection.delete_one({"user_id": user_id})
-
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    return {"message": "User deleted successfully"}
-
-
+async def delayed_file_processing(filename: str):
+    """Executes 120 seconds after file upload"""
+    await asyncio.sleep(120)
+    
+    # Add your custom processing logic here
+    print(f"Processing file {filename} after 2 minutes")
+    # Example: Move file to permanent storage
+    # Example: Run analysis and save results
+    
 @app.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(
+    file: UploadFile = File(...),
+    background_tasks: BackgroundTasks = BackgroundTasks
+):
     try:
         file_path = os.path.join(UPLOAD_FOLDER, file.filename)
         with open(file_path, "wb") as f:
             f.write(await file.read())
-        return JSONResponse(content={"message": "File uploaded successfully!", "filename": file.filename},
-                            status_code=200)
+        
+        # Add delayed task
+        background_tasks.add_task(delayed_file_processing, file.filename)
+        
+        return JSONResponse(
+            content={"message": "File uploaded successfully!", "filename": file.filename},
+            status_code=200
+        )
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
@@ -307,24 +345,7 @@ async def delete_file(filename: str):
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
 
-def anonymize_name(name, anonymized_map):
-    if name.startswith("\u202a+972") or name.startswith("+972"):
-        name = f"Phone_{len(anonymized_map) + 1}"
-    if name not in anonymized_map:
-        anonymized_map[name] = f"User_{len(anonymized_map) + 1}"
-    return anonymized_map[name]
 
-
-def parse_datetime(date: str, time: str):
-    """Parses date & time from the request query and ensures HH:MM:SS format."""
-    if not date:
-        return None
-    if time and len(time) == 5:
-        time += ":00"
-    try:
-        return datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M:%S")
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid time format: {time} - {e}")
 
 
 @app.get("/analyze/network/{filename}")
@@ -381,15 +402,27 @@ async def analyze_network(
 
         filtered_lines = []
         for line in lines:
+            print(f"🔹 Line: {line}")
             if line.startswith("[") and "]" in line:
                 date_part = line.split("] ")[0].strip("[]")
                 try:
                     current_datetime = datetime.strptime(date_part, "%d.%m.%Y, %H:%M:%S")
                 except ValueError:
                     continue
+                
+                if "~" not in line:
+                    # print(f"🔹 Line: {line}")
+                    continue
+                if "צירפת את" in line or "הצטרף/ה" in line or "צירף/ה" in line or "התמונה הושמטה" in line or "צורפת על ידי" in line or "הודעה זו נמחקה" in line or "הקבוצה נוצרה על ידי" in line:
+                    continue
 
                 if ((start_datetime and current_datetime >= start_datetime) or not start_datetime) and \
                         ((end_datetime and current_datetime <= end_datetime) or not end_datetime):
+                    filtered_lines.append(line)
+            else:
+                if filtered_lines:
+                    filtered_lines[-1] += line
+                else:
                     filtered_lines.append(line)
 
         print(f"🔹 Found {len(filtered_lines)} messages in the date range.")
@@ -413,7 +446,7 @@ async def analyze_network(
                     parts = message_part.split(":", 1)
                     sender = parts[0].strip("~").replace("\u202a", "").strip()
                     message_content = parts[1].strip() if len(parts) > 1 else ""
-
+                    print(f"🔹 Sender: {sender}, Message: {message_content}")
                     message_length = len(message_content)
                     if (min_length and message_length < min_length) or (max_length and message_length > max_length):
                         continue
@@ -506,46 +539,14 @@ async def analyze_network(
                     "weight": weight
                 })
 
-        print(f"Final nodes: {nodes_list}")
-        print(f"Final links with weights: {links_list}")
+        # print(f"Final nodes: {nodes_list}")
+        # print(f"Final links with weights: {links_list}")
 
         return JSONResponse(content={"nodes": nodes_list, "links": links_list}, status_code=200)
     except Exception as e:
         print("Error:", e)
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
-
-@app.get("/analyze/comparison/{filename}")
-async def analyze_comparison(
-        filename: str,
-        start_date: str = Query(None),
-        start_time: str = Query(None),
-        end_date: str = Query(None),
-        end_time: str = Query(None),
-        limit: int = Query(None),
-        limit_type: str = Query("first"),
-        min_length: int = Query(None),
-        max_length: int = Query(None),
-        keywords: str = Query(None),
-        min_messages: int = Query(None),
-        max_messages: int = Query(None),
-        active_users: int = Query(None),
-        selected_users: str = Query(None),
-        username: str = Query(None),
-        anonymize: bool = Query(False)
-):
-    result = await analyze_network(
-        filename, start_date, start_time, end_date, end_time, limit, limit_type,
-        min_length, max_length, keywords, min_messages, max_messages,
-        active_users, selected_users, username, anonymize
-    )
-
-    if hasattr(result, 'body'):
-        content = json.loads(result.body)
-    else:
-        content = result
-
-    return JSONResponse(content={**content, "filename": filename}, status_code=200)
 
 
 def apply_comparison_filters(network_data, node_filter, min_weight):
@@ -824,136 +825,110 @@ async def analyze_communities(
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
 
-@app.post("/save-form")
-async def save_form(data: dict):
-    """
-    Save form data into the Research_user collection in MongoDB.
-    """
+class NetworkAnalysisData(BaseModel):
+    nodes: List[dict]
+    links: List[dict]
+    metric_name: Optional[str] = None
+
+@app.post("/save-research")
+async def save_research(
+    file_name: str = Form(...),
+    research_name: str = Form(...),
+    description: Optional[str] = Form(None),
+    selected_metric: str = Form(None),
+    start_date: str = Query(None),
+    end_date: str = Query(None),
+    start_time: str = Query(None),
+    end_time: str = Query(None),
+    limit: int = Query(None),
+    limit_type: str = Query("first"),
+    min_length: int = Query(None),
+    max_length: int = Query(None),
+    keywords: str = Query(None),
+    min_messages: int = Query(None),
+    max_messages: int = Query(None),
+    active_users: int = Query(None),
+    selected_users: str = Query(None),
+    username: str = Query(None),
+    anonymize: bool = Query(False),
+    algorithm: str = Query("louvain"),
+    # network_analysis: List[NetworkAnalysisData] = Form(...),
+    db: AsyncSession = Depends(database.get_db)
+):
+    
+
     try:
-        db = database.get_db()
-        research_collection = db["Research_user"]
 
-        form_data = {
-            "name": data.get("name"),
-            "description": data.get("description"),
-            "start_date": data.get("start_date"),
-            "end_date": data.get("end_date"),
-            "message_limit": data.get("message_limit"),
-            "created_at": datetime.utcnow(),
-        }
+        file_path = os.path.join(UPLOAD_FOLDER, file_name)
+        if not os.path.exists(file_path):
+            return JSONResponse(content={"error": f"File '{file_name}' not found."}, status_code=404)
+        
+        with open(file_path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
 
-        result = await research_collection.insert_one(form_data)
+        data = await extract_messages(lines, start_date, end_date, start_time, end_time, limit, limit_type, min_length, max_length, keywords, min_messages, max_messages, active_users, selected_users, username, anonymize)
 
-        return {"message": "Form saved successfully", "id": str(result.inserted_id)}
+        print(f"🔹 Messages: {data['messages']}")
+        return JSONResponse(content={"data": data}, status_code=200)
+        new_research = Research(
+            research_name=research_name,
+            description=description,
+            # created_at=datetime.datetime.utcnow()
+        )
+        db.add(new_research)
+        await db.commit()
+        await db.refresh(new_research)
+
+        for message in data["messages"]:
+            new_message = Message(
+                research_id=new_research.research_id,
+                message_text=message[1],
+                send_by=message[0],
+                # created_at=datetime.datetime.utcnow()
+            )
+            db.add(new_message)
+        await db.commit()
+
+
+        new_filter = ResearchFilter(
+            research_id=new_research.research_id,
+            start_date=start_date,
+            end_date=end_date,
+            start_time=start_time,  
+            end_time=end_time,
+            message_limit=limit,
+            limit_type=limit_type,
+            min_message_length=min_length,
+            max_message_length=max_length,
+            keywords=keywords,
+            min_messages=min_messages,
+            max_messages=max_messages,
+            top_active_users=active_users,
+            selected_users=selected_users,
+            filter_by_username=username,
+            anonymize=anonymize,
+            algorithm=algorithm
+        )
+        db.add(new_filter) 
+
+        new_analysis = NetworkAnalysis(
+            research_id=new_research.research_id,
+            nodes=data['nodes'],
+            links=data['links'],
+            is_connected=data['is_connected'],
+            metric_name=selected_metric
+        )
+        db.add(new_analysis)
+        await db.commit()
+
+        return {"message": "Data saved successfully", "research_id": str(new_research.research_id)}
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error saving form: {str(e)}")
+        print(f"Error saving data: {e}")
+        raise HTTPException(status_code=500, detail=f"Error saving data: {str(e)}")
 
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-@app.post("/fetch-wikipedia-data")
-async def fetch_wikipedia_data(request: Request):
-    data = await request.json()
-    logger.info(f"JSON Received: {data}")
-
-    url = data.get("url")
-    if not url:
-        raise HTTPException(status_code=400, detail="Missing Wikipedia URL")
-
-    try:
-        response = requests.get(url, headers={"User-Agent": "NetXplore-Bot/1.0"})
-        response.raise_for_status()
-        page_content = response.text
-        logger.info("Wikipedia page fetched successfully!")
-    except requests.RequestException as e:
-        logger.error(f"Error fetching Wikipedia page with requests: {e}")
-        raise HTTPException(status_code=500, detail=f"Error fetching Wikipedia page: {str(e)}")
-
-    soup = BeautifulSoup(page_content, "html.parser")
-
-    discussion_container = soup.find("div", class_="mw-parser-output")
-
-    if not discussion_container:
-        logger.warning("Could not find discussion container. Trying with Selenium...")
-
-        options = webdriver.ChromeOptions()
-        options.add_argument("--headless")
-        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-
-        try:
-            driver.get(url)
-            time.sleep(3)
-            page_content = driver.page_source
-            soup = BeautifulSoup(page_content, "html.parser")
-            discussion_container = soup.find("div", class_="mw-parser-output")
-        finally:
-            driver.quit()
-
-        if not discussion_container:
-            logger.error("Failed to fetch discussion container even with Selenium!")
-            raise HTTPException(status_code=404, detail="Discussion content not found.")
-
-    logger.info(f"Found discussion container with {len(discussion_container.find_all())} elements")
-
-    discussion_blocks = discussion_container.find_all(["p", "ul", "li", "div"])
-
-    messages = []
-    participants = set()
-
-    for block in discussion_blocks:
-        text = block.get_text(strip=True)
-        if len(text) < 10:
-            continue
-        username = None
-
-        user_links = block.find_all("a", href=True)
-        for link in user_links:
-            href = link["href"]
-            if "/wiki/משתמש:" in href or "/wiki/User:" in href:
-                username = link.get_text(strip=True)
-                participants.add(username)
-                break
-
-        if not username:
-            bold_text = block.find("b") or block.find("strong")
-            if bold_text:
-                username = bold_text.get_text(strip=True)
-                participants.add(username)
-
-        if username:
-            indentation_level = len(re.match(r"^[:]*", text).group(0))
-            messages.append({"user": username, "text": text, "level": indentation_level})
-
-    logger.info(f"Extracted {len(messages)} messages from discussion.")
-
-    G = nx.DiGraph()
-
-    for user in participants:
-        G.add_node(user, group=1)
-
-    prev_user = None
-    for message in messages:
-        current_user = message["user"]
-
-        if prev_user and prev_user != current_user:
-            if G.has_edge(prev_user, current_user):
-                G[prev_user][current_user]["weight"] += 1
-            else:
-                G.add_edge(prev_user, current_user, weight=1)
-
-        prev_user = current_user
-
-    nodes_list = [{"id": node, "group": 1} for node in G.nodes()]
-    links_list = [{"source": source, "target": target, "weight": data["weight"]} for source, target, data in
-                  G.edges(data=True)]
-
-    if not messages:
-        logger.warning("No messages found in the discussion!")
-
-    return {
-        "nodes": nodes_list,
-        "links": links_list,
-        "messages": messages
-    }

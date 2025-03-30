@@ -24,66 +24,122 @@ class User(Base):
         }
 
 
+class Message(Base):
+    __tablename__ = "messages"
+
+    message_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    research_id = Column(UUID(as_uuid=True), ForeignKey("research.research_id"), nullable=False)
+    message_text = Column(String, nullable=False)
+    send_by = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": str(self.message_id),
+            "message_text": self.message_text,
+            "send_by": self.send_by,
+            "created_at": self.created_at.isoformat() if self.created_at else None
+        }
+
+
 class Research(Base):
     __tablename__ = "research"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name = Column(String, nullable=False)
-    description = Column(Text, nullable=True)
-    start_date = Column(String, nullable=True)  # Store as string to match original format
-    end_date = Column(String, nullable=True)  # Store as string to match original format
-    message_limit = Column(Integer, nullable=True)
+    research_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    research_name = Column(String, nullable=False)
+    description = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=True)
 
     def to_dict(self):
-        return {
-            "id": str(self.id),
-            "name": self.name,
+        return { 
+            "id": str(self.research_id),
+            "research_name": self.research_name,
             "description": self.description,
-            "start_date": self.start_date,
-            "end_date": self.end_date,
-            "message_limit": self.message_limit,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "user_id": str(self.user_id) if self.user_id else None
         }
 
 
-class UploadedFile(Base):
-    __tablename__ = "uploaded_files"
+class ResearchFilter(Base):
+    __tablename__ = "research_filters"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    filename = Column(String, nullable=False)
-    original_filename = Column(String, nullable=False)
-    file_path = Column(String, nullable=False)
-    file_type = Column(String, nullable=False)
-    uploaded_at = Column(DateTime, default=datetime.utcnow)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=True)
-    research_id = Column(UUID(as_uuid=True), ForeignKey("research.id"), nullable=True)
+    filter_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    research_id = Column(UUID(as_uuid=True), ForeignKey("research.research_id"), nullable=False)
+    start_date = Column(String)
+    end_date = Column(String)
+    start_time = Column(String)
+    end_time = Column(String)
+    message_limit = Column(Integer)
+    limit_type = Column(String)
+    min_message_length = Column(Integer)
+    max_message_length = Column(Integer)
+    keywords = Column(String)
+    filter_by_username = Column(String)
+    min_messages = Column(Integer)
+    max_messages = Column(Integer)
+    selected_users = Column(String)
+    top_active_users = Column(Integer)
+    anonymize = Column(Boolean, default=False)
+    algorithm = Column(String)
 
     def to_dict(self):
         return {
-            "id": str(self.id),
-            "filename": self.filename,
-            "original_filename": self.original_filename,
-            "file_path": self.file_path,
-            "file_type": self.file_type,
-            "uploaded_at": self.uploaded_at.isoformat() if self.uploaded_at else None,
-            "user_id": str(self.user_id) if self.user_id else None,
-            "research_id": str(self.research_id) if self.research_id else None
+            "filter_id": str(self.filter_id),
+            "research_id": str(self.research_id),
+            "start_date": self.start_date,
+            "end_date": self.end_date,
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+            "message_limit": self.message_limit,
+            "min_message_length": self.min_message_length,
+            "max_message_length": self.max_message_length,
+            "keywords": self.keywords,
+            "filter_by_username": self.filter_by_username,
+            "min_messages": self.min_messages,
+            "max_messages": self.max_messages,
+            "specific_users": self.specific_users,
+            "top_active_users": self.top_active_users
         }
+
+
+# class UploadedFile(Base):
+#     __tablename__ = "saved_files"
+
+#     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+#     filename = Column(String, nullable=False)
+#     original_filename = Column(String, nullable=False)
+#     file_path = Column(String, nullable=False)
+#     file_type = Column(String, nullable=False)
+#     uploaded_at = Column(DateTime, default=datetime.utcnow)
+#     user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=True)
+#     research_id = Column(UUID(as_uuid=True), ForeignKey("research.id"), nullable=True)
+
+#     def to_dict(self):
+#         return {
+#             "id": str(self.id),
+#             "filename": self.filename,
+#             "original_filename": self.original_filename,
+#             "file_path": self.file_path,
+#             "file_type": self.file_type,
+#             "uploaded_at": self.uploaded_at.isoformat() if self.uploaded_at else None,
+#             "user_id": str(self.user_id) if self.user_id else None,
+#             "research_id": str(self.research_id) if self.research_id else None
+#         }
 
 
 class NetworkAnalysis(Base):
     __tablename__ = "network_analysis"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    research_id = Column(UUID(as_uuid=True), ForeignKey("research.id"), nullable=True)
-    file_id = Column(UUID(as_uuid=True), ForeignKey("uploaded_files.id"), nullable=True)
+    research_id = Column(UUID(as_uuid=True), ForeignKey("research.research_id"), nullable=True)
+    # file_id = Column(UUID(as_uuid=True), ForeignKey("saved_files.id"), nullable=True)
     nodes = Column(JSONB, nullable=False)  # Store nodes as JSON
     links = Column(JSONB, nullable=False)  # Store links as JSON
     created_at = Column(DateTime, default=datetime.utcnow)
-    parameters = Column(JSONB, nullable=True)  # Store analysis parameters as JSON
+    metric_name = Column(String, nullable=True)  
+    is_connected = Column(Boolean, default=True)
+    # parameters = Column(JSONB, nullable=True)  # Store analysis parameters as JSON
 
     def to_dict(self):
         return {
@@ -93,28 +149,29 @@ class NetworkAnalysis(Base):
             "nodes": self.nodes,
             "links": self.links,
             "created_at": self.created_at.isoformat() if self.created_at else None,
-            "parameters": self.parameters
+            "metric_name": self.metric_name,
+            # "parameters": self.parameters
         }
 
 
-class Community(Base):
-    __tablename__ = "communities"
+# class Community(Base):
+#     __tablename__ = "communities"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    analysis_id = Column(UUID(as_uuid=True), ForeignKey("network_analysis.id"), nullable=False)
-    community_index = Column(Integer, nullable=False)
-    size = Column(Integer, nullable=False)
-    nodes = Column(JSONB, nullable=False)  # Store node IDs as JSON array
-    avg_betweenness = Column(Float, nullable=True)
-    avg_pagerank = Column(Float, nullable=True)
+#     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+#     analysis_id = Column(UUID(as_uuid=True), ForeignKey("network_analysis.id"), nullable=False)
+#     community_index = Column(Integer, nullable=False)
+#     size = Column(Integer, nullable=False)
+#     nodes = Column(JSONB, nullable=False)  # Store node IDs as JSON array
+#     avg_betweenness = Column(Float, nullable=True)
+#     avg_pagerank = Column(Float, nullable=True)
 
-    def to_dict(self):
-        return {
-            "id": str(self.id),
-            "analysis_id": str(self.analysis_id),
-            "community_index": self.community_index,
-            "size": self.size,
-            "nodes": self.nodes,
-            "avg_betweenness": self.avg_betweenness,
-            "avg_pagerank": self.avg_pagerank
-        }
+#     def to_dict(self):
+#         return {
+#             "id": str(self.id),
+#             "analysis_id": str(self.analysis_id),
+#             "community_index": self.community_index,
+#             "size": self.size,
+#             "nodes": self.nodes,
+#             "avg_betweenness": self.avg_betweenness,
+#             "avg_pagerank": self.avg_pagerank
+#         }

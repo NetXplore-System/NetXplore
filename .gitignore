@@ -48,3 +48,5 @@ build/
 
 #folder upload
 /backend/uploads/
+
+.specstory/

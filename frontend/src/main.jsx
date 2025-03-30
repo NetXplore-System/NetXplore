@@ -1,3 +1,11 @@
+import 'aframe';
+
+if (!window.AFRAME) {
+  window.AFRAME = require('aframe');
+}
+
+console.log("AFRAME loaded:", window.AFRAME);
+
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Provider } from "react-redux";

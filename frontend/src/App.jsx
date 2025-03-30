@@ -12,13 +12,39 @@ import Menu from "./components/Menu/Menu.jsx";
 import HomeW from "./pages/HomeW.jsx";
 // import UploadWhatsAppFile from "./pages/Form.jsx";
 import ChoosePlatform from "./pages/ChoosePlatform.jsx";
-
+import { Toaster } from "react-hot-toast";
 function App() {
   const [isOpen, setIsOpen] = useState(false);
   const user = localStorage.getItem("user");
 
   return (
     <BrowserRouter>
+      <Toaster
+        position="top-center"
+        reverseOrder={false}
+        gutter={8}
+        containerClassName=""
+        containerStyle={{}}
+        toastOptions={{
+          // Define default options
+          className: '',
+          duration: 5000,
+          removeDelay: 1000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+
+          // Default options for specific types
+          success: {
+            duration: 3000,
+            iconTheme: {
+              primary: 'green',
+              secondary: 'black',
+            },
+          },
+        }}
+      />
       <Menu isOpen={isOpen} setIsOpen={setIsOpen} />
       <Header isOpen={isOpen} />
       {/* {user && <Header isOpen={isOpen} />} */}
