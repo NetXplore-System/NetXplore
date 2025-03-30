@@ -1,11 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Bar } from "react-chartjs-2";
 import {
   Container,
   Row,
   Col,
-  Form,
-  Table,
   Button,
   Card,
 } from "react-bootstrap";
