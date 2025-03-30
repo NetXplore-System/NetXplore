@@ -1,5 +1,4 @@
-// apiService.jsx
-const BASE_URL = 'http://localhost:8001';
+const BASE_URL = 'https://alpha-backend-831n.onrender.com';
 
 export const uploadFile = async (file) => {
   try {
