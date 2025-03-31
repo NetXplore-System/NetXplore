@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { BASE_URL } from "../components/utils/ApiService.jsx";
 
 const useComparison = (originalNetworkData, uploadedFile) => {
   const [comparisonCount, setComparisonCount] = useState(1);
@@ -41,7 +42,7 @@ const useComparison = (originalNetworkData, uploadedFile) => {
     formData.append("file", selectedFile);
 
     try {
-      const response = await fetch("http://localhost:8001/upload", {
+      const response = await fetch(`${BASE_URL}/upload`, {
         method: "POST",
         body: formData,
         headers: { Accept: "application/json" },
@@ -91,7 +92,7 @@ const useComparison = (originalNetworkData, uploadedFile) => {
       };
     }
 
-    const url = `http://localhost:8001/analyze/network/${
+    const url = `${BASE_URL}/analyze/network/${
       comparisonFile.filename
     }?${filterParams.toString()}`;
 
@@ -230,9 +231,8 @@ const useComparison = (originalNetworkData, uploadedFile) => {
           "comparison_filename",
           comparisonData[index].filename
         );
-
         return fetch(
-          `http://localhost:8001/analyze/compare-networks?${comparisonParams.toString()}`
+          `${BASE_URL}/analyze/compare-networks?${comparisonParams.toString()}`
         ).then((response) => response.json());
       });
 
