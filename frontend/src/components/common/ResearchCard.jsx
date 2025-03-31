@@ -4,6 +4,9 @@ import { Upload, Save, Trash } from "react-bootstrap-icons";
 import { AlertBox } from "../../pages/Form.style";
 import AnonymizationToggle from "../AnonymizationToggle.jsx";
 import FileUploader from "../common/FileUploader.jsx";
+import MyResearchReport from "../utils/ResearchReport.jsx";
+import useFilters  from "../../hooks/useFilters.jsx";
+
 
 const ResearchCard = ({
   name,
@@ -18,7 +21,12 @@ const ResearchCard = ({
   handleFileChange,
   inputKey,
   message,
+  handleSave,
+  showDownload,
+  setShowDownload,
+  networkData,
 }) => {
+  const { buildNetworkFilterParams } = useFilters();
   return (
     <Card className="research-card">
       <Form>
@@ -27,7 +35,16 @@ const ResearchCard = ({
             <h4 className="fw-bold">New Research</h4>
           </Col>
           <Col className="text-end">
-            <Button className="action-btn me-2">
+          {networkData && (
+                <Button className="action-btn me-2" onClick={() => setShowDownload(!showDownload)}>
+                  {/* <Download size={16} /> */}
+                  Export Report
+                </Button>
+              )}
+          {showDownload && (
+                <MyResearchReport name={name} description={description} params={buildNetworkFilterParams()}  setShowDownload={setShowDownload} />
+              )}
+            <Button onClick={handleSave} className="action-btn me-2">
               <Save size={16} /> Save
             </Button>
             <Button onClick={handleDelete} className="action-btn delete-btn">
