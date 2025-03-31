@@ -13,6 +13,7 @@ import {
   ChevronRight,
   FileBarGraph,
 } from "react-bootstrap-icons";
+import { toast } from "react-hot-toast";
 import { ForceGraph2D } from "react-force-graph";
 import "./Home.css";
 import { GraphContainer } from "./Form.style.js";
@@ -26,7 +27,7 @@ import useComparison from "../hooks/useComparison.jsx";
 import useFilters from "../hooks/useFilters.jsx";
 import FilterForm from "../components/filters/FilterForm.jsx";
 import NetworkGraph from "../components/network/NetworkGraph.jsx";
-
+import { saveToDB } from "../components/utils/save.js";
 import MetricsPanel from "../components/network/MetricsPanel.jsx";
 
 import {
@@ -39,6 +40,7 @@ import {
 } from "../components/utils/ApiService.jsx"; 
 
 const Home = () => {
+  const [showDownload, setShowDownload] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [file, setFile] = useState(null);
@@ -320,26 +322,33 @@ const Home = () => {
 };
 
   const handleSaveToDB = () => {
-    if (!name || !description) {
-      setMessage("Please fill in all required fields.");
+
+    const params = filters.buildNetworkFilterParams();
+    if (!name || !description || !uploadedFile || !params ) {
+      toast.error("Please fill in all required fields.");
       return;
     }
+    saveToDB(name, description, uploadedFile, params, selectedMetric);
+    // if (!name || !description) {
+    //   setMessage("Please fill in all required fields.");
+    //   return;
+    // }
     
-    const formData = {
-      name,
-      description,
-      start_date: startDate,
-      end_date: endDate,
-      message_limit: messageLimit,
-    };
+    // const formData = {
+    //   name,
+    //   description,
+    //   start_date: startDate,
+    //   end_date: endDate,
+    //   message_limit: messageLimit,
+    // };
     
-    saveFormToDB(formData)
-      .then((data) => {
-        if (data.message) {
-          setMessage(data.message);
-        }
-      })
-      .catch((error) => setMessage(error.message));
+    // saveFormToDB(formData)
+    //   .then((data) => {
+    //     if (data.message) {
+    //       setMessage(data.message);
+    //     }
+    //   })
+    //   .catch((error) => setMessage(error.message));
   };
 
   const calculateNetworkStats = () => {
@@ -1355,6 +1364,10 @@ const Home = () => {
         handleFileChange={handleFileChange}
         inputKey={inputKey}
         message={message}
+        handleSave={handleSaveToDB}
+        showDownload={showDownload}
+        setShowDownload={setShowDownload}
+        networkData={networkData ? true : false}
       />
 
       {uploadedFile && (
