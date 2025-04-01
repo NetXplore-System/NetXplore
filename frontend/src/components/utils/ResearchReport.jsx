@@ -1,9 +1,10 @@
 import { Page, Text, View, Document, StyleSheet, PDFDownloadLink, Font, Image } from '@react-pdf/renderer';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './style.css';
 import { toast } from 'react-hot-toast';
 import { useSelector } from 'react-redux';
 import MetricsButton from '../common/MetricsButton';
+import html2canvas from 'html2canvas';
 
 Font.register({
     family: 'Roboto',
@@ -99,26 +100,67 @@ const styles = StyleSheet.create({
         fontWeight: 'semibold',
     },
     graphSection: {
-            marginVertical: 15,
-            padding: 10,
-            backgroundColor: '#FFF',
-            borderRadius: 8,
-            border: '1px solid #E0E0E0',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-        },
-        graphTitle: {
-            fontSize: 14,
-            color: '#158582',
-            marginBottom: 8,
-            fontWeight: 'semibold',
-        },
-        graphImage: {
-            width: '100%',
-            height: 300,
-            borderRadius: 4,
-            marginTop: 10,
-            border: '1px solid #EEE',
-        },
+        marginVertical: 15,
+        padding: 10,
+        backgroundColor: '#FFF',
+        borderRadius: 8,
+        border: '1px solid #E0E0E0',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+    },
+    graphTitle: {
+        fontSize: 14,
+        color: '#158582',
+        marginBottom: 8,
+        fontWeight: 'semibold',
+    },
+    graphImage: {
+        width: '100%',
+        height: 300,
+        borderRadius: 4,
+        marginTop: 10,
+        border: '1px solid #EEE',
+    },
+    comparisonImage: {
+        width: '45%',
+        height: 200,
+        marginHorizontal: 10,
+        borderRadius: 4,
+        border: '1px solid #EEE',
+    },
+    comparisonImagesContainer: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        marginVertical: 10,
+    },
+    comparisonTable: {
+        width: '100%',
+        marginTop: 15,
+        marginBottom: 15,
+    },
+    tableRow: {
+        flexDirection: 'row',
+        borderBottomWidth: 1,
+        borderBottomColor: '#DDD',
+        backgroundColor: '#FFF',
+    },
+    tableHeader: {
+        width: '20%',
+        padding: 8,
+        backgroundColor: '#F5F5F5',
+        fontSize: 10,
+        fontWeight: 'bold',
+        color: '#333',
+        textAlign: 'center',
+        borderBottom: 1,
+        borderBottomColor: '#DDD',
+    },
+    tableCell: {
+        width: '20%',
+        padding: 8,
+        fontSize: 10,
+        textAlign: 'center',
+        color: '#444',
+    },
     footer: {
         position: 'absolute',
         bottom: 30,
@@ -141,95 +183,153 @@ const styles = StyleSheet.create({
 
 // Create Document Component
 const ResearchReport = ({ research }) => {
-    const canvas = document.querySelector('canvas');
-    const imageData = canvas?.toDataURL('image/png');
-    console.log(imageData);
+    const canvas = document.querySelectorAll('canvas');
+
     return (
-    <Document>
-        <Page style={styles.page}>
-            {/* Header Section */}
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>Research Report</Text>
-                {/* <Text style={styles.dateText}>Date: {research.date}</Text> */}
-            </View>
-            {imageData && (
+        <Document>
+            <Page style={styles.page}>
+                {/* Header Section */}
+                <View style={styles.header}>
+                    <Text style={styles.headerTitle}>Research Report</Text>
+                </View>
+                {canvas?.[0] && (
                     <View style={styles.graphSection}>
                         <Text style={styles.graphTitle}>Network Graph Visualization</Text>
                         <Image
                             style={styles.graphImage}
-                            src={imageData}
+                            src={canvas[0].toDataURL('image/png')}
                         />
                         <Text style={styles.imageCaption}>
                             Fig. 1: Visual representation of the analyzed network structure
                         </Text>
                     </View>
                 )}
-            {/* Research Info Section */}
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Research Information</Text>
-                <View style={styles.row}>
-                    <Text style={styles.label}>Research Name:</Text>
-                    <Text style={styles.value}>{research.name}</Text>
-                </View>
-                <View style={styles.row}>
-                    <Text style={styles.label}>Researcher:</Text>
-                    <Text style={styles.value}>{research.researcherName}</Text>
-                </View>
-                <View style={styles.metricHighlight}>
+                {/* Research Info Section */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Research Information</Text>
+                    <View style={styles.row}>
+                        <Text style={styles.label}>Research Name:</Text>
+                        <Text style={styles.value}>{research.name}</Text>
+                    </View>
+                    <View style={styles.row}>
+                        <Text style={styles.label}>Researcher:</Text>
+                        <Text style={styles.value}>{research.researcherName}</Text>
+                    </View>
+                    <View style={styles.metricHighlight}>
                         <Text style={styles.metricText}>
                             Primary Analysis Metric: {research.metric || 'No specific metric selected'}
                         </Text>
                     </View>
-            </View>
-
-            {/* Filters Section */}
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Applied Filters</Text>
-                <View style={styles.filtersContainer}>
-                    {research.filters.map((filter, index) => (
-                        <Text key={index} style={styles.filterItem}>
-                            {filter}
-                        </Text>
-                    ))}
                 </View>
-            </View>
 
-            {/* Conclusion Section */}
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Research Conclusion</Text>
-                <Text style={styles.conclusion}>{research.conclusion || research.review}</Text>
-            </View>
-
-            {/* Comparison Notice */}
-            {research.hasComparison ? (
-                <View style={styles.comparison}>
-                    <Text>This research includes a comparison with other studies.</Text>
+                {/* Filters Section */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Applied Filters</Text>
+                    <View style={styles.filtersContainer}>
+                        {research.filters.map((filter, index) => (
+                            <Text key={index} style={styles.filterItem}>
+                                {filter}
+                            </Text>
+                        ))}
+                    </View>
                 </View>
-            ) : (
-                <View style={styles.comparison}>
-                    <Text>This research does not include a comparison with other studies.</Text>
+
+                {/* Conclusion Section */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Research Conclusion</Text>
+                    <Text style={styles.conclusion}>{research.conclusion || research.review}</Text>
                 </View>
-            )}
 
-            {/* Footer */}
-            <View style={styles.footer}>
-                <Text>Generated on {new Date().toLocaleDateString()} - Network Analysis Platform</Text>
-            </View>
-        </Page>
-    </Document>
-)};
+                {/* Comparison Notice */}
+                {research.hasComparison ? (
+                    <View style={styles.comparison}>
+                        <Text>This research includes a comparison with other studies.</Text>
 
-const MyResearchReport = ({selectedMetric, name, params,  setShowDownload }) => {
-    const { currentUser } = useSelector((state) => state.user);
+                        <View style={styles.comparisonImagesContainer}>
+                            <Image
+                                style={styles.comparisonImage}
+                                src={canvas[1].toDataURL("image/png")}
+                            />
+                            <Image
+                                style={styles.comparisonImage}
+                                src={canvas[2].toDataURL("image/png")}
+                            />
+                        </View>
+
+                        {Object.keys(research.stats).length && <View style={styles.comparisonTable}>
+                            <View style={[styles.tableRow, { backgroundColor: '#F5F5F5' }]}>
+                                <Text style={styles.tableHeader}>Metric</Text>
+                                <Text style={styles.tableHeader}>Original Network</Text>
+                                <Text style={styles.tableHeader}>Comparison Network</Text>
+                                <Text style={styles.tableHeader}>Difference</Text>
+                                <Text style={styles.tableHeader}>Change %</Text>
+                            </View>
+
+                            <View style={styles.tableRow}>
+                                <Text style={styles.tableCell}>Node Count</Text>
+                                <Text style={styles.tableCell}>{research.stats.originalNodeCount}</Text>
+                                <Text style={styles.tableCell}>{research.stats.comparisonNodeCount}</Text>
+                                <Text style={styles.tableCell}>
+                                    {research.stats.nodeDifference > 0 ?
+                                        `+${research.stats.nodeDifference}` :
+                                        research.stats.nodeDifference}
+                                </Text>
+                                <Text style={styles.tableCell}>{research.stats.nodeChangePercent}%</Text>
+                            </View>
+
+                            <View style={styles.tableRow}>
+                                <Text style={styles.tableCell}>Edge Count</Text>
+                                <Text style={styles.tableCell}>{research.stats.originalLinkCount}</Text>
+                                <Text style={styles.tableCell}>{research.stats.comparisonLinkCount}</Text>
+                                <Text style={styles.tableCell}>
+                                    {research.stats.linkDifference > 0 ?
+                                        `+${research.stats.linkDifference}` :
+                                        research.stats.linkDifference}
+                                </Text>
+                                <Text style={styles.tableCell}>{research.stats.linkChangePercent}%</Text>
+                            </View>
+
+                            <View style={styles.tableRow}>
+                                <Text style={styles.tableCell}>Common Nodes</Text>
+                                <Text style={[styles.tableCell, { width: '40%' }]}>
+                                    {research.stats.commonNodesCount}
+                                </Text>
+                                <Text style={[styles.tableCell, { width: '40%' }]}>
+                                    {((research.stats.commonNodesCount / research.stats.originalNodeCount) * 100).toFixed(2)}% of original network
+                                </Text>
+                            </View>
+                        </View>}
+                    </View>
+                ) : (
+                    <View style={styles.comparison}>
+                        <Text>This research does not include a comparison with other studies.</Text>
+                    </View>
+                )}
+
+                {/* Footer */}
+                <View style={styles.footer}>
+                    <Text>Generated on {new Date().toLocaleDateString()} - Network Analysis Platform</Text>
+                </View>
+            </Page>
+        </Document>
+    )
+};
+
+const MyResearchReport = ({ selectedMetric, name, params, setShowDownload, hasComparison }) => {
+    const { user, table } = useSelector((state) => state);
+    const { currentUser } = user;
     const [research, setResearch] = useState({
         name: name || 'unknown',
-        researcherName: currentUser?.name || 'unknown',  
+        researcherName: currentUser?.name || 'unknown',
         date: new Date().toISOString().split('T')[0],
         filters: params ? Array.from(params).map(([key, value]) => `${key}: ${value}`) : [],
         conclusion: '',
-        hasComparison: false,
-        metric: selectedMetric 
+        hasComparison,
+        metric: selectedMetric,
+        stats: table.tableData || {},
     });
+
+    console.log(table.tableData, 'tableData');
 
 
     const handleSubmit = (e) => {
@@ -252,34 +352,34 @@ const MyResearchReport = ({selectedMetric, name, params,  setShowDownload }) => 
                 <p>Research Name: {research.name}</p>
                 <p>Researcher Name: {research.researcherName}</p>
             </div>
-            
+
             <form className="research-report-form" onSubmit={handleSubmit}>
-                
+
                 <div>
                     <label htmlFor="conclusion">Research Conclusion</label>
-                    <textarea 
+                    <textarea
                         id="conclusion"
-                        value={research.conclusion} 
+                        value={research.conclusion}
                         onChange={(e) => setResearch({ ...research, conclusion: e.target.value })}
-                        placeholder="Enter your research conclusion or findings" 
+                        placeholder="Enter your research conclusion or findings"
                     />
                 </div>
-                
+
                 <div className="checkbox-group">
-                    <input 
-                        type="checkbox" 
+                    <input
+                        type="checkbox"
                         id="hasComparison"
-                        checked={research.hasComparison} 
-                        onChange={(e) => setResearch({ ...research, hasComparison: e.target.checked })} 
+                        checked={research.hasComparison}
+                        onChange={(e) => setResearch({ ...research, hasComparison: e.target.checked })}
                     />
                     <label htmlFor="hasComparison">This research includes comparison with other studies</label>
                 </div>
-                
+
                 <div className="research-report-actions">
                     <button type="button" className="close-btn" onClick={() => setShowDownload(false)}>
                         Cancel
                     </button>
-                    
+
                     {research.name && research.researcherName && research.conclusion && (
                         <PDFDownloadLink
                             document={<ResearchReport research={research} />}

@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { Card, Row, Col, Table, Form } from "react-bootstrap";
 import ComparisonGraph from "./ComparisonGraph";
+import { useDispatch } from "react-redux";
+import { setTableData } from "../../redux/table/tableSlice";
 
 const ComparisonMetrics = ({
   originalNetworkData,
@@ -13,6 +15,7 @@ const ComparisonMetrics = ({
   onApplyComparisonFilters,
   onResetComparisonFilters,
 }) => {
+  const dispatch = useDispatch();
   const [comparisonFilter, setComparisonFilter] = useState("");
   const [minComparisonWeight, setMinComparisonWeight] = useState(1);
   const [comparisonMetrics, setComparisonMetrics] = useState([]);
@@ -25,7 +28,7 @@ const ComparisonMetrics = ({
     "Eigenvector Centrality",
     "PageRank Centrality",
   ];
-
+  
   const calculateComparisonStats = (originalData, comparisonData) => {
     if (!originalData || !comparisonData) {
       return null;
@@ -41,15 +44,15 @@ const ComparisonMetrics = ({
 
     const nodeChangePercent = originalNodeCount
       ? (
-          ((comparisonNodeCount - originalNodeCount) / originalNodeCount) *
-          100
-        ).toFixed(2)
+        ((comparisonNodeCount - originalNodeCount) / originalNodeCount) *
+        100
+      ).toFixed(2)
       : 0;
     const linkChangePercent = originalLinkCount
       ? (
-          ((comparisonLinkCount - originalLinkCount) / originalLinkCount) *
-          100
-        ).toFixed(2)
+        ((comparisonLinkCount - originalLinkCount) / originalLinkCount) *
+        100
+      ).toFixed(2)
       : 0;
 
     const originalNodeIds = new Set(originalData.nodes.map((node) => node.id));
@@ -111,6 +114,7 @@ const ComparisonMetrics = ({
   const activeComparisons = comparisonNetworkData.filter((data, idx) =>
     activeComparisonIndices.includes(idx)
   );
+
 
   return (
     <>
@@ -177,9 +181,8 @@ const ComparisonMetrics = ({
                       {graphMetrics.map((metric) => (
                         <button
                           key={metric}
-                          className={`toolbar-button ${
-                            comparisonMetrics.includes(metric) ? "active" : ""
-                          }`}
+                          className={`toolbar-button ${comparisonMetrics.includes(metric) ? "active" : ""
+                            }`}
                           onClick={() => toggleComparisonMetric(metric)}
                           title={metric}
                         >
@@ -187,9 +190,8 @@ const ComparisonMetrics = ({
                         </button>
                       ))}
                       <button
-                        className={`toolbar-button ${
-                          highlightCommonNodes ? "active" : ""
-                        }`}
+                        className={`toolbar-button ${highlightCommonNodes ? "active" : ""
+                          }`}
                         onClick={() =>
                           setHighlightCommonNodes(!highlightCommonNodes)
                         }
@@ -239,7 +241,7 @@ const ComparisonMetrics = ({
                       <ComparisonGraph
                         graphData={
                           filteredComparisonData &&
-                          filteredComparisonData[index]
+                            filteredComparisonData[index]
                             ? filteredComparisonData[index]
                             : comparisonNetworkData[index]
                         }
@@ -262,76 +264,81 @@ const ComparisonMetrics = ({
                 <h5 className="fw-bold">Comparison Statistics</h5>
               </Card.Header>
               <Card.Body>
-                {activeComparisonIndices.map((index) => (
-                  <div key={`stats-${index}`} className="mb-4">
-                    <h6>
-                      Statistics for Comparison #{index + 1}:{" "}
-                      {comparisonData[index]?.name || ""}
-                    </h6>
-                    {(() => {
-                      const compData = comparisonNetworkData[index];
-                      const stats = calculateComparisonStats(
-                        originalNetworkData,
-                        compData
-                      );
-
-                      if (!stats)
-                        return (
-                          <p>Could not calculate comparison statistics.</p>
+                {activeComparisonIndices.map((index) => {
+                  return (
+                    <div key={`stats-${index}`} className="mb-4">
+                      <h6>
+                        Statistics for Comparison #{index + 1}:{" "}
+                        {comparisonData[index]?.name || ""}
+                      </h6>
+                      {(() => {
+                        const compData = comparisonNetworkData[index];
+                        const stats = calculateComparisonStats(
+                          originalNetworkData,
+                          compData
                         );
 
-                      return (
-                        <Table responsive striped bordered hover>
-                          <thead>
-                            <tr>
-                              <th>Metric</th>
-                              <th>Original Network</th>
-                              <th>Comparison Network</th>
-                              <th>Difference</th>
-                              <th>Change %</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr>
-                              <td>Node Count</td>
-                              <td>{stats.originalNodeCount}</td>
-                              <td>{stats.comparisonNodeCount}</td>
-                              <td>
-                                {stats.nodeDifference > 0
-                                  ? `+${stats.nodeDifference}`
-                                  : stats.nodeDifference}
-                              </td>
-                              <td>{stats.nodeChangePercent}%</td>
-                            </tr>
-                            <tr>
-                              <td>Edge Count</td>
-                              <td>{stats.originalLinkCount}</td>
-                              <td>{stats.comparisonLinkCount}</td>
-                              <td>
-                                {stats.linkDifference > 0
-                                  ? `+${stats.linkDifference}`
-                                  : stats.linkDifference}
-                              </td>
-                              <td>{stats.linkChangePercent}%</td>
-                            </tr>
-                            <tr>
-                              <td>Common Nodes</td>
-                              <td colSpan="2">{stats.commonNodesCount}</td>
-                              <td colSpan="2">
-                                {(
-                                  (stats.commonNodesCount /
-                                    stats.originalNodeCount) *
-                                  100
-                                ).toFixed(2)}
-                                % of original network
-                              </td>
-                            </tr>
-                          </tbody>
-                        </Table>
-                      );
-                    })()}
-                  </div>
-                ))}
+                        if (!stats)
+                          return (
+                            <p>Could not calculate comparison statistics.</p>
+                          );
+
+                        dispatch(setTableData( stats ));
+
+
+                        return (
+                          <Table responsive striped bordered hover >
+                            <thead>
+                              <tr>
+                                <th>Metric</th>
+                                <th>Original Network</th>
+                                <th>Comparison Network</th>
+                                <th>Difference</th>
+                                <th>Change %</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <td>Node Count</td>
+                                <td>{stats.originalNodeCount}</td>
+                                <td>{stats.comparisonNodeCount}</td>
+                                <td>
+                                  {stats.nodeDifference > 0
+                                    ? `+${stats.nodeDifference}`
+                                    : stats.nodeDifference}
+                                </td>
+                                <td>{stats.nodeChangePercent}%</td>
+                              </tr>
+                              <tr>
+                                <td>Edge Count</td>
+                                <td>{stats.originalLinkCount}</td>
+                                <td>{stats.comparisonLinkCount}</td>
+                                <td>
+                                  {stats.linkDifference > 0
+                                    ? `+${stats.linkDifference}`
+                                    : stats.linkDifference}
+                                </td>
+                                <td>{stats.linkChangePercent}%</td>
+                              </tr>
+                              <tr>
+                                <td>Common Nodes</td>
+                                <td colSpan="2">{stats.commonNodesCount}</td>
+                                <td colSpan="2">
+                                  {(
+                                    (stats.commonNodesCount /
+                                      stats.originalNodeCount) *
+                                    100
+                                  ).toFixed(2)}
+                                  % of original network
+                                </td>
+                              </tr>
+                            </tbody>
+                          </Table>
+                        );
+                      })()}
+                    </div>
+                  )
+                })}
               </Card.Body>
             </Card>
           </Row>

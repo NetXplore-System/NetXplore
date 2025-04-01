@@ -22,18 +22,18 @@ from database import verify_connection
 import asyncio 
 import database
 from typing import List, Optional
-from models import User, Research, ResearchFilter, NetworkAnalysis, Message
+from models import User, Research, ResearchFilter, NetworkAnalysis, Message, Comparisons
 from utils import extract_messages, anonymize_name
 
 load_dotenv()
-origins = os.getenv("ALLOWED_ORIGINS", "").split(",")
-
+origins = os.getenv("ALLOWED_ORIGINS", "").split(",") 
+ 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 
-UPLOAD_FOLDER = "./uploads/"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+UPLOAD_FOLDER = "./uploads/" 
+os.makedirs(UPLOAD_FOLDER, exist_ok=True) 
 
 
 app = FastAPI()
@@ -188,33 +188,73 @@ async def register_user(user: UserCreate, db: AsyncSession = Depends(database.ge
 
         return {"id": str(new_user.user_id), "name": new_user.name, "email": new_user.email}
 
-
-@app.post("/login")
+  
+@app.post("/login")  
 async def login_user(user: UserLogin, db: AsyncSession = Depends(database.get_db)):
     """Logs in a user and returns a JWT token."""
-    async with db as session:
-        stmt = select(User).where(User.email == user.email)
-        result = await session.execute(stmt)
-        db_user = result.scalars().first()
+    try:
+        async with db as session:
+            try:
+                # Query the user
+                stmt = select(User).where(User.email == user.email)
+                result = await session.execute(stmt)
+                db_user = result.scalars().first()
 
-        if not db_user:
-            raise HTTPException(status_code=401, detail="Invalid email or password")
+                if not db_user:
+                    raise HTTPException(
+                        status_code=401, 
+                        detail="Invalid email or password"
+                    )
 
-        if not bcrypt.checkpw(user.password.encode("utf-8"), db_user.password.encode("utf-8")):
-            raise HTTPException(status_code=401, detail="Invalid email or password")
+                try:
+                    # Verify password
+                    if not bcrypt.checkpw(
+                        user.password.encode("utf-8"), 
+                        db_user.password.encode("utf-8")
+                    ):
+                        raise HTTPException(
+                            status_code=401, 
+                            detail="Invalid email or password"
+                        )
 
-        token = create_access_token(data={"user_id": str(db_user.user_id)})
+                    # Generate token
+                    token = create_access_token(data={"user_id": str(db_user.user_id)})
 
-        return {
-            "access_token": token,
-            "token_type": "bearer",
-            "user": {
-                "id": str(db_user.user_id),
-                "name": db_user.name,
-                "email": db_user.email,
-                "avatar": db_user.avatar or "https://cdn-icons-png.flaticon.com/512/64/64572.png",
-            },
-        }
+                    return {
+                        "access_token": token,
+                        "token_type": "bearer",
+                        "user": {
+                            "id": str(db_user.user_id),
+                            "name": db_user.name,
+                            "email": db_user.email,
+                            "avatar": db_user.avatar or "https://cdn-icons-png.flaticon.com/512/64/64572.png",
+                        },
+                    }
+
+                except Exception as password_error:
+                    logger.error(f"Password verification error: {password_error}")
+                    raise HTTPException(
+                        status_code=500,
+                        detail="Error verifying password"
+                    )
+
+            except HTTPException:
+                raise  # Re-raise HTTP exceptions
+            except Exception as query_error:
+                logger.error(f"Database query error: {query_error}")
+                raise HTTPException(
+                    status_code=500,
+                    detail="Error querying database"
+                )
+
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions
+    except Exception as e:
+        logger.error(f"Login error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error during login"
+        )
 
 
 @app.get("/users")
@@ -835,14 +875,16 @@ class NetworkAnalysisData(BaseModel):
 async def save_research(
     file_name: str = Form(...),
     research_name: str = Form(...),
+    researcher_id: str = Form(...),
     description: Optional[str] = Form(None),
+    comparison: Optional[str] = Form(None),
     selected_metric: str = Form(None),
     start_date: str = Query(None),
     end_date: str = Query(None),
     start_time: str = Query(None),
     end_time: str = Query(None),
     limit: int = Query(None),
-    limit_type: str = Query("first"),
+    limit_type: str = Query("first"), 
     min_length: int = Query(None),
     max_length: int = Query(None),
     keywords: str = Query(None),
@@ -874,6 +916,7 @@ async def save_research(
         new_research = Research(
             research_name=research_name,
             description=description,
+            user_id=researcher_id,
             # created_at=datetime.datetime.utcnow()
         )
         db.add(new_research)
@@ -921,8 +964,45 @@ async def save_research(
         )
         db.add(new_analysis)
         await db.commit()
+        await db.refresh(new_analysis)
 
-        return {"message": "Data saved successfully", "research_id": str(new_research.research_id)}
+        # Handle comparison data if present
+        if comparison:
+            try:
+                comparison_data = json.loads(comparison)
+                if isinstance(comparison_data, list):
+                    # Handle multiple comparisons
+                    for comp_data in comparison_data:
+                        print(f"🔹 Comparison Data: {comp_data}")
+                        new_comparison = Comparisons(
+                            research_id=new_research.research_id,
+                            original_analysis=new_analysis.id,
+                            nodes=comp_data.get('nodes', []),
+                            links=comp_data.get('links', []),
+                            is_connected=comp_data.get('is_connected', True)
+                        )
+                        db.add(new_comparison)
+                elif isinstance(comparison_data, dict):
+                    # Handle single comparison
+                    new_comparison = Comparisons(
+                        research_id=new_research.research_id,
+                        original_analysis=new_analysis.id,
+                        nodes=comparison_data.get('nodes', []),
+                        links=comparison_data.get('links', []),
+                        is_connected=comparison_data.get('is_connected', True)
+                    )
+                    db.add(new_comparison)
+                
+                await db.commit()
+            except json.JSONDecodeError:
+                print(f"Invalid comparison data format: {comparison}")
+                # Continue without saving comparison data
+                pass
+
+        return {
+            "message": "Data saved successfully", 
+            "research_id": str(new_research.research_id)
+        }
 
     except Exception as e:
         print(f"Error saving data: {e}")

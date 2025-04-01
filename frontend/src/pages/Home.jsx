@@ -37,7 +37,8 @@ import {
   analyzeNetwork,
   detectCommunities,
   compareNetworks
-} from "../components/utils/ApiService.jsx"; 
+} from "../components/utils/ApiService.jsx";
+import { useSelector } from "react-redux";
 
 const Home = () => {
   const [showDownload, setShowDownload] = useState(false);
@@ -163,6 +164,7 @@ const Home = () => {
     showImportantNodes: false,
     importantNodesThreshold: 0.5,
   });
+  const { currentUser } = useSelector((state) => state.user);
 
   const loadCommunityColors = (communities) => {
     if (!communities || communities.length === 0) {
@@ -256,7 +258,7 @@ const Home = () => {
       setMessage("Please select a file before uploading.");
       return;
     }
-    
+
     uploadFile(selectedFile)
       .then((data) => {
         if (data.message) {
@@ -272,7 +274,7 @@ const Home = () => {
       setMessage("No file selected to delete.");
       return;
     }
-    
+
     try {
       const data = await deleteFile(uploadedFile);
       if (data.success) {
@@ -300,55 +302,46 @@ const Home = () => {
       setMessage("No file selected for analysis.");
       return;
     }
-  
+
     setNetworkWasRestored(false);
 
     const params = filters.buildNetworkFilterParams();
     analyzeNetwork(uploadedFile, params)
 
-    .then((data) => {
-      console.log("Data returned from server:", data);
-      if (data.nodes && data.links) {
-        setNetworkData(data);
-        setOriginalNetworkData(data);
-        setShouldFetchCommunities(true);
-      } else {
-        setMessage("No data returned from server.");
-      }
-    })
-    .catch((error) => {
-      setMessage(error.message);
-    });
-};
+      .then((data) => {
+        console.log("Data returned from server:", data);
+        if (data.nodes && data.links) {
+          setNetworkData(data);
+          setOriginalNetworkData(data);
+          setShouldFetchCommunities(true);
+        } else {
+          setMessage("No data returned from server.");
+        }
+      })
+      .catch((error) => {
+        setMessage(error.message);
+      });
+  };
 
   const handleSaveToDB = () => {
 
     const params = filters.buildNetworkFilterParams();
-    if (!name || !description || !uploadedFile || !params ) {
+    const id = currentUser?.id;
+    if (!name || !description || !uploadedFile || !params || !id) {
       toast.error("Please fill in all required fields.");
       return;
     }
-    saveToDB(name, description, uploadedFile, params, selectedMetric);
-    // if (!name || !description) {
-    //   setMessage("Please fill in all required fields.");
-    //   return;
-    // }
-    
-    // const formData = {
-    //   name,
-    //   description,
-    //   start_date: startDate,
-    //   end_date: endDate,
-    //   message_limit: messageLimit,
-    // };
-    
-    // saveFormToDB(formData)
-    //   .then((data) => {
-    //     if (data.message) {
-    //       setMessage(data.message);
-    //     }
-    //   })
-    //   .catch((error) => setMessage(error.message));
+    saveToDB(
+      id,
+      name,
+      description,
+      uploadedFile,
+      params,
+      selectedMetric,
+      {
+        hasComparison: comparisonNetworkData.length ? true : false,
+        data: comparisonNetworkData || undefined,
+      });
   };
 
   const calculateNetworkStats = () => {
@@ -454,15 +447,15 @@ const Home = () => {
 
   const filteredNodes = networkData
     ? networkData.nodes.filter((node) =>
-        node.id.toLowerCase().includes(filter.toLowerCase())
-      )
+      node.id.toLowerCase().includes(filter.toLowerCase())
+    )
     : [];
   const filteredLinks = networkData
     ? networkData.links.filter(
-        (link) =>
-          filteredNodes.some((node) => node.id === link.source) &&
-          filteredNodes.some((node) => node.id === link.target)
-      )
+      (link) =>
+        filteredNodes.some((node) => node.id === link.source) &&
+        filteredNodes.some((node) => node.id === link.target)
+    )
     : [];
 
   const handleStrongConnections = () => {
@@ -488,16 +481,16 @@ const Home = () => {
       setStrongConnectionsActive(true);
     }
   };
-  
+
   const handleComparisonAnalysis = (index) => {
     const comparisonFile = comparisonData[index];
     if (!comparisonFile || !comparisonFile.filename) {
       setMessage("Please select a comparison file first.");
       return;
     }
-  
+
     const params = buildNetworkFilterParams();
-    
+
     analyzeNetwork(comparisonFile.filename, params)
       .then((data) => {
         console.log(`Comparison data ${index} returned:`, data);
@@ -505,11 +498,11 @@ const Home = () => {
           const updatedComparisonData = [...comparisonNetworkData];
           updatedComparisonData[index] = data;
           setComparisonNetworkData(updatedComparisonData);
-  
+
           if (!activeComparisonIndices.includes(index)) {
             setActiveComparisonIndices([...activeComparisonIndices, index]);
           }
-  
+
           setMessage(`Comparison analysis ${index + 1} completed successfully!`);
         } else {
           setMessage(`No valid data returned for comparison ${index + 1}.`);
@@ -546,68 +539,68 @@ const Home = () => {
     );
   };
 
-  
+
 
   const fetchCommunityData = () => {
     if (!uploadedFile) {
       setMessage("No file selected for community detection.");
       return;
     }
-  
+
     const params = filters.buildNetworkFilterParams();
     detectCommunities(uploadedFile, params)
 
-  
-    .then((data) => {
-      console.log("Community data returned from server:", data);
 
-      if (data.communities && data.nodes) {
-        setCommunities(data.communities);
+      .then((data) => {
+        console.log("Community data returned from server:", data);
 
-        const newCommunityMap = {};
+        if (data.communities && data.nodes) {
+          setCommunities(data.communities);
 
-        data.nodes.forEach((node) => {
-          if (node.community !== undefined) {
-            newCommunityMap[node.id.toString().trim()] = node.community;
-          }
-        });
+          const newCommunityMap = {};
 
-        console.log("CommunityMap:", newCommunityMap);
-        setCommunityMap(newCommunityMap);
-
-        if (networkData && networkData.nodes) {
-          const updatedNodes = networkData.nodes.map((node) => {
-            const normalizedId = node.id.toString().trim();
-            const community = newCommunityMap[normalizedId];
-
-            if (community !== undefined) {
-              console.log(`Assigning node ${node.id} to community ${community}`);
-              return { ...node, community };
+          data.nodes.forEach((node) => {
+            if (node.community !== undefined) {
+              newCommunityMap[node.id.toString().trim()] = node.community;
             }
-
-            return node;
           });
 
-          setNetworkData({
-            nodes: updatedNodes,
-            links: networkData.links,
-          });
+          console.log("CommunityMap:", newCommunityMap);
+          setCommunityMap(newCommunityMap);
 
-          setOriginalNetworkData({
-            nodes: updatedNodes,
-            links: networkData.links,
-          });
+          if (networkData && networkData.nodes) {
+            const updatedNodes = networkData.nodes.map((node) => {
+              const normalizedId = node.id.toString().trim();
+              const community = newCommunityMap[normalizedId];
 
-          setMessage(`Detected ${data.communities.length} communities in the network.`);
+              if (community !== undefined) {
+                console.log(`Assigning node ${node.id} to community ${community}`);
+                return { ...node, community };
+              }
+
+              return node;
+            });
+
+            setNetworkData({
+              nodes: updatedNodes,
+              links: networkData.links,
+            });
+
+            setOriginalNetworkData({
+              nodes: updatedNodes,
+              links: networkData.links,
+            });
+
+            setMessage(`Detected ${data.communities.length} communities in the network.`);
+          }
+        } else {
+          setMessage("No community data returned from server.");
         }
-      } else {
-        setMessage("No community data returned from server.");
-      }
-    })
-    .catch((error) => {
-      setMessage(error.message);
-    });
-};
+      })
+      .catch((error) => {
+        setMessage(error.message);
+      });
+  };
 
 
   const detectAndApplyCommunityData = () => {
@@ -615,63 +608,63 @@ const Home = () => {
       setMessage("No file selected for community detection.");
       return;
     }
- 
+
     const params = filters.buildNetworkFilterParams();
     detectCommunities(uploadedFile, params)
-   
-    .then((data) => {
-      console.log("Community data returned from server:", data);
 
-      if (data.communities && data.nodes) {
-        setCommunities(data.communities);
+      .then((data) => {
+        console.log("Community data returned from server:", data);
 
-        const newCommunityMap = {};
+        if (data.communities && data.nodes) {
+          setCommunities(data.communities);
 
-        data.nodes.forEach((node) => {
-          if (node.community !== undefined) {
-            newCommunityMap[node.id.toString().trim()] = node.community;
-          }
-        });
+          const newCommunityMap = {};
 
-        console.log("CommunityMap:", newCommunityMap);
-        setCommunityMap(newCommunityMap);
-
-        if (networkData && networkData.nodes) {
-          const updatedNodes = networkData.nodes.map((node) => {
-            const normalizedId = node.id.toString().trim();
-            const community = newCommunityMap[normalizedId];
-
-            if (community !== undefined) {
-              console.log(`Assigning node ${node.id} to community ${community}`);
-              return { ...node, community };
+          data.nodes.forEach((node) => {
+            if (node.community !== undefined) {
+              newCommunityMap[node.id.toString().trim()] = node.community;
             }
-
-            return node;
           });
 
-          setNetworkData({
-            nodes: updatedNodes,
-            links: networkData.links,
-          });
+          console.log("CommunityMap:", newCommunityMap);
+          setCommunityMap(newCommunityMap);
 
-          setOriginalNetworkData({
-            nodes: updatedNodes,
-            links: networkData.links,
-          });
+          if (networkData && networkData.nodes) {
+            const updatedNodes = networkData.nodes.map((node) => {
+              const normalizedId = node.id.toString().trim();
+              const community = newCommunityMap[normalizedId];
 
-          setMessage(`Detected ${data.communities.length} communities in the network.`);
+              if (community !== undefined) {
+                console.log(`Assigning node ${node.id} to community ${community}`);
+                return { ...node, community };
+              }
+
+              return node;
+            });
+
+            setNetworkData({
+              nodes: updatedNodes,
+              links: networkData.links,
+            });
+
+            setOriginalNetworkData({
+              nodes: updatedNodes,
+              links: networkData.links,
+            });
+
+            setMessage(`Detected ${data.communities.length} communities in the network.`);
+          }
+        } else {
+          setMessage("No community data returned from server.");
         }
-      } else {
-        setMessage("No community data returned from server.");
-      }
-    })
-    .catch((error) => {
-      setMessage(error.message);
-    });
-};
+      })
+      .catch((error) => {
+        setMessage(error.message);
+      });
+  };
 
-  
-  
+
+
   const handleNetworkCustomization = (settings) => {
     setVisualizationSettings(settings);
     console.log("Applying visualization settings:", settings);
@@ -706,7 +699,7 @@ const Home = () => {
         nodeColor =
           settings.communityColors?.[communityId] ??
           settings.customColors.communityColors[
-            communityId % settings.customColors.communityColors.length
+          communityId % settings.customColors.communityColors.length
           ];
       } else if (settings.colorBy === "degree") {
         const maxDegree = Math.max(
@@ -902,14 +895,14 @@ const Home = () => {
             (selectedMetric === "PageRank Centrality"
               ? Math.max(10, node.pagerank * 500)
               : selectedMetric === "Eigenvector Centrality"
-              ? Math.max(10, node.eigenvector * 60)
-              : selectedMetric === "Closeness Centrality"
-              ? Math.max(10, node.closeness * 50)
-              : selectedMetric === "Betweenness Centrality"
-              ? Math.max(10, node.betweenness * 80)
-              : selectedMetric === "Degree Centrality"
-              ? Math.max(10, node.degree * 80)
-              : 20);
+                ? Math.max(10, node.eigenvector * 60)
+                : selectedMetric === "Closeness Centrality"
+                  ? Math.max(10, node.closeness * 50)
+                  : selectedMetric === "Betweenness Centrality"
+                    ? Math.max(10, node.betweenness * 80)
+                    : selectedMetric === "Degree Centrality"
+                      ? Math.max(10, node.degree * 80)
+                      : 20);
 
           ctx.save();
           ctx.beginPath();
@@ -1311,8 +1304,7 @@ const Home = () => {
       });
 
       setMessage(
-        `Showing only intra-community links and hiding isolated nodes. Removed ${
-          networkData.links.length - filteredLinks.length
+        `Showing only intra-community links and hiding isolated nodes. Removed ${networkData.links.length - filteredLinks.length
         } cross-community links.`
       );
     } else {
@@ -1348,11 +1340,15 @@ const Home = () => {
     }
   };
 
+
+  console.log(originalNetworkData,
+    comparisonNetworkData);
+
   return (
     <Container fluid className="upload-section">
       {/* Research Upload */}
       <ResearchCard
-      filters={filters}
+        filters={filters}
         name={name}
         setName={setName}
         description={description}
@@ -1370,6 +1366,7 @@ const Home = () => {
         setShowDownload={setShowDownload}
         networkData={networkData ? true : false}
         selectedMetric={selectedMetric}
+        hasComparison={comparisonNetworkData.length ? true : false}
       />
 
       {uploadedFile && (
@@ -1423,9 +1420,8 @@ const Home = () => {
               <Col
                 lg={3}
                 md={12}
-                className={`mb-3 metrics-panel ${
-                  showMetrics ? "open" : "closed"
-                }`}
+                className={`mb-3 metrics-panel ${showMetrics ? "open" : "closed"
+                  }`}
               >
                 <Card className="metrics-card">
                   <h4 className="fw-bold d-flex justify-content-between align-items-center">
@@ -1460,9 +1456,8 @@ const Home = () => {
                       </Button>
 
                       <Button
-                        className={`metrics-item ${
-                          strongConnectionsActive ? "active" : ""
-                        }`}
+                        className={`metrics-item ${strongConnectionsActive ? "active" : ""
+                          }`}
                         onClick={handleStrongConnections}
                       >
                         {strongConnectionsActive
@@ -1470,25 +1465,22 @@ const Home = () => {
                           : "Strongest Connections"}
                       </Button>
                       <Button
-                        className={`metrics-item ${
-                          highlightCentralNodes ? "active" : ""
-                        }`}
+                        className={`metrics-item ${highlightCentralNodes ? "active" : ""
+                          }`}
                         onClick={handleHighlightCentralNodes}
                       >
                         Highlight Central Nodes
                       </Button>
                       <Button
-                        className={`metrics-item ${
-                          networkWasRestored ? "active" : ""
-                        }`}
+                        className={`metrics-item ${networkWasRestored ? "active" : ""
+                          }`}
                         onClick={handleRestoreNetwork}
                       >
                         Restore Original Network
                       </Button>
                       <Button
-                        className={`metrics-item ${
-                          activityFilterEnabled === true ? "active" : ""
-                        }`}
+                        className={`metrics-item ${activityFilterEnabled === true ? "active" : ""
+                          }`}
                         onClick={handleActivityFilter}
                       >
                         {activityFilterEnabled
@@ -1497,9 +1489,8 @@ const Home = () => {
                       </Button>
 
                       <Button
-                        className={`metrics-item ${
-                          showOnlyIntraCommunityLinks ? "active" : ""
-                        }`}
+                        className={`metrics-item ${showOnlyIntraCommunityLinks ? "active" : ""
+                          }`}
                         onClick={handleToggleCommunitiesFilter}
                       >
                         {showOnlyIntraCommunityLinks

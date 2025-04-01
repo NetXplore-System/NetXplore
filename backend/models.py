@@ -154,6 +154,27 @@ class NetworkAnalysis(Base):
         }
 
 
+class Comparisons(Base):
+    __tablename__ = "comparisons"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    research_id = Column(UUID(as_uuid=True), ForeignKey("research.research_id"), nullable=False)
+    original_analysis = Column(UUID(as_uuid=True), ForeignKey("network_analysis.id"), nullable=False)
+    nodes = Column(JSONB, nullable=False)  # Store nodes as JSON
+    links = Column(JSONB, nullable=False)  # Store links as JSON
+    created_at = Column(DateTime, default=datetime.utcnow)
+    is_connected = Column(Boolean, default=True)
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "research_id": str(self.research_id),
+            "original_analysis": str(self.original_analysis),
+            "nodes": self.nodes,
+            "links": self.links,
+            "is_connected": self.is_connected,
+            "created_at": self.created_at.isoformat() if self.created_at else None
+        }
+
 # class Community(Base):
 #     __tablename__ = "communities"
 

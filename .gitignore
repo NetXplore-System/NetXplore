@@ -33,6 +33,8 @@ venv/
 *.pyc
 __pycache__/
 
+myenv/  
+
 # Ignore environment files
 .env
 
