@@ -868,8 +868,8 @@ async def save_research(
 
         data = await extract_messages(lines, start_date, end_date, start_time, end_time, limit, limit_type, min_length, max_length, keywords, min_messages, max_messages, active_users, selected_users, username, anonymize)
 
-        print(f"🔹 Messages: {data['messages']}")
-        return JSONResponse(content={"data": data}, status_code=200)
+        # print(f"🔹 Messages: {data['messages']}")
+        # return JSONResponse(content={"data": data}, status_code=200)
         new_research = Research(
             research_name=research_name,
             description=description,
