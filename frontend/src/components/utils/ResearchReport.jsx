@@ -1,8 +1,9 @@
-import { Page, Text, View, Document, StyleSheet, PDFDownloadLink, Font } from '@react-pdf/renderer';
+import { Page, Text, View, Document, StyleSheet, PDFDownloadLink, Font, Image } from '@react-pdf/renderer';
 import { useState } from 'react';
 import './style.css';
 import { toast } from 'react-hot-toast';
 import { useSelector } from 'react-redux';
+import MetricsButton from '../common/MetricsButton';
 
 Font.register({
     family: 'Roboto',
@@ -12,7 +13,7 @@ Font.register({
 // Define styles with improved aesthetics
 const styles = StyleSheet.create({
     page: {
-        padding: 30,
+        padding: 40,
         backgroundColor: '#FCFCFC',
         fontFamily: 'Roboto',
     },
@@ -85,6 +86,39 @@ const styles = StyleSheet.create({
         color: '#1565c0',
         textAlign: 'center',
     },
+    metricHighlight: {
+        backgroundColor: '#f0f7f6',
+        padding: 10,
+        borderRadius: 5,
+        marginTop: 10,
+        borderLeft: '4px solid #158582',
+    },
+    metricText: {
+        fontSize: 12,
+        color: '#2a625e',
+        fontWeight: 'semibold',
+    },
+    graphSection: {
+            marginVertical: 15,
+            padding: 10,
+            backgroundColor: '#FFF',
+            borderRadius: 8,
+            border: '1px solid #E0E0E0',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+        },
+        graphTitle: {
+            fontSize: 14,
+            color: '#158582',
+            marginBottom: 8,
+            fontWeight: 'semibold',
+        },
+        graphImage: {
+            width: '100%',
+            height: 300,
+            borderRadius: 4,
+            marginTop: 10,
+            border: '1px solid #EEE',
+        },
     footer: {
         position: 'absolute',
         bottom: 30,
@@ -106,7 +140,11 @@ const styles = StyleSheet.create({
 });
 
 // Create Document Component
-const ResearchReport = ({ research }) => (
+const ResearchReport = ({ research }) => {
+    const canvas = document.querySelector('canvas');
+    const imageData = canvas?.toDataURL('image/png');
+    console.log(imageData);
+    return (
     <Document>
         <Page style={styles.page}>
             {/* Header Section */}
@@ -114,7 +152,18 @@ const ResearchReport = ({ research }) => (
                 <Text style={styles.headerTitle}>Research Report</Text>
                 {/* <Text style={styles.dateText}>Date: {research.date}</Text> */}
             </View>
-
+            {imageData && (
+                    <View style={styles.graphSection}>
+                        <Text style={styles.graphTitle}>Network Graph Visualization</Text>
+                        <Image
+                            style={styles.graphImage}
+                            src={imageData}
+                        />
+                        <Text style={styles.imageCaption}>
+                            Fig. 1: Visual representation of the analyzed network structure
+                        </Text>
+                    </View>
+                )}
             {/* Research Info Section */}
             <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Research Information</Text>
@@ -126,6 +175,11 @@ const ResearchReport = ({ research }) => (
                     <Text style={styles.label}>Researcher:</Text>
                     <Text style={styles.value}>{research.researcherName}</Text>
                 </View>
+                <View style={styles.metricHighlight}>
+                        <Text style={styles.metricText}>
+                            Primary Analysis Metric: {research.metric || 'No specific metric selected'}
+                        </Text>
+                    </View>
             </View>
 
             {/* Filters Section */}
@@ -163,9 +217,9 @@ const ResearchReport = ({ research }) => (
             </View>
         </Page>
     </Document>
-);
+)};
 
-const MyResearchReport = ({ name, params,  setShowDownload }) => {
+const MyResearchReport = ({selectedMetric, name, params,  setShowDownload }) => {
     const { currentUser } = useSelector((state) => state.user);
     const [research, setResearch] = useState({
         name: name || 'unknown',
@@ -174,6 +228,7 @@ const MyResearchReport = ({ name, params,  setShowDownload }) => {
         filters: params ? Array.from(params).map(([key, value]) => `${key}: ${value}`) : [],
         conclusion: '',
         hasComparison: false,
+        metric: selectedMetric 
     });
 
 

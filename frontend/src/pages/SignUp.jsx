@@ -4,6 +4,7 @@ import Button from "react-bootstrap/Button";
 import Form from "react-bootstrap/Form";
 import Container from "react-bootstrap/Container";
 import OAuth from '../components/OAuth.jsx';
+import { useNavigate } from "react-router-dom";
 
 const SignUp = () => {
   const [formData, setFormData] = useState({
@@ -15,7 +16,7 @@ const SignUp = () => {
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-
+  const navigate = useNavigate();
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({
@@ -37,7 +38,7 @@ const SignUp = () => {
     }
 
     try {
-      const response = await fetch("http://localhost:8000/register", {
+      const response = await fetch(import.meta.env.VITE_API_URL+"/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -53,6 +54,7 @@ const SignUp = () => {
       const data = await response.json();
       setSuccess("Registration successful!");
       setFormData({ name: "", email: "", password: "", confirmPassword: "" });
+      navigate("/profile");
     } catch (err) {
       setError(err.message);
     }

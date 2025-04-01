@@ -1352,6 +1352,7 @@ const Home = () => {
     <Container fluid className="upload-section">
       {/* Research Upload */}
       <ResearchCard
+      filters={filters}
         name={name}
         setName={setName}
         description={description}
@@ -1368,6 +1369,7 @@ const Home = () => {
         showDownload={showDownload}
         setShowDownload={setShowDownload}
         networkData={networkData ? true : false}
+        selectedMetric={selectedMetric}
       />
 
       {uploadedFile && (
