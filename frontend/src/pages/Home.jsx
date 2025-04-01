@@ -1369,6 +1369,7 @@ const Home = () => {
         showDownload={showDownload}
         setShowDownload={setShowDownload}
         networkData={networkData ? true : false}
+        selectedMetric={selectedMetric}
       />
 
       {uploadedFile && (

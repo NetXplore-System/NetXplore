@@ -3,6 +3,7 @@ import { useState } from 'react';
 import './style.css';
 import { toast } from 'react-hot-toast';
 import { useSelector } from 'react-redux';
+import MetricsButton from '../common/MetricsButton';
 
 Font.register({
     family: 'Roboto',
@@ -85,6 +86,18 @@ const styles = StyleSheet.create({
         color: '#1565c0',
         textAlign: 'center',
     },
+    metricHighlight: {
+        backgroundColor: '#f0f7f6',
+        padding: 10,
+        borderRadius: 5,
+        marginTop: 10,
+        borderLeft: '4px solid #158582',
+    },
+    metricText: {
+        fontSize: 12,
+        color: '#2a625e',
+        fontWeight: 'semibold',
+    },
     graphSection: {
             marginVertical: 15,
             padding: 10,
@@ -162,6 +175,11 @@ const ResearchReport = ({ research }) => {
                     <Text style={styles.label}>Researcher:</Text>
                     <Text style={styles.value}>{research.researcherName}</Text>
                 </View>
+                <View style={styles.metricHighlight}>
+                        <Text style={styles.metricText}>
+                            Primary Analysis Metric: {research.metric || 'No specific metric selected'}
+                        </Text>
+                    </View>
             </View>
 
             {/* Filters Section */}
@@ -201,7 +219,7 @@ const ResearchReport = ({ research }) => {
     </Document>
 )};
 
-const MyResearchReport = ({ name, params,  setShowDownload }) => {
+const MyResearchReport = ({selectedMetric, name, params,  setShowDownload }) => {
     const { currentUser } = useSelector((state) => state.user);
     const [research, setResearch] = useState({
         name: name || 'unknown',
@@ -210,6 +228,7 @@ const MyResearchReport = ({ name, params,  setShowDownload }) => {
         filters: params ? Array.from(params).map(([key, value]) => `${key}: ${value}`) : [],
         conclusion: '',
         hasComparison: false,
+        metric: selectedMetric 
     });
 
 

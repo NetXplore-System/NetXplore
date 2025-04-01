@@ -25,7 +25,8 @@ const ResearchCard = ({
   showDownload,
   setShowDownload,
   networkData,
-  filters
+  filters,
+  selectedMetric
 }) => {
   
   return (
@@ -43,7 +44,7 @@ const ResearchCard = ({
                 </Button>
               )}
           {showDownload && (
-                <MyResearchReport name={name} description={description} params={filters.buildNetworkFilterParams()}  setShowDownload={setShowDownload} />
+                <MyResearchReport selectedMetric={selectedMetric} name={name} description={description} params={filters.buildNetworkFilterParams()}  setShowDownload={setShowDownload} />
               )}
             <Button onClick={handleSave} className="action-btn me-2">
               <Save size={16} /> Save
