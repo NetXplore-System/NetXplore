@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Card, Row, Col, Table, Form } from "react-bootstrap";
 import ComparisonGraph from "./ComparisonGraph";
 import { useDispatch } from "react-redux";
-import { setTableData } from "../../redux/table/tableSlice";
+import { clearTableData, setTableData } from "../../redux/table/tableSlice";
 
 const ComparisonMetrics = ({
   originalNetworkData,
@@ -28,7 +28,7 @@ const ComparisonMetrics = ({
     "Eigenvector Centrality",
     "PageRank Centrality",
   ];
-  
+
   const calculateComparisonStats = (originalData, comparisonData) => {
     if (!originalData || !comparisonData) {
       return null;
@@ -114,6 +114,8 @@ const ComparisonMetrics = ({
   const activeComparisons = comparisonNetworkData.filter((data, idx) =>
     activeComparisonIndices.includes(idx)
   );
+
+  dispatch(clearTableData());
 
 
   return (
@@ -258,13 +260,15 @@ const ComparisonMetrics = ({
             </Card>
           </Row>
 
-          <Row className="mt-4 mb-4">
+          <Row className="mt-4 mb-4"> 
             <Card>
               <Card.Header>
                 <h5 className="fw-bold">Comparison Statistics</h5>
               </Card.Header>
               <Card.Body>
                 {activeComparisonIndices.map((index) => {
+                  console.log(comparisonData[index]?.name);
+                  
                   return (
                     <div key={`stats-${index}`} className="mb-4">
                       <h6>
@@ -283,7 +287,7 @@ const ComparisonMetrics = ({
                             <p>Could not calculate comparison statistics.</p>
                           );
 
-                        dispatch(setTableData( stats ));
+                        dispatch(setTableData(stats));
 
 
                         return (

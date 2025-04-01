@@ -24,6 +24,8 @@ import database
 from typing import List, Optional
 from models import User, Research, ResearchFilter, NetworkAnalysis, Message, Comparisons
 from utils import extract_messages, anonymize_name
+import uuid
+
 
 load_dotenv()
 origins = os.getenv("ALLOWED_ORIGINS", "").split(",") 
@@ -1007,6 +1009,86 @@ async def save_research(
     except Exception as e:
         print(f"Error saving data: {e}")
         raise HTTPException(status_code=500, detail=f"Error saving data: {str(e)}")
+
+
+@app.get("/history/{user_id}")
+async def get_user_history(
+    user_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(database.get_db)
+):
+    """Get all research history for a user including filters, analysis and comparisons."""
+    try:
+        # Convert string user_id to UUID
+        user_uuid = uuid.UUID(user_id)
+
+        # Ensure user_id matches current user's ID
+        if str(user_uuid) != current_user["user_id"]:
+            raise HTTPException(
+                status_code=403,
+                detail="Access forbidden: You can only view your own research history"
+            )
+        
+        # Query all research entries for the user
+        query = select(Research).where(Research.user_id == user_uuid)
+        result = await db.execute(query)
+        researches = result.scalars().all()
+        
+        # Prepare response data
+        history = []
+        
+        for research in researches:
+            # Get research filters
+            filter_query = select(ResearchFilter).where(
+                ResearchFilter.research_id == research.research_id
+            )
+            filter_result = await db.execute(filter_query)
+            filters = filter_result.scalars().first()
+            
+            # Get network analysis
+            analysis_query = select(NetworkAnalysis).where(
+                NetworkAnalysis.research_id == research.research_id
+            )
+            analysis_result = await db.execute(analysis_query)
+            analysis = analysis_result.scalars().first()
+            
+            # Get comparisons if they exist
+            comparison_query = select(Comparisons).where(
+                Comparisons.research_id == research.research_id
+            )
+            comparison_result = await db.execute(comparison_query)
+            comparisons = comparison_result.scalars().all()
+            
+            # Build complete research entry
+            research_entry = {
+                **research.to_dict(),
+                "filters": filters.to_dict() if filters else None,
+                "analysis": analysis.to_dict() if analysis else None,
+                "comparisons": [comp.to_dict() for comp in comparisons] if comparisons else []
+            }
+            
+            history.append(research_entry)
+        
+        return JSONResponse(
+            content={
+                "status": "success",
+                "history": history
+            },
+            status_code=200
+        )
+            
+    except ValueError as ve:
+        logger.error(f"Invalid UUID format: {ve}")
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid user ID format"
+        )
+    except Exception as e:
+        logger.error(f"Error fetching user history: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error fetching history: {str(e)}"
+        )
 
 
 logging.basicConfig(level=logging.INFO)

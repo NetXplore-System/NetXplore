@@ -1,7 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = {
-    tableData: null,
+    tableData: [],
 };
 
 const tableSlice = createSlice({
@@ -9,11 +9,14 @@ const tableSlice = createSlice({
     initialState,
     reducers: {
         setTableData(state, action) {
-            state.tableData = action.payload;
+            state.tableData.push(action.payload);
+        },
+        clearTableData(state) {
+            state.tableData = [];
         }
     },
 });
 
-export const { setTableData } = tableSlice.actions;
+export const { setTableData, clearTableData } = tableSlice.actions;
 
 export default tableSlice.reducer;

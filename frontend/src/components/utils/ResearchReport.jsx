@@ -113,6 +113,18 @@ const styles = StyleSheet.create({
         marginBottom: 8,
         fontWeight: 'semibold',
     },
+    comparisonSection: {
+        marginTop: 15,
+        paddingTop: 15,
+        borderTop: '1px solid #DDD',
+    },
+    comparisonTitle: {
+        fontSize: 14,
+        color: '#1565c0',
+        fontWeight: 'bold',
+        marginBottom: 10,
+        textAlign: 'center',
+    },
     graphImage: {
         width: '100%',
         height: 300,
@@ -185,6 +197,8 @@ const styles = StyleSheet.create({
 const ResearchReport = ({ research }) => {
     const canvas = document.querySelectorAll('canvas');
 
+    const comparisonPages = research.stats || [];
+
     return (
         <Document>
             <Page style={styles.page}>
@@ -240,23 +254,34 @@ const ResearchReport = ({ research }) => {
                     <Text style={styles.conclusion}>{research.conclusion || research.review}</Text>
                 </View>
 
-                {/* Comparison Notice */}
-                {research.hasComparison ? (
+                {research.hasComparison && (
                     <View style={styles.comparison}>
-                        <Text>This research includes a comparison with other studies.</Text>
+                        <Text>This research includes {research.stats.length} comparison studies.</Text>
+                    </View>
+                )}
+            </Page>
+            {research.hasComparison && comparisonPages.map((comparisonStats, index) => (
+                <Page key={index} style={styles.page}>
+                    <Text style={styles.pageNumber}>Page {index + 2}</Text>
 
-                        <View style={styles.comparisonImagesContainer}>
+
+                    <View key={index} style={styles.comparisonSection}>
+                        <Text style={styles.comparisonTitle}>
+                            Comparison #{index + 1}
+                        </Text>
+
+                        <View style={[styles.comparisonImagesContainer, { height: '45%' }]}>
                             <Image
-                                style={styles.comparisonImage}
+                                style={[styles.comparisonImage, { height: '100%' }]}
                                 src={canvas[1].toDataURL("image/png")}
                             />
                             <Image
-                                style={styles.comparisonImage}
-                                src={canvas[2].toDataURL("image/png")}
+                                style={[styles.comparisonImage, { height: '100%' }]}
+                                src={canvas[index + 1].toDataURL("image/png")}
                             />
                         </View>
 
-                        {Object.keys(research.stats).length && <View style={styles.comparisonTable}>
+                        <View style={[styles.comparisonTable, { height: '45%' }]}>
                             <View style={[styles.tableRow, { backgroundColor: '#F5F5F5' }]}>
                                 <Text style={styles.tableHeader}>Metric</Text>
                                 <Text style={styles.tableHeader}>Original Network</Text>
@@ -267,53 +292,52 @@ const ResearchReport = ({ research }) => {
 
                             <View style={styles.tableRow}>
                                 <Text style={styles.tableCell}>Node Count</Text>
-                                <Text style={styles.tableCell}>{research.stats.originalNodeCount}</Text>
-                                <Text style={styles.tableCell}>{research.stats.comparisonNodeCount}</Text>
+                                <Text style={styles.tableCell}>{comparisonStats.originalNodeCount}</Text>
+                                <Text style={styles.tableCell}>{comparisonStats.comparisonNodeCount}</Text>
                                 <Text style={styles.tableCell}>
-                                    {research.stats.nodeDifference > 0 ?
-                                        `+${research.stats.nodeDifference}` :
-                                        research.stats.nodeDifference}
+                                    {comparisonStats.nodeDifference > 0 ?
+                                        `+${comparisonStats.nodeDifference}` :
+                                        comparisonStats.nodeDifference}
                                 </Text>
-                                <Text style={styles.tableCell}>{research.stats.nodeChangePercent}%</Text>
+                                <Text style={styles.tableCell}>{comparisonStats.nodeChangePercent}%</Text>
                             </View>
 
                             <View style={styles.tableRow}>
                                 <Text style={styles.tableCell}>Edge Count</Text>
-                                <Text style={styles.tableCell}>{research.stats.originalLinkCount}</Text>
-                                <Text style={styles.tableCell}>{research.stats.comparisonLinkCount}</Text>
+                                <Text style={styles.tableCell}>{comparisonStats.originalLinkCount}</Text>
+                                <Text style={styles.tableCell}>{comparisonStats.comparisonLinkCount}</Text>
                                 <Text style={styles.tableCell}>
-                                    {research.stats.linkDifference > 0 ?
-                                        `+${research.stats.linkDifference}` :
-                                        research.stats.linkDifference}
+                                    {comparisonStats.linkDifference > 0 ?
+                                        `+${comparisonStats.linkDifference}` :
+                                        comparisonStats.linkDifference}
                                 </Text>
-                                <Text style={styles.tableCell}>{research.stats.linkChangePercent}%</Text>
+                                <Text style={styles.tableCell}>{comparisonStats.linkChangePercent}%</Text>
                             </View>
 
                             <View style={styles.tableRow}>
                                 <Text style={styles.tableCell}>Common Nodes</Text>
                                 <Text style={[styles.tableCell, { width: '40%' }]}>
-                                    {research.stats.commonNodesCount}
+                                    {comparisonStats.commonNodesCount}
                                 </Text>
                                 <Text style={[styles.tableCell, { width: '40%' }]}>
-                                    {((research.stats.commonNodesCount / research.stats.originalNodeCount) * 100).toFixed(2)}% of original network
+                                    {((comparisonStats.commonNodesCount / comparisonStats.originalNodeCount) * 100).toFixed(2)}% of original network
                                 </Text>
                             </View>
-                        </View>}
+                        </View>
                     </View>
-                ) : (
-                    <View style={styles.comparison}>
-                        <Text>This research does not include a comparison with other studies.</Text>
+                    <View style={styles.footer} fixed>
+                        <Text>Generated on {new Date().toLocaleDateString()} - Network Analysis Platform</Text>
                     </View>
-                )}
+                </Page>
+            ))}
 
-                {/* Footer */}
-                <View style={styles.footer}>
-                    <Text>Generated on {new Date().toLocaleDateString()} - Network Analysis Platform</Text>
-                </View>
-            </Page>
         </Document>
     )
 };
+
+
+
+
 
 const MyResearchReport = ({ selectedMetric, name, params, setShowDownload, hasComparison }) => {
     const { user, table } = useSelector((state) => state);
@@ -326,7 +350,7 @@ const MyResearchReport = ({ selectedMetric, name, params, setShowDownload, hasCo
         conclusion: '',
         hasComparison,
         metric: selectedMetric,
-        stats: table.tableData || {},
+        stats: table.tableData || [],
     });
 
     console.log(table.tableData, 'tableData');

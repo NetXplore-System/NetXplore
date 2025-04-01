@@ -66,22 +66,22 @@ class ResearchFilter(Base):
 
     filter_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     research_id = Column(UUID(as_uuid=True), ForeignKey("research.research_id"), nullable=False)
-    start_date = Column(String)
-    end_date = Column(String)
-    start_time = Column(String)
-    end_time = Column(String)
-    message_limit = Column(Integer)
-    limit_type = Column(String)
-    min_message_length = Column(Integer)
-    max_message_length = Column(Integer)
-    keywords = Column(String)
-    filter_by_username = Column(String)
-    min_messages = Column(Integer)
-    max_messages = Column(Integer)
-    selected_users = Column(String)
-    top_active_users = Column(Integer)
+    start_date = Column(String, nullable=True)
+    end_date = Column(String, nullable=True)
+    start_time = Column(String, nullable=True)
+    end_time = Column(String, nullable=True)
+    message_limit = Column(Integer, nullable=True)
+    limit_type = Column(String, nullable=True)
+    min_message_length = Column(Integer, nullable=True)
+    max_message_length = Column(Integer, nullable=True)
+    keywords = Column(String, nullable=True)
+    min_messages = Column(Integer, nullable=True)
+    max_messages = Column(Integer, nullable=True)
+    top_active_users = Column(Integer, nullable=True)
+    selected_users = Column(String, nullable=True)
+    filter_by_username = Column(String, nullable=True)
     anonymize = Column(Boolean, default=False)
-    algorithm = Column(String)
+    algorithm = Column(String, nullable=True)
 
     def to_dict(self):
         return {
@@ -98,7 +98,7 @@ class ResearchFilter(Base):
             "filter_by_username": self.filter_by_username,
             "min_messages": self.min_messages,
             "max_messages": self.max_messages,
-            "specific_users": self.specific_users,
+            "specific_users": self.selected_users,
             "top_active_users": self.top_active_users
         }
 
@@ -133,7 +133,6 @@ class NetworkAnalysis(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     research_id = Column(UUID(as_uuid=True), ForeignKey("research.research_id"), nullable=True)
-    # file_id = Column(UUID(as_uuid=True), ForeignKey("saved_files.id"), nullable=True)
     nodes = Column(JSONB, nullable=False)  # Store nodes as JSON
     links = Column(JSONB, nullable=False)  # Store links as JSON
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -145,7 +144,6 @@ class NetworkAnalysis(Base):
         return {
             "id": str(self.id),
             "research_id": str(self.research_id) if self.research_id else None,
-            "file_id": str(self.file_id) if self.file_id else None,
             "nodes": self.nodes,
             "links": self.links,
             "created_at": self.created_at.isoformat() if self.created_at else None,
