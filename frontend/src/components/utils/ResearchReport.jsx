@@ -197,8 +197,6 @@ const styles = StyleSheet.create({
 const ResearchReport = ({ research }) => {
     const canvas = document.querySelectorAll('canvas');
 
-    const comparisonPages = research.stats || [];
-
     return (
         <Document>
             <Page style={styles.page}>
@@ -260,14 +258,14 @@ const ResearchReport = ({ research }) => {
                     </View>
                 )}
             </Page>
-            {research.hasComparison && comparisonPages.map((comparisonStats, index) => (
+            {research.hasComparison && research.stats.map((comparisonStats, index) => (
                 <Page key={index} style={styles.page}>
                     <Text style={styles.pageNumber}>Page {index + 2}</Text>
 
 
                     <View key={index} style={styles.comparisonSection}>
                         <Text style={styles.comparisonTitle}>
-                            Comparison #{index + 1}
+                            Comparison #{index + 1} Page: {comparisonStats.fileName}
                         </Text>
 
                         <View style={[styles.comparisonImagesContainer, { height: '45%' }]}>

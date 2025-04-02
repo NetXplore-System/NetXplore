@@ -287,7 +287,7 @@ const ComparisonMetrics = ({
                             <p>Could not calculate comparison statistics.</p>
                           );
 
-                        dispatch(setTableData(stats));
+                        dispatch(setTableData({...stats, fileName: comparisonData[index]?.name || "unknon name"}));
 
 
                         return (

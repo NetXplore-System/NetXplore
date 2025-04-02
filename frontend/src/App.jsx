@@ -41,7 +41,7 @@ function App() {
             iconTheme: {
               primary: 'green',
               secondary: 'black',
-            },
+            },  
           },
         }}
       />
