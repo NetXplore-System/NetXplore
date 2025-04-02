@@ -275,7 +275,7 @@ const ResearchReport = ({ research }) => {
                             />
                             <Image
                                 style={[styles.comparisonImage, { height: '100%' }]}
-                                src={canvas[index + 1].toDataURL("image/png")}
+                                src={canvas[index + 2].toDataURL("image/png")}
                             />
                         </View>
 
