@@ -69,6 +69,8 @@ const Home = () => {
   const [nodesFixed, setNodesFixed] = useState(false);
   const [showOnlyIntraCommunityLinks, setShowOnlyIntraCommunityLinks] =
     useState(false);
+  const [isDirectedGraph, setIsDirectedGraph] = useState(false);
+
   const [communityMap, setCommunityMap] = useState({});
   const {
     comparisonCount,
@@ -903,8 +905,8 @@ const Home = () => {
         nodeAutoColorBy="id"
         linkWidth={(link) => Math.sqrt(link.weight || 1)}
         linkColor={() => linkColor}
+        directed={isDirectedGraph}
         onNodeDragEnd={(node) => {
-          // קיבוע המיקום של הצומת למיקום הנוכחי
           node.fx = node.x;
           node.fy = node.y;
           setNodesFixed(true);
@@ -1530,6 +1532,16 @@ const Home = () => {
                       >
                         Release All Nodes
                       </Button>
+                      <Button
+                        className={`metrics-item ${
+                          isDirectedGraph ? "active" : ""
+                        }`}
+                        onClick={() => setIsDirectedGraph(!isDirectedGraph)}
+                      >
+                        {isDirectedGraph
+                          ? "Show Undirected Graph"
+                          : "Show Directed Graph"}
+                      </Button>
                     </div>
                   )}
                 </Card>
@@ -1575,6 +1587,7 @@ const Home = () => {
                           handleNodeClick={handleNodeClick}
                           networkWasRestored={networkWasRestored}
                           forceGraphRef={forceGraphRef}
+                          isDirectedGraph={isDirectedGraph}
                         />
                       </GraphContainer>
                     )}
