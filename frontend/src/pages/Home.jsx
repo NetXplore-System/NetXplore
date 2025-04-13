@@ -893,27 +893,6 @@ const Home = () => {
       return 20;
     };
 
-    const unfixAllNodes = () => {
-      if (networkData && networkData.nodes) {
-        // Create a copy of nodes with fixed positions removed
-        const updatedNodes = networkData.nodes.map((node) => ({
-          ...node,
-          fx: null,
-          fy: null,
-        }));
-
-        // Update the network data
-        setNetworkData({
-          ...networkData,
-          nodes: updatedNodes,
-        });
-
-        // Restart the simulation so nodes start moving again
-        if (forceGraphRef.current) {
-          forceGraphRef.current.d3ReheatSimulation();
-        }
-      }
-    };
     return (
       <ForceGraph2D
         graphData={processedData}
