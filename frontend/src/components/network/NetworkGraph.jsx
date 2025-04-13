@@ -96,6 +96,8 @@ const NetworkGraph = ({
       onEngineStop={() =>
         forceGraphRef.current?.zoomToFit(400, 100)
       }
+      onNodeDragEnd={node => { node.fx = node.x; node.fy = node.y; }}
+
       linkCanvasObject={(link, ctx, globalScale) => {
         if (!link.source || !link.target) return;
         ctx.beginPath();

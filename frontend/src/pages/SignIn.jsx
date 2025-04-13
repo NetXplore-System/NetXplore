@@ -43,7 +43,8 @@ const SignIn = () => {
   
       const data = await response.json();
       dispatch(setUser(data)); 
-      navigate("/profile");
+      // navigate("/profile");
+      navigate("/choose-platform");
     } catch (err) {
       setError(err.message);
     }

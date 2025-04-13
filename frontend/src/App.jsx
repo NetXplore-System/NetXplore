@@ -10,7 +10,6 @@ import PrivateRoute from "./components/PrivateRoute";
 import Header from "./components/Header/Header.jsx";
 import Menu from "./components/Menu/Menu.jsx";
 import HomeW from "./pages/HomeW.jsx";
-// import UploadWhatsAppFile from "./pages/Form.jsx";
 import ChoosePlatform from "./pages/ChoosePlatform.jsx";
 import { Toaster } from "react-hot-toast";
 function App() {
@@ -56,6 +55,7 @@ function App() {
           <Route path="/home_wikipedia" element={<HomeW />} />
           <Route path="/sign-in" element={<SignIn />} />
           <Route path="/sign-up" element={<SignUp />} />
+          <Route path="/choose-platform" element={<ChoosePlatform />} />
           <Route element={<PrivateRoute />}>
             <Route path="/profile" element={<Profile />} />
             <Route path="/edit-profile" element={<EditProfile />} />
