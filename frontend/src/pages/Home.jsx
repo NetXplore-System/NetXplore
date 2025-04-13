@@ -162,13 +162,11 @@ const Home = () => {
 
   const unfixAllNodes = () => {
     if (networkData && networkData.nodes) {
-      // בדיקה אם יש צמתים מקובעים
       const hasFixedNodes = networkData.nodes.some(
         (node) => node.fx !== null || node.fy !== null
       );
 
       if (hasFixedNodes) {
-        // אם יש צמתים מקובעים - שחרר אותם
         const updatedNodes = networkData.nodes.map((node) => ({
           ...node,
           fx: null,
@@ -184,7 +182,6 @@ const Home = () => {
           forceGraphRef.current.d3ReheatSimulation();
         }
 
-        // עדכון המצב - אין צמתים מקובעים
         setNodesFixed(false);
       }
     }
