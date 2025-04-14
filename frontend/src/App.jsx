@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import "./App.css";
 import Home from "./pages/Home.jsx";
 import SignIn from "./pages/SignIn.jsx";
@@ -12,16 +12,17 @@ import Menu from "./components/Menu/Menu.jsx";
 import HomeW from "./pages/HomeW.jsx";
 import ChoosePlatform from "./pages/ChoosePlatform.jsx";
 import { Toaster } from "react-hot-toast";
-
 import { useSelector } from "react-redux";
 
-function App() {
+function AppContent() {
   const [isOpen, setIsOpen] = useState(false);
-  const user = localStorage.getItem("user");
   const { currentUser } = useSelector((state) => state.user);
-
+  const location = useLocation();
+  
+  const isAuthPage = location.pathname === '/sign-in' || location.pathname === '/' || location.pathname === '/sign-up';
+  
   return (
-    <BrowserRouter>
+    <>
       <Toaster
         position="top-center"
         reverseOrder={false}
@@ -29,7 +30,6 @@ function App() {
         containerClassName=""
         containerStyle={{}}
         toastOptions={{
-          // Define default options
           className: '',
           duration: 5000,
           removeDelay: 1000,
@@ -37,8 +37,6 @@ function App() {
             background: '#363636',
             color: '#fff',
           },
-
-          // Default options for specific types
           success: {
             duration: 3000,
             iconTheme: {
@@ -48,20 +46,16 @@ function App() {
           },
         }}
       />
-      {/* <Menu isOpen={isOpen} setIsOpen={setIsOpen} />
-      <Header isOpen={isOpen} />
-       */}
-        {currentUser && (
+      
+      {!isAuthPage && (
         <>
           <Menu isOpen={isOpen} setIsOpen={setIsOpen} />
           <Header isOpen={isOpen} />
         </>
       )}
-      {/* {user && <Header isOpen={isOpen} />} */}
+      
       <div className={`main-content ${isOpen ? "expanded" : "collapsed"}`}>
         <Routes>
-          {/* <Route path="/" element={<Home />} /> */}
-          {/* <Route path="/" element={<ChoosePlatform />} /> */}
           <Route path="/" element={<SignIn />} />
           <Route path="/home" element={<Home />} />
           <Route path="/home_wikipedia" element={<HomeW />} />
@@ -74,6 +68,14 @@ function App() {
           </Route>
         </Routes>
       </div>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
     </BrowserRouter>
   );
 }
