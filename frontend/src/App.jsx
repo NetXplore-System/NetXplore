@@ -50,7 +50,7 @@ function App() {
       <div className={`main-content ${isOpen ? "expanded" : "collapsed"}`}>
         <Routes>
           {/* <Route path="/" element={<Home />} /> */}
-          <Route path="/" element={<ChoosePlatform />} />
+          {/* <Route path="/" element={<ChoosePlatform />} /> */}
           <Route path="/home" element={<Home />} />
           <Route path="/home_wikipedia" element={<HomeW />} />
           <Route path="/sign-in" element={<SignIn />} />
