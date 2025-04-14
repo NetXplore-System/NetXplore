@@ -12,9 +12,13 @@ import Menu from "./components/Menu/Menu.jsx";
 import HomeW from "./pages/HomeW.jsx";
 import ChoosePlatform from "./pages/ChoosePlatform.jsx";
 import { Toaster } from "react-hot-toast";
+
+import { useSelector } from "react-redux";
+
 function App() {
   const [isOpen, setIsOpen] = useState(false);
   const user = localStorage.getItem("user");
+  const { currentUser } = useSelector((state) => state.user);
 
   return (
     <BrowserRouter>
@@ -44,8 +48,15 @@ function App() {
           },
         }}
       />
-      <Menu isOpen={isOpen} setIsOpen={setIsOpen} />
+      {/* <Menu isOpen={isOpen} setIsOpen={setIsOpen} />
       <Header isOpen={isOpen} />
+       */}
+        {currentUser && (
+        <>
+          <Menu isOpen={isOpen} setIsOpen={setIsOpen} />
+          <Header isOpen={isOpen} />
+        </>
+      )}
       {/* {user && <Header isOpen={isOpen} />} */}
       <div className={`main-content ${isOpen ? "expanded" : "collapsed"}`}>
         <Routes>
