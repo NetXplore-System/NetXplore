@@ -1570,7 +1570,6 @@ const Home = () => {
                     )}
                   </Card>
                 )}
-
                 <Card className="graph-card">
                   <div className="graph-placeholder">
                     {networkData && (
