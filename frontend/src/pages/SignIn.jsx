@@ -6,7 +6,11 @@ import Button from "react-bootstrap/Button";
 import Form from "react-bootstrap/Form";
 import Container from "react-bootstrap/Container";
 import OAuth from "../components/OAuth.jsx";
+import Card from "react-bootstrap/Card";
+import Image from "react-bootstrap/Image";
+import logo from "../assets/Logo.png";
 
+ 
 const SignIn = () => {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
@@ -53,55 +57,65 @@ const SignIn = () => {
 
   return (
     <Container
-      className="d-flex justify-content-center align-items-center"
-      style={{ minHeight: "100vh" }}
-    >
-      <Form
-        style={{ width: "100%", maxWidth: "400px" }}
-        onSubmit={handleSubmit}
-      >
-        <h3 className="text-center mb-4">Sign In</h3>
-        {error && <p className="text-danger text-center">{error}</p>}
-
-        <Form.Group className="mb-3" controlId="formBasicEmail">
-          <Form.Label>Email address</Form.Label>
-          <Form.Control
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            placeholder="Enter email"
-            required
+    className="d-flex justify-content-center align-items-center"
+    style={{ minHeight: "100vh" }}
+  >
+    <Card style={{ width: "100%", maxWidth: "500px",borderRadius: "20px" }} className="shadow">
+      <Card.Body className="p-4">
+        <div className="text-center mb-4">
+          <Image 
+            src={logo}
+            alt="Logo" 
+            width="150" 
+            className="mb-3" 
           />
-        </Form.Group>
+          <h3>Sign In</h3>
+        </div>
+        
+        {error && <p className="text-danger text-center mb-3">{error}</p>}
 
-        <Form.Group className="mb-3" controlId="formBasicPassword">
-          <Form.Label>Password</Form.Label>
-          <Form.Control
-            type="password"
-            name="password"
-            value={formData.password}
-            onChange={handleChange}
-            placeholder="Password"
-            required
-          />
-        </Form.Group>
+        <Form onSubmit={handleSubmit}>
+          <Form.Group className="mb-3" controlId="formBasicEmail">
+            <Form.Label>Email address</Form.Label>
+            <Form.Control
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              placeholder="Enter email"
+              required
+            />
+          </Form.Group>
 
-        <Button variant="primary" type="submit" className="w-100 mb-3">
-          Sign In
-        </Button>
+          <Form.Group className="mb-3" controlId="formBasicPassword">
+            <Form.Label>Password</Form.Label>
+            <Form.Control
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              placeholder="Password"
+              required
+            />
+          </Form.Group>
 
-        <OAuth />
+          <Button variant="primary" type="submit" className="w-100 mb-3"   style={{ backgroundColor: "#050d2d", borderColor: "#050d2d" }}>
+            Sign In
+          </Button>
 
-        <p className="text-center">
-          Don't have an account?{" "}
-          <Link to="/sign-up" style={{ textDecoration: "none" }}>
-            Sign Up
-          </Link>
-        </p>
-      </Form>
-    </Container>
-  );
+          <OAuth />
+
+          <p className="text-center mt-3">
+            Don't have an account?{" "}
+            <Link to="/sign-up" style={{ textDecoration: "none" }}>
+              Sign Up
+            </Link>
+          </p>
+        </Form>
+      </Card.Body>
+    </Card>
+  </Container>
+);
 };
 
 export default SignIn;
