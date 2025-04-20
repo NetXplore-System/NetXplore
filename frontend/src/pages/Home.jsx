@@ -1,11 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import {
-  Container,
-  Row,
-  Col,
-  Button,
-  Card,
-} from "react-bootstrap";
+import { Container, Row, Col, Button, Card } from "react-bootstrap";
 import {
   ChevronDown,
   ChevronUp,
@@ -36,7 +30,7 @@ import {
   saveFormToDB,
   analyzeNetwork,
   detectCommunities,
-  compareNetworks
+  compareNetworks,
 } from "../components/utils/ApiService.jsx";
 import { useSelector } from "react-redux";
 
@@ -84,8 +78,11 @@ const Home = () => {
   const forceGraphRef = useRef(null);
   const [networkWasRestored, setNetworkWasRestored] = useState(false);
   const [shouldFetchCommunities, setShouldFetchCommunities] = useState(false);
+  const [nodesFixed, setNodesFixed] = useState(false);
   const [showOnlyIntraCommunityLinks, setShowOnlyIntraCommunityLinks] =
     useState(false);
+  const [isDirectedGraph, setIsDirectedGraph] = useState(false);
+
   const [communityMap, setCommunityMap] = useState({});
   const {
     comparisonCount,
@@ -181,6 +178,34 @@ const Home = () => {
     showImportantNodes: false,
     importantNodesThreshold: 0.5,
   });
+
+  const unfixAllNodes = () => {
+    if (networkData && networkData.nodes) {
+      const hasFixedNodes = networkData.nodes.some(
+        (node) => node.fx !== null || node.fy !== null
+      );
+
+      if (hasFixedNodes) {
+        const updatedNodes = networkData.nodes.map((node) => ({
+          ...node,
+          fx: null,
+          fy: null,
+        }));
+
+        setNetworkData({
+          ...networkData,
+          nodes: updatedNodes,
+        });
+
+        if (forceGraphRef.current) {
+          forceGraphRef.current.d3ReheatSimulation();
+        }
+
+        setNodesFixed(false);
+      }
+    }
+  };
+
   const { currentUser } = useSelector((state) => state.user);
 
   const loadCommunityColors = (communities) => {
@@ -331,24 +356,16 @@ const Home = () => {
   };
 
   const handleSaveToDB = () => {
-
     const params = filters.buildNetworkFilterParams();
     const id = currentUser?.id;
     if (!name || !description || !uploadedFile || !params || !id) {
       toast.error("Please fill in all required fields.");
       return;
     }
-    saveToDB(
-      id,
-      name,
-      description,
-      uploadedFile,
-      params,
-      selectedMetric,
-      {
-        hasComparison: comparisonNetworkData.length ? true : false,
-        data: comparisonNetworkData || undefined,
-      });
+    saveToDB(id, name, description, uploadedFile, params, selectedMetric, {
+      hasComparison: comparisonNetworkData.length ? true : false,
+      data: comparisonNetworkData || undefined,
+    });
   };
 
   const calculateNetworkStats = () => {
@@ -454,17 +471,17 @@ const Home = () => {
 
   const filteredNodes = networkData
     ? networkData.nodes.filter((node) =>
-      node.id.toLowerCase().includes(filter.toLowerCase())
-    )
+        node.id.toLowerCase().includes(filter.toLowerCase())
+      )
     : [];
 
 
   const filteredLinks = networkData
     ? networkData.links.filter(
-      (link) =>
-        filteredNodes.some((node) => node.id === link.source) &&
-        filteredNodes.some((node) => node.id === link.target)
-    )
+        (link) =>
+          filteredNodes.some((node) => node.id === link.source) &&
+          filteredNodes.some((node) => node.id === link.target)
+      )
     : [];
 
   const handleStrongConnections = () => {
@@ -512,7 +529,9 @@ const Home = () => {
             setActiveComparisonIndices([...activeComparisonIndices, index]);
           }
 
-          setMessage(`Comparison analysis ${index + 1} completed successfully!`);
+          setMessage(
+            `Comparison analysis ${index + 1} completed successfully!`
+          );
         } else {
           setMessage(`No valid data returned for comparison ${index + 1}.`);
         }
@@ -579,7 +598,9 @@ const Home = () => {
               const community = newCommunityMap[normalizedId];
 
               if (community !== undefined) {
-                console.log(`Assigning node ${node.id} to community ${community}`);
+                console.log(
+                  `Assigning node ${node.id} to community ${community}`
+                );
                 return { ...node, community };
               }
 
@@ -596,7 +617,9 @@ const Home = () => {
               links: networkData.links,
             });
 
-            setMessage(`Detected ${data.communities.length} communities in the network.`);
+            setMessage(
+              `Detected ${data.communities.length} communities in the network.`
+            );
           }
         } else {
           setMessage("No community data returned from server.");
@@ -607,7 +630,6 @@ const Home = () => {
       });
   };
 
-
   const detectAndApplyCommunityData = () => {
     if (!uploadedFile) {
       setMessage("No file selected for community detection.");
@@ -616,7 +638,6 @@ const Home = () => {
 
     const params = filters.buildNetworkFilterParams();
     detectCommunities(uploadedFile, params)
-
       .then((data) => {
         console.log("Community data returned from server:", data);
 
@@ -640,7 +661,9 @@ const Home = () => {
               const community = newCommunityMap[normalizedId];
 
               if (community !== undefined) {
-                console.log(`Assigning node ${node.id} to community ${community}`);
+                console.log(
+                  `Assigning node ${node.id} to community ${community}`
+                );
                 return { ...node, community };
               }
 
@@ -657,7 +680,9 @@ const Home = () => {
               links: networkData.links,
             });
 
-            setMessage(`Detected ${data.communities.length} communities in the network.`);
+            setMessage(
+              `Detected ${data.communities.length} communities in the network.`
+            );
           }
         } else {
           setMessage("No community data returned from server.");
@@ -702,7 +727,7 @@ const Home = () => {
         nodeColor =
           settings.communityColors?.[communityId] ??
           settings.customColors.communityColors[
-          communityId % settings.customColors.communityColors.length
+            communityId % settings.customColors.communityColors.length
           ];
       } else if (settings.colorBy === "degree") {
         const maxDegree = Math.max(
@@ -890,6 +915,12 @@ const Home = () => {
         nodeAutoColorBy="id"
         linkWidth={(link) => Math.sqrt(link.weight || 1)}
         linkColor={() => linkColor}
+        directed={isDirectedGraph}
+        onNodeDragEnd={(node) => {
+          node.fx = node.x;
+          node.fy = node.y;
+          setNodesFixed(true);
+        }}
         nodeCanvasObject={(node, ctx, globalScale) => {
           const fontSize = 12 / globalScale;
 
@@ -898,14 +929,14 @@ const Home = () => {
             (selectedMetric === "PageRank Centrality"
               ? Math.max(10, node.pagerank * 500)
               : selectedMetric === "Eigenvector Centrality"
-                ? Math.max(10, node.eigenvector * 60)
-                : selectedMetric === "Closeness Centrality"
-                  ? Math.max(10, node.closeness * 50)
-                  : selectedMetric === "Betweenness Centrality"
-                    ? Math.max(10, node.betweenness * 80)
-                    : selectedMetric === "Degree Centrality"
-                      ? Math.max(10, node.degree * 80)
-                      : 20);
+              ? Math.max(10, node.eigenvector * 60)
+              : selectedMetric === "Closeness Centrality"
+              ? Math.max(10, node.closeness * 50)
+              : selectedMetric === "Betweenness Centrality"
+              ? Math.max(10, node.betweenness * 80)
+              : selectedMetric === "Degree Centrality"
+              ? Math.max(10, node.degree * 80)
+              : 20);
 
           ctx.save();
           ctx.beginPath();
@@ -1307,7 +1338,8 @@ const Home = () => {
       });
 
       setMessage(
-        `Showing only intra-community links and hiding isolated nodes. Removed ${networkData.links.length - filteredLinks.length
+        `Showing only intra-community links and hiding isolated nodes. Removed ${
+          networkData.links.length - filteredLinks.length
         } cross-community links.`
       );
     } else {
@@ -1342,7 +1374,6 @@ const Home = () => {
       }, 100);
     }
   };
-
 
   console.log(originalNetworkData, comparisonNetworkData);
 
@@ -1417,6 +1448,169 @@ const Home = () => {
             />
           )}
 
+          {uploadedFile && (
+            <Row className="mt-4">
+              <Col
+                lg={3}
+                md={12}
+                className={`mb-3 metrics-panel ${
+                  showMetrics ? "open" : "closed"
+                }`}
+              >
+                <Card className="metrics-card">
+                  <h4 className="fw-bold d-flex justify-content-between align-items-center">
+                    {showMetrics && "Graph Metrics"}
+                    <Button
+                      variant="link"
+                      className="metrics-toggle"
+                      onClick={() => setShowMetrics(!showMetrics)}
+                    >
+                      {showMetrics ? (
+                        <ChevronLeft size={20} />
+                      ) : (
+                        <ChevronRight size={20} />
+                      )}
+                    </Button>
+                  </h4>
+                  {showMetrics && (
+                    <div className="mt-2">
+                      <MetricsButton
+                        graphMetrics={graphMetrics}
+                        selectedMetric={selectedMetric}
+                        onToggleMetric={handleToggleMetric}
+                        onDensity={handleDensityMetric}
+                        onDiameter={handleDiameterMetric}
+                      />
+                      <Button
+                        className="metrics-item"
+                        onClick={() => setShowDataTable(!showDataTable)}
+                        variant={showDataTable ? "primary" : "outline-primary"}
+                      >
+                        <FileBarGraph className="me-1" /> Explore Data Table
+                      </Button>
+
+                      <Button
+                        className={`metrics-item ${
+                          strongConnectionsActive ? "active" : ""
+                        }`}
+                        onClick={handleStrongConnections}
+                      >
+                        {strongConnectionsActive
+                          ? "Show All Connections"
+                          : "Strongest Connections"}
+                      </Button>
+                      <Button
+                        className={`metrics-item ${
+                          highlightCentralNodes ? "active" : ""
+                        }`}
+                        onClick={handleHighlightCentralNodes}
+                      >
+                        Highlight Central Nodes
+                      </Button>
+                      <Button
+                        className={`metrics-item ${
+                          networkWasRestored ? "active" : ""
+                        }`}
+                        onClick={handleRestoreNetwork}
+                      >
+                        Restore Original Network
+                      </Button>
+                      <Button
+                        className={`metrics-item ${
+                          activityFilterEnabled === true ? "active" : ""
+                        }`}
+                        onClick={handleActivityFilter}
+                      >
+                        {activityFilterEnabled
+                          ? "Show All Users"
+                          : "Hide Inactive Users"}
+                      </Button>
+
+                      <Button
+                        className={`metrics-item ${
+                          showOnlyIntraCommunityLinks ? "active" : ""
+                        }`}
+                        onClick={handleToggleCommunitiesFilter}
+                      >
+                        {showOnlyIntraCommunityLinks
+                          ? "Show All Links"
+                          : "Hide Cross-Community Links"}
+                      </Button>
+                      <Button
+                        className={`metrics-item ${nodesFixed ? "active" : ""}`}
+                        onClick={unfixAllNodes}
+                      >
+                        Release All Nodes
+                      </Button>
+                      <Button
+                        className={`metrics-item ${
+                          isDirectedGraph ? "active" : ""
+                        }`}
+                        onClick={() => setIsDirectedGraph(!isDirectedGraph)}
+                      >
+                        {isDirectedGraph
+                          ? "Show Undirected Graph"
+                          : "Show Directed Graph"}
+                      </Button>
+                    </div>
+                  )}
+                </Card>
+                <MetricsPanel networkStats={networkStats} />{" "}
+              </Col>
+
+              {/* Graph Display */}
+              <Col lg={9} md={12} className="graph-area">
+                {networkData && (
+                  <NetworkCustomizationToolbar
+                    networkData={networkData}
+                    communities={communities}
+                    onApplyCustomization={handleNetworkCustomization}
+                    initialSettings={visualizationSettings}
+                  />
+                )}
+                {(showDensity || showDiameter) && (
+                  <Card className="density-card">
+                    {showDensity && (
+                      <h5 className="fw-bold">Graph Density: {densityValue}</h5>
+                    )}
+                    {showDiameter && (
+                      <h5 className="fw-bold">
+                        Graph Diameter: {diameterValue}
+                      </h5>
+                    )}
+                  </Card>
+                )}
+                <Card className="graph-card">
+                  <div className="graph-placeholder">
+                    {networkData && (
+                      <GraphContainer>
+                        <NetworkGraph
+                          networkData={networkData}
+                          filteredNodes={filteredNodes}
+                          filteredLinks={filteredLinks}
+                          customizedNetworkData={customizedNetworkData}
+                          selectedMetric={selectedMetric}
+                          highlightCentralNodes={highlightCentralNodes}
+                          showMetrics={showMetrics}
+                          visualizationSettings={visualizationSettings}
+                          handleNodeClick={handleNodeClick}
+                          networkWasRestored={networkWasRestored}
+                          forceGraphRef={forceGraphRef}
+                          isDirectedGraph={isDirectedGraph}
+                        />
+                      </GraphContainer>
+                    )}
+                  </div>
+                </Card>
+                {showDataTable && networkData && (
+                  <NetworkDataTable
+                    networkData={networkData}
+                    onClose={() => setShowDataTable(false)}
+                  />
+                )}
+              </Col>
+            </Row>
+          )}
 
           <Row className="mt-4">
             <Col

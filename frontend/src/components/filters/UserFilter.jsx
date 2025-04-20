@@ -63,7 +63,7 @@ const UserFilter = ({
           />
         </Form.Group>
       </Col>
-      <Col lg={12} className="mb-3">
+      <Col lg={4} md={4} className="mb-3">
         <Form.Group>
           <Form.Label className="research-label">Specific Users:</Form.Label>
           <Form.Control

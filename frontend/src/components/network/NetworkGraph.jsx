@@ -14,6 +14,7 @@ const NetworkGraph = ({
   handleNodeClick,
   networkWasRestored,
   forceGraphRef,
+  isDirectedGraph,
 }) => {
   useEffect(() => {
     if (forceGraphRef.current) {
@@ -28,11 +29,7 @@ const NetworkGraph = ({
   return (
     <ForceGraph2D
       ref={forceGraphRef}
-      key={
-        customizedNetworkData
-          ? "customized"
-          : "default"
-      }
+      key={customizedNetworkData ? "customized" : "default"}
       graphData={{
         nodes: customizedNetworkData
           ? customizedNetworkData.nodes
@@ -81,6 +78,7 @@ const NetworkGraph = ({
               };
             }),
       }}
+      directed={isDirectedGraph}
       width={showMetrics ? 1200 : 1500}
       height={500}
       fitView
@@ -93,9 +91,11 @@ const NetworkGraph = ({
       d3AlphaDecay={0.03}
       d3VelocityDecay={0.2}
       onNodeClick={handleNodeClick}
-      onEngineStop={() =>
-        forceGraphRef.current?.zoomToFit(400, 100)
-      }
+      onEngineStop={() => forceGraphRef.current?.zoomToFit(400, 100)}
+      onNodeDragEnd={(node) => {
+        node.fx = node.x;
+        node.fy = node.y;
+      }}
       linkCanvasObject={(link, ctx, globalScale) => {
         if (!link.source || !link.target) return;
         ctx.beginPath();
@@ -114,6 +114,47 @@ const NetworkGraph = ({
         ctx.textBaseline = "middle";
         ctx.fillText(link.weight || "1", midX, midY);
         ctx.restore();
+
+        if (isDirectedGraph) {
+          const targetRadius =
+            link.target.size ||
+            (selectedMetric === "PageRank Centrality"
+              ? Math.max(10, link.target.pagerank * 500)
+              : selectedMetric === "Eigenvector Centrality"
+              ? Math.max(10, link.target.eigenvector * 60)
+              : selectedMetric === "Closeness Centrality"
+              ? Math.max(10, link.target.closeness * 50)
+              : selectedMetric === "Betweenness Centrality"
+              ? Math.max(10, link.target.betweenness * 80)
+              : selectedMetric === "Degree Centrality"
+              ? Math.max(10, link.target.degree * 80)
+              : 20);
+
+          const dx = link.target.x - link.source.x;
+          const dy = link.target.y - link.source.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist === 0) return;
+
+          const arrowX = link.target.x - (dx * targetRadius) / dist;
+          const arrowY = link.target.y - (dy * targetRadius) / dist;
+
+          const angle = Math.atan2(dy, dx);
+          const arrowLength = 10 / globalScale;
+          const arrowWidth = 5 / globalScale;
+
+          ctx.save();
+          ctx.translate(arrowX, arrowY);
+          ctx.rotate(angle);
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(-arrowLength, arrowWidth);
+          ctx.lineTo(-arrowLength, -arrowWidth);
+          ctx.closePath();
+          ctx.fillStyle = "gray";
+          ctx.fill();
+          ctx.restore();
+        }
       }}
       nodeCanvasObject={(node, ctx, globalScale) => {
         const fontSize = 12 / globalScale;
@@ -240,6 +281,7 @@ NetworkGraph.propTypes = {
   handleNodeClick: PropTypes.func,
   networkWasRestored: PropTypes.bool,
   forceGraphRef: PropTypes.object,
+  isDirectedGraph: PropTypes.bool,
 };
 
 NetworkGraph.defaultProps = {
@@ -249,6 +291,7 @@ NetworkGraph.defaultProps = {
   showMetrics: true,
   visualizationSettings: {},
   networkWasRestored: false,
+  isDirectedGraph: false,
 };
 
 export default NetworkGraph;

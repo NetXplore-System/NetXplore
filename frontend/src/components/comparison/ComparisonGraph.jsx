@@ -1,7 +1,8 @@
-import React from "react";
 import { ForceGraph2D } from "react-force-graph";
-import { Card } from "react-bootstrap";
+import { Card, Button } from "react-bootstrap";
 import { GraphContainer } from "../../pages/Form.style.js";
+import React, { useState, useRef } from "react";
+
 
 const ComparisonGraph = ({
   graphData,
@@ -12,10 +13,12 @@ const ComparisonGraph = ({
   selectedMetric = null,
   comparisonMetrics = [],
 }) => {
+  const [nodesFixed, setNodesFixed] = useState(false);
+  const forceGraphRef = useRef(null);
+
   if (!graphData || !graphData.nodes || !graphData.links) {
     return <div>No graph data available</div>;
   }
-
   const processedData = {
     nodes: [...graphData.nodes],
     links: graphData.links.map((link) => {
@@ -34,6 +37,26 @@ const ComparisonGraph = ({
       };
     }),
   };
+  const unfixAllNodes = () => {
+    if (processedData && processedData.nodes) {
+      const hasFixedNodes = processedData.nodes.some(
+        (node) => node.fx !== null || node.fy !== null
+      );
+
+      if (hasFixedNodes) {
+        processedData.nodes.forEach(node => {
+          node.fx = null;
+          node.fy = null;
+        });
+
+        if (forceGraphRef.current) {
+          forceGraphRef.current.d3ReheatSimulation();
+        }
+
+        setNodesFixed(false);
+      }
+    }
+  };
 
   const linkColor = isComparisonGraph
     ? "rgba(128, 0, 128, 0.6)"
@@ -41,7 +64,18 @@ const ComparisonGraph = ({
 
   return (
     <Card>
-      <Card.Header as="h5">{title}</Card.Header>
+          <Card.Header as="h5" className="d-flex justify-content-between align-items-center">
+        <span>{title}</span>
+        {nodesFixed && (
+          <Button 
+            variant="outline-secondary" 
+            size="sm" 
+            onClick={unfixAllNodes}
+          >
+            Release Nodes
+          </Button>
+        )}
+      </Card.Header>
       <Card.Body className="text-center">
         <GraphContainer>
           <ForceGraph2D
@@ -51,6 +85,11 @@ const ComparisonGraph = ({
             fitView
             fitViewPadding={20}
             nodeAutoColorBy="id"
+            onNodeDragEnd={(node) => {
+              node.fx = node.x;
+              node.fy = node.y;
+              setNodesFixed(true);
+            }}
             linkWidth={(link) => Math.sqrt(link.weight || 1)}
             linkColor={() => linkColor}
             nodeCanvasObject={(node, ctx, globalScale) => {
