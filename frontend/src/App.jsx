@@ -10,9 +10,11 @@ import PrivateRoute from "./components/PrivateRoute";
 import Header from "./components/Header/Header.jsx";
 import Menu from "./components/Menu/Menu.jsx";
 import HomeW from "./pages/HomeW.jsx";
+import History from "./pages/History.jsx";
 // import UploadWhatsAppFile from "./pages/Form.jsx";
 import ChoosePlatform from "./pages/ChoosePlatform.jsx";
 import { Toaster } from "react-hot-toast";
+
 function App() {
   const [isOpen, setIsOpen] = useState(false);
   const user = localStorage.getItem("user");
@@ -26,7 +28,6 @@ function App() {
         containerClassName=""
         containerStyle={{}}
         toastOptions={{
-          // Define default options
           className: '',
           duration: 5000,
           removeDelay: 1000,
@@ -35,7 +36,6 @@ function App() {
             color: '#fff',
           },
 
-          // Default options for specific types
           success: {
             duration: 3000,
             iconTheme: {
@@ -59,6 +59,7 @@ function App() {
           <Route element={<PrivateRoute />}>
             <Route path="/profile" element={<Profile />} />
             <Route path="/edit-profile" element={<EditProfile />} />
+            <Route path="/history" element={<History />} />
           </Route>
         </Routes>
       </div>

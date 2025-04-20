@@ -15,6 +15,7 @@ const ComparisonMetrics = ({
   onApplyComparisonFilters,
   onResetComparisonFilters,
 }) => {
+  
   const dispatch = useDispatch();
   const [comparisonFilter, setComparisonFilter] = useState("");
   const [minComparisonWeight, setMinComparisonWeight] = useState(1);

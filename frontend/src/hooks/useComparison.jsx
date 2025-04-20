@@ -92,9 +92,8 @@ const useComparison = (originalNetworkData, uploadedFile) => {
       };
     }
 
-    const url = `${BASE_URL}/analyze/network/${
-      comparisonFile.filename
-    }?${filterParams.toString()}`;
+    const url = `${BASE_URL}/analyze/network/${comparisonFile.filename
+      }?${filterParams.toString()}`;
 
     try {
       const response = await fetch(url);
@@ -205,10 +204,8 @@ const useComparison = (originalNetworkData, uploadedFile) => {
 
     const params = new URLSearchParams();
 
-    if (filters.comparisonFilter)
-      params.append("node_filter", filters.comparisonFilter);
-    if (filters.minComparisonWeight)
-      params.append("min_weight", filters.minComparisonWeight);
+    if (filters.comparisonFilter) params.append("node_filter", filters.comparisonFilter);
+    if (filters.minComparisonWeight) params.append("min_weight", filters.minComparisonWeight);
     params.append("highlight_common", filters.highlightCommonNodes.toString());
     params.append("original_filename", uploadedFile);
 
@@ -306,15 +303,15 @@ const useComparison = (originalNetworkData, uploadedFile) => {
 
     const nodeChangePercent = originalNodeCount
       ? (
-          ((comparisonNodeCount - originalNodeCount) / originalNodeCount) *
-          100
-        ).toFixed(2)
+        ((comparisonNodeCount - originalNodeCount) / originalNodeCount) *
+        100
+      ).toFixed(2)
       : 0;
     const linkChangePercent = originalLinkCount
       ? (
-          ((comparisonLinkCount - originalLinkCount) / originalLinkCount) *
-          100
-        ).toFixed(2)
+        ((comparisonLinkCount - originalLinkCount) / originalLinkCount) *
+        100
+      ).toFixed(2)
       : 0;
 
     const originalNodeIds = new Set(originalData.nodes.map((node) => node.id));

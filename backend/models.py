@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Integer, ForeignKey, Boolean, Text, Float
+from sqlalchemy import Column, String, DateTime, Integer, ForeignKey, Boolean, Text, Float, CheckConstraint
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 import uuid
 from datetime import datetime
@@ -45,9 +45,21 @@ class Message(Base):
 class Research(Base):
     __tablename__ = "research"
 
+    __table_args__ = (
+        CheckConstraint(
+            "platform IN ('whatsapp', 'wikipedia')",
+            name="valid_platform_check"
+        ),
+    )
+
     research_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     research_name = Column(String, nullable=False)
     description = Column(String)
+    platform = Column(
+        String,
+        nullable=False,
+        server_default='whatsapp' 
+    )
     created_at = Column(DateTime, default=datetime.utcnow)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=True)
 
@@ -56,6 +68,7 @@ class Research(Base):
             "id": str(self.research_id),
             "research_name": self.research_name,
             "description": self.description,
+            "platform": self.platform,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "user_id": str(self.user_id) if self.user_id else None
         }
@@ -99,7 +112,10 @@ class ResearchFilter(Base):
             "min_messages": self.min_messages,
             "max_messages": self.max_messages,
             "specific_users": self.selected_users,
-            "top_active_users": self.top_active_users
+            "top_active_users": self.top_active_users,
+            "limit_type": self.limit_type,
+            "algorithm": self.algorithm,
+            "anonymize": self.anonymize
         }
 
 

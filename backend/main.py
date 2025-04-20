@@ -18,12 +18,13 @@ from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.ext.asyncio import AsyncSession  # type: ignore
 import bcrypt  # type: ignore
 from sqlalchemy.future import select # type: ignore
+from sqlalchemy import delete # type: ignore
 from database import verify_connection
 import asyncio 
 import database
 from typing import List, Optional
 from models import User, Research, ResearchFilter, NetworkAnalysis, Message, Comparisons
-from utils import extract_messages, anonymize_name
+from utils import extract_messages, anonymize_name, clean_filter_value
 import uuid
 
 
@@ -445,7 +446,7 @@ async def analyze_network(
 
         filtered_lines = []
         for line in lines:
-            print(f"🔹 Line: {line}")
+            # print(f"🔹 Line: {line}")
             if line.startswith("[") and "]" in line:
                 date_part = line.split("] ")[0].strip("[]")
                 try:
@@ -489,7 +490,7 @@ async def analyze_network(
                     parts = message_part.split(":", 1)
                     sender = parts[0].strip("~").replace("\u202a", "").strip()
                     message_content = parts[1].strip() if len(parts) > 1 else ""
-                    print(f"🔹 Sender: {sender}, Message: {message_content}")
+                    # print(f"🔹 Sender: {sender}, Message: {message_content}")
                     message_length = len(message_content)
                     if (min_length and message_length < min_length) or (max_length and message_length > max_length):
                         continue
@@ -555,7 +556,7 @@ async def analyze_network(
             pagerank_centrality = nx.pagerank(G_subgraph, alpha=0.85)
 
         nodes_list = [
-            {
+            { 
                 "id": node,
                 "messages": user_message_count.get(node, 0),
                 "degree": round(degree_centrality.get(node, 0), 4),
@@ -581,9 +582,6 @@ async def analyze_network(
                     "target": target,
                     "weight": weight
                 })
-
-        # print(f"Final nodes: {nodes_list}")
-        # print(f"Final links with weights: {links_list}")
 
         return JSONResponse(content={"nodes": nodes_list, "links": links_list}, status_code=200)
     except Exception as e:
@@ -867,6 +865,110 @@ async def analyze_communities(
         traceback.print_exc()
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
+class CommunityAnalysisData(BaseModel):
+    nodes: List[dict]
+    links: List[dict]
+    algorithm: str = Query("louvain")
+
+@app.post("/history/analyze/communities") 
+async def analyze_communities_history(
+        data: CommunityAnalysisData
+):
+    try:    
+        algorithm = data.algorithm
+    
+        G = nx.Graph()
+
+        for node in data.nodes:
+            G.add_node(node["id"], **{k: v for k, v in node.items() if k != "id"})
+
+        for link in data.links:
+            source = link["source"]
+            target = link["target"]
+            weight = link.get("weight", 1)
+
+            if isinstance(source, dict) and "id" in source:
+                source = source["id"]
+            if isinstance(target, dict) and "id" in target:
+                target = target["id"]
+
+            G.add_edge(source, target, weight=weight)
+
+        communities = {}
+        node_communities = {}
+
+        if algorithm == "louvain":
+            partition = community_louvain.best_partition(G)
+            node_communities = partition
+
+            for node, community_id in partition.items():
+                if community_id not in communities:
+                    communities[community_id] = []
+                communities[community_id].append(node)
+
+        elif algorithm == "girvan_newman":
+            communities_iter = nx_community.girvan_newman(G)
+            communities_list = list(next(communities_iter))
+
+            for i, community in enumerate(communities_list):
+                communities[i] = list(community)
+                for node in community:
+                    node_communities[node] = i
+
+        elif algorithm == "greedy_modularity":
+            communities_list = list(nx_community.greedy_modularity_communities(G))
+
+            for i, community in enumerate(communities_list):
+                communities[i] = list(community)
+                for node in community:
+                    node_communities[node] = i
+        else:
+            return JSONResponse(
+                content={
+                    "error": f"Unknown algorithm: {algorithm}. Supported: louvain, girvan_newman, greedy_modularity"},
+                status_code=400
+            )
+
+        communities_list = [
+            {
+                "id": community_id,
+                "size": len(nodes),
+                "nodes": nodes,
+                "avg_betweenness": sum(data.nodes[i]["betweenness"]
+                                       for i, node in enumerate(data.nodes)
+                                       if node["id"] in nodes) / len(nodes) if nodes else 0,
+                "avg_pagerank": sum(data.nodes[i]["pagerank"]
+                                    for i, node in enumerate(data.nodes)
+                                    if node["id"] in nodes) / len(nodes) if nodes else 0,
+            }
+            for community_id, nodes in communities.items()
+        ]
+
+        communities_list.sort(key=lambda x: x["size"], reverse=True)
+
+        for i, node in enumerate(data.nodes):
+            node_id = node["id"]
+            if node_id in node_communities:
+                data.nodes[i]["community"] = node_communities[node_id]
+
+        return JSONResponse(content={
+            "nodes": data.nodes,
+            "links": data.links,
+            "communities": communities_list,
+            "node_communities": node_communities,
+            "algorithm": algorithm,
+            "num_communities": len(communities),
+            "modularity": community_louvain.modularity(node_communities, G) if algorithm == "louvain" else None
+        }, status_code=200)
+
+    except Exception as e:
+        print(f"Error in community detection: {e}")
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+
+
 
 class NetworkAnalysisData(BaseModel):
     nodes: List[dict]
@@ -876,13 +978,14 @@ class NetworkAnalysisData(BaseModel):
 @app.post("/save-research")
 async def save_research(
     file_name: str = Form(...),
-    research_name: str = Form(...),
     researcher_id: str = Form(...),
+    research_name: str = Form(...),
     description: Optional[str] = Form(None),
     comparison: Optional[str] = Form(None),
+    platform: str = Form(...),
     selected_metric: str = Form(None),
     start_date: str = Query(None),
-    end_date: str = Query(None),
+    end_date: str = Query(None), 
     start_time: str = Query(None),
     end_time: str = Query(None),
     limit: int = Query(None),
@@ -919,6 +1022,7 @@ async def save_research(
             research_name=research_name,
             description=description,
             user_id=researcher_id,
+            platform=platform,
             # created_at=datetime.datetime.utcnow()
         )
         db.add(new_research)
@@ -1067,7 +1171,7 @@ async def get_user_history(
                 "comparisons": [comp.to_dict() for comp in comparisons] if comparisons else []
             }
             
-            history.append(research_entry)
+            history.append(research_entry) 
         
         return JSONResponse(
             content={
@@ -1089,6 +1193,259 @@ async def get_user_history(
             status_code=500,
             detail=f"Error fetching history: {str(e)}"
         )
+
+@app.delete("/research/{research_id}")
+async def delete_research(
+    research_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(database.get_db)
+):
+    """Delete a research and all its related data"""
+    try:
+        # Verify research exists and belongs to current user
+        research = await db.get(Research, research_id)
+        if not research:
+            raise HTTPException(status_code=404, detail="Research not found")
+        if str(research.user_id) != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Not authorized to delete this research")
+
+        # Delete comparisons first
+        await db.execute(
+            delete(Comparisons)
+            .where(Comparisons.research_id == research_id)
+        )
+
+        # Delete network analysis
+        await db.execute(
+            delete(NetworkAnalysis)
+            .where(NetworkAnalysis.research_id == research_id)
+        )
+
+        # Delete research filters
+        await db.execute(
+            delete(ResearchFilter)
+            .where(ResearchFilter.research_id == research_id)
+        )
+
+        # Delete messages
+        await db.execute(
+            delete(Message)
+            .where(Message.research_id == research_id)
+        )
+
+        # Finally delete the research itself
+        await db.execute(
+            delete(Research)
+            .where(Research.research_id == research_id)
+        )
+
+        await db.commit()
+
+        return JSONResponse(
+            content={"message": f"Research {research_id} and all related data deleted successfully"},
+            status_code=200
+        )
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Error deleting research: {str(e)}")
+        await db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error deleting research: {str(e)}"
+        )
+    
+  
+
+@app.get("/history/analyze/compare")
+async def analyze_network_comparison_history(
+        research_id: str = Query(...),
+        min_weight: int = Query(1),
+        node_filter: str = Query(""),
+        highlight_common: bool = Query(False),
+        metrics: str = Query(None),
+        comparison_index: int = Query(0),
+        db: AsyncSession = Depends(database.get_db)
+):
+    try:
+       
+        research = await db.get(Research, research_id)
+        if not research:
+            raise HTTPException(status_code=404, detail="Research not found")
+        
+        
+        analysis_query = select(NetworkAnalysis).where(NetworkAnalysis.research_id == research_id)
+        original_result = await db.execute(analysis_query)
+        original_data = original_result.scalars().first()
+
+        # Extract the comparison data
+        comparison_query = select(Comparisons).where(Comparisons.research_id == research_id)
+        comparison_result = await db.execute(comparison_query)
+        comparison_data = comparison_result.scalars().all()
+
+        # Convert to dictionary if necessary
+        if original_data:
+            original_data = original_data.to_dict()
+        if comparison_index < 0 or comparison_index >= len(comparison_data):
+            raise HTTPException(status_code=404, detail="Comparison index out of range")
+
+        specific_comparison = comparison_data[comparison_index].to_dict()
+
+        filtered_original = apply_comparison_filters(original_data, node_filter, min_weight)
+        filtered_comparison = apply_comparison_filters(specific_comparison, node_filter, min_weight)
+
+        if highlight_common:
+            common_nodes = find_common_nodes(filtered_original, filtered_comparison)
+            mark_common_nodes(filtered_original, common_nodes)
+            mark_common_nodes(filtered_comparison, common_nodes)
+
+        return JSONResponse(content={
+            "original": filtered_original,
+            "comparison": filtered_comparison,
+            "metrics": get_network_metrics(filtered_original, filtered_comparison, metrics)
+        }, status_code=200)
+
+    except Exception as e:
+        print(f"Error in network comparison: {e}")
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+
+
+@app.put("/research/{research_id}")
+async def update_research_data(
+    research_id: str,
+    updated_data: dict,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(database.get_db)
+):
+    try:
+        # --- 1. Validation & permissions ---
+        research = await db.get(Research, research_id)
+        if not research:
+            raise HTTPException(status_code=404, detail="Research not found")
+        if str(research.user_id) != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Not authorized")
+
+        # --- 2. File existence check ---
+        file_name = updated_data.get("file_name")
+        file_path = os.path.join(UPLOAD_FOLDER, file_name)
+        if not os.path.exists(file_path):
+            return JSONResponse(
+                content={"error": f"File '{file_name}' not found."},
+                status_code=404
+            )
+
+        # --- 3. Extract messages and network data ---
+        with open(file_path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+
+        filters_data = {
+            **updated_data.get("filters", {}), 
+            "limit": int(updated_data.get("filters", {}).get("message_limit") or 0),
+            "min_length": int(updated_data.get("filters", {}).get("min_message_length") or 0),
+            "max_length": int(updated_data.get("filters", {}).get("max_message_length") or 0),
+            "active_users": int(updated_data.get("filters", {}).get("top_active_users") or 0),
+            "min_messages": int(updated_data.get("filters", {}).get("min_messages") or 0),
+            "max_messages": int(updated_data.get("filters", {}).get("max_messages") or 0),
+            "username": updated_data.get("filters", {}).get("filter_by_username"),
+        }
+
+        filters_data.pop("message_limit")
+        filters_data.pop("min_message_length")
+        filters_data.pop("max_message_length")
+        filters_data.pop("top_active_users")
+        filters_data.pop("filter_by_username")
+        filters_data.pop("algorithm")
+
+        new_data = await extract_messages(lines, **filters_data)
+
+        # --- 4. Update Research (name, description, file_name) ---
+        research.research_name = updated_data.get("research_name", research.research_name)
+        research.description = updated_data.get("description", research.description)
+        research.file_name = file_name or research.file_name
+
+        # --- 5. Update or Create Filters ---
+        filter_query = select(ResearchFilter).where(ResearchFilter.research_id == research.research_id)
+        filter_result = await db.execute(filter_query)
+        filters = filter_result.scalars().first()
+
+        INT_FIELDS = [
+            "message_limit", "min_message_length", "max_message_length",
+            "min_messages", "max_messages", "top_active_users"
+        ]
+
+        if filters:
+            for key, value in updated_data.get("filters", {}).items():
+                if key in INT_FIELDS and value != "" and value is not None:
+                    setattr(filters, key, int(value))
+                elif key not in INT_FIELDS:
+                    setattr(filters, key, value)
+        else:
+            filters = ResearchFilter(
+                research_id=research.research_id,
+                **updated_data.get("filters", {})
+            )
+            db.add(filters)
+
+
+        # --- 6. Replace all Messages ---
+        await db.execute(delete(Message).where(Message.research_id == research.research_id))
+        db.add_all([
+            Message(research_id=research.research_id, **{"send_by": msg[0], "message_text": msg[1]})
+            for msg in new_data["messages"]
+        ])
+
+        # --- 7. Update or Create Analysis ---
+        analysis_query = select(NetworkAnalysis).where(NetworkAnalysis.research_id == research.research_id)
+        analysis_result = await db.execute(analysis_query)
+        analysis = analysis_result.scalars().first()
+
+        if analysis:
+            analysis.nodes = new_data["nodes"]
+            analysis.links = new_data["links"]
+            analysis.is_connected = new_data["is_connected"]
+        else:
+            analysis = NetworkAnalysis(
+                research_id=research.research_id,
+                nodes=new_data["nodes"],
+                links=new_data["links"],
+                is_connected=new_data["is_connected"]
+            )
+            db.add(analysis)
+
+        # --- 8. Get Comparisons (Read only) ---
+        comparisons_query = select(Comparisons).where(Comparisons.research_id == research.research_id)
+        comparisons_result = await db.execute(comparisons_query)
+        comparisons = comparisons_result.scalars().all()
+
+        await db.commit()
+
+        # --- 9. Build final response ---
+        research_entry = {
+            **research.to_dict(),
+            "filters": filters.to_dict() if filters else None,
+            "analysis": analysis.to_dict() if analysis else None,
+            "comparisons": [comp.to_dict() for comp in comparisons] if comparisons else []
+        }
+
+        return JSONResponse(
+            content={
+                "status": "success",
+                "message": "Research updated successfully",
+                "data": research_entry
+            },
+            status_code=200
+        )
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Error updating research data: {e}")
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 
 logging.basicConfig(level=logging.INFO)

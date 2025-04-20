@@ -1,0 +1,214 @@
+import styled from 'styled-components';
+import { useState, useEffect} from 'react';
+import { useSelector } from 'react-redux';
+import { toast } from 'react-hot-toast';
+import Loader from '../components/utils/Loader';
+import { FaEye, FaEdit, FaCopy, FaTrash } from 'react-icons/fa';
+import Modal from '../components/utils/Model';
+import ResearchHistory from '../components/utils/ResearcHistory';
+import UpdateResearch from '../components/utils/UpdateResearch';
+import ComparisonMetrics from '../components/utils/HistoryComparison';
+import ComparisonHistory from '../components/utils/HistoryComparison';
+
+
+const HistoryContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  padding: 2rem;
+  gap: 1.5rem;
+  overflow-x: auto;
+`;
+
+const Table = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  th, td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #e0e0e0;
+  }
+  th {
+    background-color: #f8f9fa;
+  }
+  border: 1px solid #e0e0e0;
+  border-radius: 1rem;
+`;
+
+const StatusBadge = styled.span`
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  background-color: ${props => props.status ? '#d4edda' : '#f8d7da'};
+  color: ${props => props.status ? '#155724' : '#721c24'};
+`;
+const ButtonContainer = styled.div`
+  display: flex;
+  gap: 0.5rem;
+`;
+
+const Button = styled.button`
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  &:hover {
+    opacity: 0.9;
+  }
+
+  ${props => props.variant === 'primary' && `
+    background-color: #007bff;
+    color: white;
+  `}
+
+  ${props => props.variant === 'success' && `
+    background-color: #28a745;
+    color: white;
+  `}
+
+  ${props => props.variant === 'warning' && `
+    background-color: #ffc107;
+    color: black;
+  `}
+
+  ${props => props.variant === 'danger' && `
+    background-color: #dc3545;
+    color: white;
+  `}
+`;
+
+const ContainerLoader = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding: 2rem;
+`;
+
+
+
+const History = () => {
+    const user = useSelector(state => state.user);
+    const [userHistory, setUserHistory] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [research, setResearch] = useState(null);
+    const [inAction, setInAction] = useState(false);
+
+    const handleCompare = (researchId) => {
+        console.log('Compare research:', researchId);
+    };
+
+    const handleDelete = async (researchId) => {
+        try {
+            setInAction(true);
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/research/${researchId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${user?.token}`
+                }
+            });
+            if (response.ok) {
+                toast.success('Research deleted successfully');
+                setUserHistory(userHistory.filter(research => research.id !== researchId));
+            } else {
+                toast.error('Failed to delete research');
+            }
+        } catch (error) {
+            console.error('Error deleting research:', error);
+            toast.error('Error deleting research');
+        } finally {
+            setInAction(false);
+        }
+    };
+
+    const updateResearchs = (researchData) => {
+        setUserHistory(userHistory.map(research => research.id === researchData.id ? {...research, ...researchData} : research));
+    };
+
+    useEffect(() => {
+        async function getUserHistory() {
+            try {
+                setLoading(true);
+                const history = await fetch(`${import.meta.env.VITE_API_URL}/history/${user?.currentUser?.id}`, {
+                    headers: {
+                        'Authorization': `Bearer ${user?.token}`
+                    }
+                });
+                const data = await history.json();
+                setUserHistory(data.history);
+                toast.success('User history fetched successfully');
+            } catch (error) {
+                console.error('Error fetching user history:', error);
+                toast.error('Error fetching user history');
+            } finally {
+                setLoading(false);
+            }
+        }
+        getUserHistory();
+    }, []);
+
+    return (
+        <HistoryContainer>
+            {research && (
+                <Modal onClose={() => setResearch(null)}>
+                    {research.button === 'view' && <ResearchHistory research={research} />}
+                    {research.button === 'edit' && <UpdateResearch research={research} setResearch={setResearch} updateResearchs={updateResearchs}/>}
+                    {research.button === 'compare' && <ComparisonHistory research={research} />}
+                </Modal>
+            )}
+            <h2>{user?.currentUser?.name || 'User'} History</h2>
+            {loading ? (
+                <ContainerLoader>
+                    <Loader />
+                </ContainerLoader>
+            ) : (
+                <Table>
+                    <thead>
+                        <tr>
+                            <th>Research Name</th>
+                            <th>Date Created</th>
+                            <th>Platform</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {userHistory.map((research) => (
+                            <tr key={research.id}>
+                                <td>{research.research_name}</td>
+                                <td>{new Date(research.created_at).toLocaleDateString()}</td>
+                                <td>{research.platform}</td>
+                                <td>
+                                    <StatusBadge status={research.status}>
+                                        {research.status || 'N/A'}
+                                    </StatusBadge>
+                                </td>
+                                <td>
+                                    <ButtonContainer>
+                                        <Button variant="primary" aria-label="View details" onClick={() => setResearch({...research, button: 'view'})}>
+                                            <FaEye />
+                                        </Button>
+                                        <Button variant="success" onClick={() => setResearch({...research, button: 'edit'})} aria-label="Edit">
+                                            <FaEdit />
+                                        </Button>
+                                        <Button variant="warning" onClick={() => setResearch({...research, button: 'compare'})} aria-label="Compare">
+                                            <FaCopy />
+                                        </Button>
+                                        <Button variant="danger" onClick={() => handleDelete(research.id)} aria-label="Delete" disabled={inAction}>
+                                            <FaTrash />
+                                        </Button>
+                                    </ButtonContainer>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </Table>
+            )}
+        </HistoryContainer>
+    );
+};
+
+export default History;

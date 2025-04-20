@@ -1,5 +1,4 @@
-
-from typing import List, Tuple
+from typing import List, Tuple, Any
 from datetime import datetime
 from collections import defaultdict
 import networkx as nx
@@ -36,7 +35,6 @@ async def extract_messages(lines: List[str], start_date: str, end_date: str, sta
                 continue
             
             if "~" not in line:
-                # print(f"🔹 Line: {line}")
                 continue
             
             if "צירפת את" in line or "הצטרף/ה" in line or "צירף/ה" in line or "התמונה הושמטה" in line or "צורפת על ידי" in line or "הודעה זו נמחקה" in line or "הקבוצה נוצרה על ידי" in line:
@@ -79,7 +77,6 @@ async def extract_messages(lines: List[str], start_date: str, end_date: str, sta
                 parts = message_part.split(":", 1)
                 sender = parts[0].strip("~").replace("\u202a", "").strip()
                 message_content = parts[1].strip() if len(parts) > 1 else ""
-                print(f"🔹 Sender: {sender}, Message: {message_content}")
                 message_length = len(message_content)
                 if (min_length and message_length < min_length) or (max_length and message_length > max_length):
                     continue
@@ -126,37 +123,15 @@ async def extract_messages(lines: List[str], start_date: str, end_date: str, sta
     if anonymize:
         filtered_nodes = {anonymize_name(node, anonymized_map) for node in filtered_nodes}
 
-    G = nx.Graph()
-    G.add_nodes_from(filtered_nodes)
-    for (source, target), weight in edges_counter.items():
-        if source in filtered_nodes and target in filtered_nodes:
-            G.add_edge(source, target, weight=weight) 
-
-    degree_centrality = nx.degree_centrality(G)
-    betweenness_centrality = nx.betweenness_centrality(G, weight="weight", normalized=True)
-    if not nx.is_connected(G):
-        print("Warning: The graph is not fully connected. Betweenness centrality might be inaccurate.")
-
-    if nx.is_connected(G):
-        closeness_centrality = nx.closeness_centrality(G)
-        eigenvector_centrality = nx.eigenvector_centrality(G, max_iter=1000)
-        pagerank_centrality = nx.pagerank(G, alpha=0.85)
-    else:
-        largest_cc = max(nx.connected_components(G), key=len)
-        G_subgraph = G.subgraph(largest_cc).copy()
-        closeness_centrality = nx.closeness_centrality(G_subgraph)
-        eigenvector_centrality = nx.eigenvector_centrality(G_subgraph, max_iter=1000)
-        pagerank_centrality = nx.pagerank(G_subgraph, alpha=0.85)
-
     nodes_list = [
         {
             "id": node,
             "messages": user_message_count.get(node, 0),
-            "degree": round(degree_centrality.get(node, 0), 4),
-            "betweenness": round(betweenness_centrality.get(node, 0), 4),
-            "closeness": round(closeness_centrality.get(node, 0), 4),
-            "eigenvector": round(eigenvector_centrality.get(node, 0), 4),
-            "pagerank": round(pagerank_centrality.get(node, 0), 4),
+            "degree": 0,  # Will be calculated if graph is not empty
+            "betweenness": 0,
+            "closeness": 0,
+            "eigenvector": 0,
+            "pagerank": 0
         }
         for node in filtered_nodes
     ]
@@ -164,11 +139,6 @@ async def extract_messages(lines: List[str], start_date: str, end_date: str, sta
     links_list = []
     for edge, weight in edges_counter.items():
         source, target = edge
-
-        if anonymize:
-            source = anonymized_map.get(source, source)
-            target = anonymized_map.get(target, target)
-
         if source in filtered_nodes and target in filtered_nodes:
             links_list.append({
                 "source": source,
@@ -176,11 +146,62 @@ async def extract_messages(lines: List[str], start_date: str, end_date: str, sta
                 "weight": weight
             })
 
+    # Only calculate network metrics if we have nodes and links
+    is_connected = False
+    if nodes_list and links_list:
+        G = nx.Graph()
+        G.add_nodes_from([node["id"] for node in nodes_list])
+        G.add_weighted_edges_from([(link["source"], link["target"], link["weight"]) for link in links_list])
+
+        is_connected = nx.is_connected(G)
+
+        if is_connected:
+            # Calculate centrality measures
+            degree_centrality = nx.degree_centrality(G)
+            betweenness_centrality = nx.betweenness_centrality(G, weight="weight")
+            closeness_centrality = nx.closeness_centrality(G)
+            eigenvector_centrality = nx.eigenvector_centrality(G, max_iter=1000)
+            pagerank = nx.pagerank(G)
+
+            # Update node metrics
+            for node in nodes_list:
+                node_id = node["id"]
+                node.update({
+                    "degree": round(degree_centrality.get(node_id, 0), 4),
+                    "betweenness": round(betweenness_centrality.get(node_id, 0), 4),
+                    "closeness": round(closeness_centrality.get(node_id, 0), 4),
+                    "eigenvector": round(eigenvector_centrality.get(node_id, 0), 4),
+                    "pagerank": round(pagerank.get(node_id, 0), 4)
+                })
+        else:
+            # Handle disconnected graph
+            largest_cc = max(nx.connected_components(G), key=len)
+            G_subgraph = G.subgraph(largest_cc).copy()
+
+            # Calculate metrics for largest connected component
+            degree_centrality = nx.degree_centrality(G_subgraph)
+            betweenness_centrality = nx.betweenness_centrality(G_subgraph, weight="weight")
+            closeness_centrality = nx.closeness_centrality(G_subgraph)
+            eigenvector_centrality = nx.eigenvector_centrality(G_subgraph, max_iter=1000)
+            pagerank = nx.pagerank(G_subgraph)
+
+            # Update metrics for nodes in largest component
+            for node in nodes_list:
+                node_id = node["id"]
+                if node_id in largest_cc:
+                    node.update({
+                        "degree": round(degree_centrality.get(node_id, 0), 4),
+                        "betweenness": round(betweenness_centrality.get(node_id, 0), 4),
+                        "closeness": round(closeness_centrality.get(node_id, 0), 4),
+                        "eigenvector": round(eigenvector_centrality.get(node_id, 0), 4),
+                        "pagerank": round(pagerank.get(node_id, 0), 4)
+                    })
+
     return {
         "messages": messages,
         "nodes": nodes_list,
         "links": links_list,
-        "is_connected": nx.is_connected(G)
+        "is_connected": is_connected
     }
 
 
@@ -193,4 +214,11 @@ def anonymize_name(name, anonymized_map):
 
 
 
-
+def clean_filter_value(key: str, value: Any):
+    if key in ["min_messages", "max_messages", "active_users"]:
+        if isinstance(value, str) and not value.strip():
+            return None
+        return int(value) if value is not None else None
+    elif isinstance(value, str) and not value.strip():
+        return None
+    return value

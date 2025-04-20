@@ -40,6 +40,18 @@ import {
 } from "../components/utils/ApiService.jsx";
 import { useSelector } from "react-redux";
 
+
+
+export const graphMetrics = [
+  "Degree Centrality",
+  "Betweenness Centrality",
+  "Closeness Centrality",
+  "Eigenvector Centrality",
+  "PageRank Centrality",
+  "Density",
+  "Diameter",
+];
+
 const Home = () => {
   const [showDownload, setShowDownload] = useState(false);
   const [name, setName] = useState("");
@@ -95,6 +107,7 @@ const Home = () => {
     resetComparisonFilters,
     calculateComparisonStats,
   } = useComparison(originalNetworkData, uploadedFile);
+
   const filters = useFilters();
   const {
     startDate,
@@ -136,6 +149,10 @@ const Home = () => {
     resetFilters,
     handleInputChange,
   } = filters;
+
+
+  console.log("object: ", filter)
+
   const [visualizationSettings, setVisualizationSettings] = useState({
     colorBy: "default",
     sizeBy: "default",
@@ -200,15 +217,6 @@ const Home = () => {
 
     handleNetworkCustomization(updatedSettings);
   };
-  const graphMetrics = [
-    "Degree Centrality",
-    "Betweenness Centrality",
-    "Closeness Centrality",
-    "Eigenvector Centrality",
-    "PageRank Centrality",
-    "Density",
-    "Diameter",
-  ];
 
   useEffect(() => {
     if (!uploadedFile) {
@@ -307,7 +315,6 @@ const Home = () => {
 
     const params = filters.buildNetworkFilterParams();
     analyzeNetwork(uploadedFile, params)
-
       .then((data) => {
         console.log("Data returned from server:", data);
         if (data.nodes && data.links) {
@@ -450,6 +457,8 @@ const Home = () => {
       node.id.toLowerCase().includes(filter.toLowerCase())
     )
     : [];
+
+
   const filteredLinks = networkData
     ? networkData.links.filter(
       (link) =>
@@ -539,8 +548,6 @@ const Home = () => {
     );
   };
 
-
-
   const fetchCommunityData = () => {
     if (!uploadedFile) {
       setMessage("No file selected for community detection.");
@@ -549,8 +556,6 @@ const Home = () => {
 
     const params = filters.buildNetworkFilterParams();
     detectCommunities(uploadedFile, params)
-
-
       .then((data) => {
         console.log("Community data returned from server:", data);
 
@@ -662,8 +667,6 @@ const Home = () => {
         setMessage(error.message);
       });
   };
-
-
 
   const handleNetworkCustomization = (settings) => {
     setVisualizationSettings(settings);
@@ -1341,8 +1344,7 @@ const Home = () => {
   };
 
 
-  console.log(originalNetworkData,
-    comparisonNetworkData);
+  console.log(originalNetworkData, comparisonNetworkData);
 
   return (
     <Container fluid className="upload-section">
@@ -1415,192 +1417,191 @@ const Home = () => {
             />
           )}
 
-          {uploadedFile && (
-            <Row className="mt-4">
-              <Col
-                lg={3}
-                md={12}
-                className={`mb-3 metrics-panel ${showMetrics ? "open" : "closed"
-                  }`}
-              >
-                <Card className="metrics-card">
-                  <h4 className="fw-bold d-flex justify-content-between align-items-center">
-                    {showMetrics && "Graph Metrics"}
-                    <Button
-                      variant="link"
-                      className="metrics-toggle"
-                      onClick={() => setShowMetrics(!showMetrics)}
-                    >
-                      {showMetrics ? (
-                        <ChevronLeft size={20} />
-                      ) : (
-                        <ChevronRight size={20} />
-                      )}
-                    </Button>
-                  </h4>
-                  {showMetrics && (
-                    <div className="mt-2">
-                      <MetricsButton
-                        graphMetrics={graphMetrics}
-                        selectedMetric={selectedMetric}
-                        onToggleMetric={handleToggleMetric}
-                        onDensity={handleDensityMetric}
-                        onDiameter={handleDiameterMetric}
-                      />
-                      <Button
-                        className="metrics-item"
-                        onClick={() => setShowDataTable(!showDataTable)}
-                        variant={showDataTable ? "primary" : "outline-primary"}
-                      >
-                        <FileBarGraph className="me-1" /> Explore Data Table
-                      </Button>
-
-                      <Button
-                        className={`metrics-item ${strongConnectionsActive ? "active" : ""
-                          }`}
-                        onClick={handleStrongConnections}
-                      >
-                        {strongConnectionsActive
-                          ? "Show All Connections"
-                          : "Strongest Connections"}
-                      </Button>
-                      <Button
-                        className={`metrics-item ${highlightCentralNodes ? "active" : ""
-                          }`}
-                        onClick={handleHighlightCentralNodes}
-                      >
-                        Highlight Central Nodes
-                      </Button>
-                      <Button
-                        className={`metrics-item ${networkWasRestored ? "active" : ""
-                          }`}
-                        onClick={handleRestoreNetwork}
-                      >
-                        Restore Original Network
-                      </Button>
-                      <Button
-                        className={`metrics-item ${activityFilterEnabled === true ? "active" : ""
-                          }`}
-                        onClick={handleActivityFilter}
-                      >
-                        {activityFilterEnabled
-                          ? "Show All Users"
-                          : "Hide Inactive Users"}
-                      </Button>
-
-                      <Button
-                        className={`metrics-item ${showOnlyIntraCommunityLinks ? "active" : ""
-                          }`}
-                        onClick={handleToggleCommunitiesFilter}
-                      >
-                        {showOnlyIntraCommunityLinks
-                          ? "Show All Links"
-                          : "Hide Cross-Community Links"}
-                      </Button>
-                    </div>
-                  )}
-                </Card>
-                <MetricsPanel networkStats={networkStats} />{" "}
-              </Col>
-
-              {/* Graph Display */}
-              <Col lg={9} md={12} className="graph-area">
-                {networkData && (
-                  <NetworkCustomizationToolbar
-                    networkData={networkData}
-                    communities={communities}
-                    onApplyCustomization={handleNetworkCustomization}
-                    initialSettings={visualizationSettings}
-                  />
-                )}
-                {(showDensity || showDiameter) && (
-                  <Card className="density-card">
-                    {showDensity && (
-                      <h5 className="fw-bold">Graph Density: {densityValue}</h5>
-                    )}
-                    {showDiameter && (
-                      <h5 className="fw-bold">
-                        Graph Diameter: {diameterValue}
-                      </h5>
-                    )}
-                  </Card>
-                )}
-
-                <Card className="graph-card">
-                  <div className="graph-placeholder">
-                    {networkData && (
-                      <GraphContainer>
-                        <NetworkGraph
-                          networkData={networkData}
-                          filteredNodes={filteredNodes}
-                          filteredLinks={filteredLinks}
-                          customizedNetworkData={customizedNetworkData}
-                          selectedMetric={selectedMetric}
-                          highlightCentralNodes={highlightCentralNodes}
-                          showMetrics={showMetrics}
-                          visualizationSettings={visualizationSettings}
-                          handleNodeClick={handleNodeClick}
-                          networkWasRestored={networkWasRestored}
-                          forceGraphRef={forceGraphRef}
-                        />
-                      </GraphContainer>
-                    )}
-                  </div>
-                </Card>
-                {showDataTable && networkData && (
-                  <NetworkDataTable
-                    networkData={networkData}
-                    onClose={() => setShowDataTable(false)}
-                  />
-                )}
-              </Col>
-            </Row>
-          )}
 
           <Row className="mt-4">
-            {uploadedFile && (
-              <ComparisonPanel
-                originalNetworkData={originalNetworkData}
-                comparisonFiles={comparisonFiles}
-                comparisonData={comparisonData}
-                comparisonNetworkData={comparisonNetworkData}
-                activeComparisonIndices={activeComparisonIndices}
-                filteredOriginalData={filteredOriginalData}
-                filteredComparisonData={filteredComparisonData}
-                onFileUpload={handleComparisonFileChange}
-                onAnalyzeNetwork={(index) => {
-                  analyzeComparisonNetwork(
-                    index,
-                    buildNetworkFilterParams()
-                  ).then((result) => {
+            <Col
+              lg={3}
+              md={12}
+              className={`mb-3 metrics-panel ${showMetrics ? "open" : "closed"
+                }`}
+            >
+              <Card className="metrics-card">
+                <h4 className="fw-bold d-flex justify-content-between align-items-center">
+                  {showMetrics && "Graph Metrics"}
+                  <Button
+                    variant="link"
+                    className="metrics-toggle"
+                    onClick={() => setShowMetrics(!showMetrics)}
+                  >
+                    {showMetrics ? (
+                      <ChevronLeft size={20} />
+                    ) : (
+                      <ChevronRight size={20} />
+                    )}
+                  </Button>
+                </h4>
+                {showMetrics && (
+                  <div className="mt-2">
+                    <MetricsButton
+                      graphMetrics={graphMetrics}
+                      selectedMetric={selectedMetric}
+                      onToggleMetric={handleToggleMetric}
+                      onDensity={handleDensityMetric}
+                      onDiameter={handleDiameterMetric}
+                    />
+                    <Button
+                      className="metrics-item"
+                      onClick={() => setShowDataTable(!showDataTable)}
+                      variant={showDataTable ? "primary" : "outline-primary"}
+                    >
+                      <FileBarGraph className="me-1" /> Explore Data Table
+                    </Button>
+
+                    <Button
+                      className={`metrics-item ${strongConnectionsActive ? "active" : ""
+                        }`}
+                      onClick={handleStrongConnections}
+                    >
+                      {strongConnectionsActive
+                        ? "Show All Connections"
+                        : "Strongest Connections"}
+                    </Button>
+                    <Button
+                      className={`metrics-item ${highlightCentralNodes ? "active" : ""
+                        }`}
+                      onClick={handleHighlightCentralNodes}
+                    >
+                      Highlight Central Nodes
+                    </Button>
+                    <Button
+                      className={`metrics-item ${networkWasRestored ? "active" : ""
+                        }`}
+                      onClick={handleRestoreNetwork}
+                    >
+                      Restore Original Network
+                    </Button>
+                    <Button
+                      className={`metrics-item ${activityFilterEnabled === true ? "active" : ""
+                        }`}
+                      onClick={handleActivityFilter}
+                    >
+                      {activityFilterEnabled
+                        ? "Show All Users"
+                        : "Hide Inactive Users"}
+                    </Button>
+
+                    <Button
+                      className={`metrics-item ${showOnlyIntraCommunityLinks ? "active" : ""
+                        }`}
+                      onClick={handleToggleCommunitiesFilter}
+                    >
+                      {showOnlyIntraCommunityLinks
+                        ? "Show All Links"
+                        : "Hide Cross-Community Links"}
+                    </Button>
+                  </div>
+                )}
+              </Card>
+              <MetricsPanel networkStats={networkStats} />{" "}
+            </Col>
+
+            {/* Graph Display */}
+            <Col lg={9} md={12} className="graph-area">
+              {networkData && (
+                <NetworkCustomizationToolbar
+                  networkData={networkData}
+                  communities={communities}
+                  onApplyCustomization={handleNetworkCustomization}
+                  initialSettings={visualizationSettings}
+                />
+              )}
+              {(showDensity || showDiameter) && (
+                <Card className="density-card">
+                  {showDensity && (
+                    <h5 className="fw-bold">Graph Density: {densityValue}</h5>
+                  )}
+                  {showDiameter && (
+                    <h5 className="fw-bold">
+                      Graph Diameter: {diameterValue}
+                    </h5>
+                  )}
+                </Card>
+              )}
+
+              <Card className="graph-card">
+                <div className="graph-placeholder">
+                  {networkData && (
+                    <GraphContainer>
+                      <NetworkGraph
+                        networkData={networkData}
+                        filteredNodes={filteredNodes}
+                        filteredLinks={filteredLinks}
+                        customizedNetworkData={customizedNetworkData}
+                        selectedMetric={selectedMetric}
+                        highlightCentralNodes={highlightCentralNodes}
+                        showMetrics={showMetrics}
+                        visualizationSettings={visualizationSettings}
+                        handleNodeClick={handleNodeClick}
+                        networkWasRestored={networkWasRestored}
+                        forceGraphRef={forceGraphRef}
+                      />
+                    </GraphContainer>
+                  )}
+                </div>
+              </Card>
+              {showDataTable && networkData && (
+                <NetworkDataTable
+                  networkData={networkData}
+                  onClose={() => setShowDataTable(false)}
+                />
+              )}
+            </Col>
+          </Row>
+
+
+          <Row className="mt-4">
+            <ComparisonPanel
+              originalNetworkData={originalNetworkData}
+              comparisonFiles={comparisonFiles}
+              comparisonData={comparisonData}
+              comparisonNetworkData={comparisonNetworkData}
+              activeComparisonIndices={activeComparisonIndices}
+              filteredOriginalData={filteredOriginalData}
+              filteredComparisonData={filteredComparisonData}
+              onFileUpload={handleComparisonFileChange}
+              onAnalyzeNetwork={(index) => {
+                analyzeComparisonNetwork(
+                  index,
+                  buildNetworkFilterParams()
+                ).then((result) => {
+                  if (result.message) {
+                    setMessage(result.message);
+                  }
+                });
+              }}
+              onToggleComparison={toggleComparisonActive}
+              onApplyComparisonFilters={(filters) => {
+                const filtersWithNetworkParams = {
+                  ...filters,
+                  networkFilterParams: buildNetworkFilterParams(),
+                };
+
+                applyComparisonFilters(filtersWithNetworkParams).then(
+                  (result) => {
                     if (result.message) {
                       setMessage(result.message);
                     }
-                  });
-                }}
-                onToggleComparison={toggleComparisonActive}
-                onApplyComparisonFilters={(filters) => {
-                  const filtersWithNetworkParams = {
-                    ...filters,
-                    networkFilterParams: buildNetworkFilterParams(),
-                  };
-
-                  applyComparisonFilters(filtersWithNetworkParams).then(
-                    (result) => {
-                      if (result.message) {
-                        setMessage(result.message);
-                      }
-                    }
-                  );
-                }}
-                onResetComparisonFilters={resetComparisonFilters}
-                addComparison={addComparison}
-                comparisonCount={comparisonCount}
-              />
-            )}
+                  }
+                );
+              }}
+              onResetComparisonFilters={resetComparisonFilters}
+              addComparison={addComparison}
+              comparisonCount={comparisonCount}
+            />
           </Row>
         </div>
       )}
+
       {/* Node Removal Modal */}
       {showRemoveNodeModal && selectedNode && (
         <div

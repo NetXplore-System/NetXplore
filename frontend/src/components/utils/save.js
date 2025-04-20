@@ -7,7 +7,8 @@ export const saveToDB = async (
   file,
   params,
   selectedMetric = "Degree Centrality",
-  comparison
+  comparison,
+  platform = "whatsapp"
 ) => {
 
   try {
@@ -19,7 +20,7 @@ export const saveToDB = async (
     comparison.hasComparison && formData.append("comparison", JSON.stringify(comparison.data));
     formData.append("file_name", file);
     formData.append("selected_metric", selectedMetric);
-
+    formData.append("platform", platform);
 
     const response = await fetch(
       `${import.meta.env.VITE_API_URL}/save-research?${params.toString()}`,
