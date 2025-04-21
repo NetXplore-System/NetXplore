@@ -5,6 +5,15 @@ import { toast } from 'react-hot-toast';
 import { useSelector } from 'react-redux';
 import Modal from './Modal';
 
+
+const formatFilterLabel = (filter) => {
+    const [key] = filter.split(':'); 
+    return key
+        .split('_') 
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1)) // Capitalize each word
+        .join(' '); 
+};
+
 Font.register({
     family: 'Alef',
     src: '/Alef/Alef-Regular.ttf',
@@ -202,6 +211,7 @@ const ResearchReport = ({ research, images, show }) => {
     const mainImage = show.images.filter((image) => image.data.type === "main" && image.selected)[0];
     const sourceComparisonImage = show.images.filter((image) => image.data.type === "comparison" && image.data.source && image.selected)[0];
     const comparisonImages = show.images.filter((image) => image.data.type === "comparison" && !image.data.source && image.selected);
+    const filters = show.filters.filter((filter) => filter.selected).map((filter) => research.filters[filter.index]);
     
     return (
         <Document>
@@ -241,17 +251,16 @@ const ResearchReport = ({ research, images, show }) => {
                     </View>
                 </View>
 
-                {/* Filters Section */}
-                <View style={styles.section}>
+                {filters && <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Applied Filters</Text>
                     <View style={styles.filtersContainer}>
-                        {research.filters.map((filter, index) => (
+                        {filters.map((filter, index) => (
                             <Text key={index} style={styles.filterItem}>
-                                {filter}
+                                {`${formatFilterLabel(filter)}: ${filter.split(':')[1].trim()}`}
                             </Text>
                         ))}
                     </View>
-                </View>
+                </View>}
 
                 {/* Conclusion Section */}
                 <View style={styles.section}>
@@ -422,7 +431,7 @@ const MyResearchReport = ({ selectedMetric, name, params, setShowDownload, hasCo
                                 checked={show.filters[index]?.selected}
                                 onChange={() => handleToggle(index, 'filters')}
                             />
-                            {filter}
+                            {formatFilterLabel(filter)}
                         </label>
                     </div>
                 ))}

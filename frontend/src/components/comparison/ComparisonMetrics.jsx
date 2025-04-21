@@ -278,7 +278,7 @@ const ComparisonMetrics = ({
                         isComparisonGraph={true}
                         comparisonMetrics={comparisonMetrics}
                         buttonElement={
-                          <GraphButton onClick={(e) => handleScreenshot(e, false, index, i)}>Take Screenshot2</GraphButton>
+                          <GraphButton onClick={(e) => handleScreenshot(e, false, index, i)}>Take Screenshot</GraphButton>
                         }
                       />
                     </Col>

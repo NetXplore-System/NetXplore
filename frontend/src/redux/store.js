@@ -1,7 +1,8 @@
 import { configureStore } from "@reduxjs/toolkit";
 import userReducer from "../redux/user/userSlice";
 import tableReducer from "../redux/table/tableSlice";
-import imagesReducer from "../redux/images/imagesSlice";
+import imagesReducer, { checkImagesValue } from "../redux/images/imagesSlice";
+
 
 const store = configureStore({
   reducer: {
@@ -9,6 +10,8 @@ const store = configureStore({
     table: tableReducer,
     images: imagesReducer,
   },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware().concat(checkImagesValue), 
 });
 
 export default store;
