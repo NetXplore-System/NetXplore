@@ -11,21 +11,8 @@ import MetricsPanel from '../network/MetricsPanel';
 import NetworkCustomizationToolbar from '../NetworkCustomizationToolbar';
 import NetworkGraph from '../network/NetworkGraph';
 import NetworkDataTable from '../NetworkDataTable';
+import { GraphContainer } from './StyledComponents-El';
 
-
-
-
-const GraphContainer = styled.div`
-  width: 100%; /* Ensures it takes the full width of the parent */
-  margin: 0 auto;
-  border: 1px solid lightgray;
-  border-radius: 8px;
-  overflow: hidden; /* Prevents overflow */
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 2rem;
-`;
 
 
 
@@ -359,9 +346,6 @@ const ResearchHistory = ({ research }) => {
                     };
                 });
 
-            console.log("Updated nodes:", updatedNodes);
-            console.log("Filtered links:", filteredLinks);
-
             setNetworkData({
                 nodes: updatedNodes,
                 links: filteredLinks,
@@ -439,7 +423,6 @@ const ResearchHistory = ({ research }) => {
 
     const handleNetworkCustomization = (settings) => {
         setVisualizationSettings(settings);
-        console.log("Applying visualization settings:", settings);
 
         if (!networkData) return;
 
@@ -580,7 +563,6 @@ const ResearchHistory = ({ research }) => {
                     }
                 });
 
-                console.log("CommunityMap:", newCommunityMap);
                 setCommunityMap(newCommunityMap);
 
                 if (networkData && networkData.nodes) {
@@ -589,7 +571,6 @@ const ResearchHistory = ({ research }) => {
                         const community = newCommunityMap[normalizedId];
 
                         if (community !== undefined) {
-                            console.log(`Assigning node ${node.id} to community ${community}`);
                             return { ...node, community };
                         }
 
@@ -624,7 +605,6 @@ const ResearchHistory = ({ research }) => {
             return;
         }
 
-        console.log(networkData);
         try {
             const response = await fetch(`${import.meta.env.VITE_API_URL}/history/analyze/communities?algorithm=${research.analysis.algorithm || "louvain"}`, {
                 method: "POST",
@@ -649,7 +629,6 @@ const ResearchHistory = ({ research }) => {
                         }
                     });
 
-                    console.log("CommunityMap:", newCommunityMap);
                     setCommunityMap(newCommunityMap);
 
                     if (networkData && networkData.nodes) {
@@ -658,7 +637,6 @@ const ResearchHistory = ({ research }) => {
                             const community = newCommunityMap[normalizedId];
 
                             if (community !== undefined) {
-                                console.log(`Assigning node ${node.id} to community ${community}`);
                                 return { ...node, community };
                             }
 
@@ -767,7 +745,6 @@ const ResearchHistory = ({ research }) => {
             },
         });
         const data = await response.json();
-        console.log(data);
         const newComparisonData = [...comparisonData];
         newComparisonData[index] = data.comparison;
         setComparisonData(newComparisonData);
@@ -782,10 +759,8 @@ const ResearchHistory = ({ research }) => {
         });
         const newComparisonData = [...comparisonData];
         newComparisonData[index] = research.comparisons[index];
-        console.log(newComparisonData);
         setComparisonData(newComparisonData);
         setNetworkData({ nodes: research.analysis.nodes, links: research.analysis.links });
-        console.log(research.analysis);
     };
 
     useEffect(() => {

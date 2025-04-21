@@ -10,6 +10,7 @@ import PrivateRoute from "./components/PrivateRoute";
 import Header from "./components/Header/Header.jsx";
 import Menu from "./components/Menu/Menu.jsx";
 import HomeW from "./pages/HomeW.jsx";
+import History from "./pages/History.jsx";
 import ChoosePlatform from "./pages/ChoosePlatform.jsx";
 import { Toaster } from "react-hot-toast";
 import { useSelector } from "react-redux";

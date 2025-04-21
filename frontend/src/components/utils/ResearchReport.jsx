@@ -3,12 +3,11 @@ import { useState, useEffect } from 'react';
 import './style.css';
 import { toast } from 'react-hot-toast';
 import { useSelector } from 'react-redux';
-import MetricsButton from '../common/MetricsButton';
-import html2canvas from 'html2canvas';
+import Modal from './Modal';
 
 Font.register({
-    family: 'Roboto',
-    src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-light-webfont.ttf',
+    family: 'Alef',
+    src: '/Alef/Alef-Regular.ttf',
 });
 
 // Define styles with improved aesthetics
@@ -16,7 +15,7 @@ const styles = StyleSheet.create({
     page: {
         padding: 40,
         backgroundColor: '#FCFCFC',
-        fontFamily: 'Roboto',
+        fontFamily: 'Alef',
     },
     header: {
         marginBottom: 20,
@@ -191,12 +190,19 @@ const styles = StyleSheet.create({
         fontSize: 10,
         color: '#666',
     },
+    hebrewText: {
+        direction: 'rtl',
+        textAlign: 'right',
+        fontFamily: 'Alef',
+    },
 });
 
 // Create Document Component
-const ResearchReport = ({ research }) => {
-    const canvas = document.querySelectorAll('canvas');
-
+const ResearchReport = ({ research, images, show }) => {
+    const mainImage = show.images.filter((image) => image.data.type === "main" && image.selected)[0];
+    const sourceComparisonImage = show.images.filter((image) => image.data.type === "comparison" && image.data.source && image.selected)[0];
+    const comparisonImages = show.images.filter((image) => image.data.type === "comparison" && !image.data.source && image.selected);
+    
     return (
         <Document>
             <Page style={styles.page}>
@@ -204,12 +210,13 @@ const ResearchReport = ({ research }) => {
                 <View style={styles.header}>
                     <Text style={styles.headerTitle}>Research Report</Text>
                 </View>
-                {canvas?.[0] && (
+                {mainImage && (
                     <View style={styles.graphSection}>
                         <Text style={styles.graphTitle}>Network Graph Visualization</Text>
                         <Image
                             style={styles.graphImage}
-                            src={canvas[0].toDataURL('image/png')}
+                            src={mainImage.data.data}
+                            alt="Network Graph"
                         />
                         <Text style={styles.imageCaption}>
                             Fig. 1: Visual representation of the analyzed network structure
@@ -258,87 +265,89 @@ const ResearchReport = ({ research }) => {
                     </View>
                 )}
             </Page>
-            {research.hasComparison && research.stats.map((comparisonStats, index) => (
-                <Page key={index} style={styles.page}>
-                    <Text style={styles.pageNumber}>Page {index + 2}</Text>
+            {research.hasComparison && comparisonImages.map((data, index) => {
+                const comparisonStats = research.stats.filter(state => state.index === data.data.index)[0];
+                console.log("comparisonStats: " ,comparisonStats, research.stats, data);
+                
+                return (
+                    <Page key={index} style={styles.page}>
+                        <Text style={styles.pageNumber}>Page {index + 2}</Text>
 
 
-                    <View key={index} style={styles.comparisonSection}>
-                        <Text style={styles.comparisonTitle}>
-                            Comparison #{index + 1} Page: {comparisonStats.fileName}
-                        </Text>
+                        <View key={index} style={styles.comparisonSection}>
+                            <Text style={styles.comparisonTitle}>
+                                Comparison #{index + 1} Page: {comparisonStats.fileName}
+                            </Text>
 
-                        <View style={[styles.comparisonImagesContainer, { height: '45%' }]}>
-                            <Image
-                                style={[styles.comparisonImage, { height: '100%' }]}
-                                src={canvas[1].toDataURL("image/png")}
-                            />
-                            <Image
-                                style={[styles.comparisonImage, { height: '100%' }]}
-                                src={canvas[index + 2].toDataURL("image/png")}
-                            />
+                            <View style={[styles.comparisonImagesContainer]}>
+                                {sourceComparisonImage && <Image
+                                    style={[styles.comparisonImage, { height: '300px', width: '600px' }]}
+                                    src={sourceComparisonImage.data.data}
+                                />}
+                                <Image
+                                    style={[styles.comparisonImage,  { height: '300px', width: '600px' }]}
+                                    src={data.data.data}
+                                />
+                            </View>
+
+                            <View style={[styles.comparisonTable, { height: '250px' }]}>
+                                <View style={[styles.tableRow, { backgroundColor: '#F5F5F5' }]}>
+                                    <Text style={styles.tableHeader}>Metric</Text>
+                                    <Text style={styles.tableHeader}>Original Network</Text>
+                                    <Text style={styles.tableHeader}>Comparison Network</Text>
+                                    <Text style={styles.tableHeader}>Difference</Text>
+                                    <Text style={styles.tableHeader}>Change %</Text>
+                                </View>
+
+                                <View style={styles.tableRow}>
+                                    <Text style={styles.tableCell}>Node Count</Text>
+                                    <Text style={styles.tableCell}>{comparisonStats.originalNodeCount}</Text>
+                                    <Text style={styles.tableCell}>{comparisonStats.comparisonNodeCount}</Text>
+                                    <Text style={styles.tableCell}>
+                                        {comparisonStats.nodeDifference > 0 ?
+                                            `+${comparisonStats.nodeDifference}` :
+                                            comparisonStats.nodeDifference}
+                                    </Text>
+                                    <Text style={styles.tableCell}>{comparisonStats.nodeChangePercent}%</Text>
+                                </View>
+
+                                <View style={styles.tableRow}>
+                                    <Text style={styles.tableCell}>Edge Count</Text>
+                                    <Text style={styles.tableCell}>{comparisonStats.originalLinkCount}</Text>
+                                    <Text style={styles.tableCell}>{comparisonStats.comparisonLinkCount}</Text>
+                                    <Text style={styles.tableCell}>
+                                        {comparisonStats.linkDifference > 0 ?
+                                            `+${comparisonStats.linkDifference}` :
+                                            comparisonStats.linkDifference}
+                                    </Text>
+                                    <Text style={styles.tableCell}>{comparisonStats.linkChangePercent}%</Text>
+                                </View>
+
+                                <View style={styles.tableRow}>
+                                    <Text style={styles.tableCell}>Common Nodes</Text>
+                                    <Text style={[styles.tableCell, { width: '40%' }]}>
+                                        {comparisonStats.commonNodesCount}
+                                    </Text>
+                                    <Text style={[styles.tableCell, { width: '40%' }]}>
+                                        {((comparisonStats.commonNodesCount / comparisonStats.originalNodeCount) * 100).toFixed(2)}% of original network
+                                    </Text>
+                                </View>
+                            </View>
                         </View>
-
-                        <View style={[styles.comparisonTable, { height: '45%' }]}>
-                            <View style={[styles.tableRow, { backgroundColor: '#F5F5F5' }]}>
-                                <Text style={styles.tableHeader}>Metric</Text>
-                                <Text style={styles.tableHeader}>Original Network</Text>
-                                <Text style={styles.tableHeader}>Comparison Network</Text>
-                                <Text style={styles.tableHeader}>Difference</Text>
-                                <Text style={styles.tableHeader}>Change %</Text>
-                            </View>
-
-                            <View style={styles.tableRow}>
-                                <Text style={styles.tableCell}>Node Count</Text>
-                                <Text style={styles.tableCell}>{comparisonStats.originalNodeCount}</Text>
-                                <Text style={styles.tableCell}>{comparisonStats.comparisonNodeCount}</Text>
-                                <Text style={styles.tableCell}>
-                                    {comparisonStats.nodeDifference > 0 ?
-                                        `+${comparisonStats.nodeDifference}` :
-                                        comparisonStats.nodeDifference}
-                                </Text>
-                                <Text style={styles.tableCell}>{comparisonStats.nodeChangePercent}%</Text>
-                            </View>
-
-                            <View style={styles.tableRow}>
-                                <Text style={styles.tableCell}>Edge Count</Text>
-                                <Text style={styles.tableCell}>{comparisonStats.originalLinkCount}</Text>
-                                <Text style={styles.tableCell}>{comparisonStats.comparisonLinkCount}</Text>
-                                <Text style={styles.tableCell}>
-                                    {comparisonStats.linkDifference > 0 ?
-                                        `+${comparisonStats.linkDifference}` :
-                                        comparisonStats.linkDifference}
-                                </Text>
-                                <Text style={styles.tableCell}>{comparisonStats.linkChangePercent}%</Text>
-                            </View>
-
-                            <View style={styles.tableRow}>
-                                <Text style={styles.tableCell}>Common Nodes</Text>
-                                <Text style={[styles.tableCell, { width: '40%' }]}>
-                                    {comparisonStats.commonNodesCount}
-                                </Text>
-                                <Text style={[styles.tableCell, { width: '40%' }]}>
-                                    {((comparisonStats.commonNodesCount / comparisonStats.originalNodeCount) * 100).toFixed(2)}% of original network
-                                </Text>
-                            </View>
+                        <View style={styles.footer} fixed>
+                            <Text>Generated on {new Date().toLocaleDateString()} - Network Analysis Platform</Text>
                         </View>
-                    </View>
-                    <View style={styles.footer} fixed>
-                        <Text>Generated on {new Date().toLocaleDateString()} - Network Analysis Platform</Text>
-                    </View>
-                </Page>
-            ))}
-
+                    </Page>
+                )
+            })}
         </Document>
     )
 };
 
 
 
-
-
 const MyResearchReport = ({ selectedMetric, name, params, setShowDownload, hasComparison }) => {
-    const { user, table } = useSelector((state) => state);
+    const { user, table, images: { images } } = useSelector((state) => state);
     const { currentUser } = user;
     const [research, setResearch] = useState({
         name: name || 'unknown',
@@ -350,11 +359,13 @@ const MyResearchReport = ({ selectedMetric, name, params, setShowDownload, hasCo
         metric: selectedMetric,
         stats: table.tableData || [],
     });
-
-    console.log(table.tableData, 'tableData');
-
+    const [show, setShow] = useState({
+        images: images.map((_, index) => ({ data: _, index, selected: true })),
+        filters: research.filters.map((_, index) => ({ index, selected: true })),
+    });
 
     const handleSubmit = (e) => {
+        e.stopPropagation();
         e.preventDefault();
         if (!research.name || !research.researcherName || !research.conclusion) {
             toast.error("Please fill in all required fields.");
@@ -362,19 +373,61 @@ const MyResearchReport = ({ selectedMetric, name, params, setShowDownload, hasCo
         }
     };
 
+    const handleToggle = (index, key) => {
+        setShow((prev) => {
+            const updated = [...prev[key]];
+            updated[index].selected = !updated[index].selected;
+            return { ...prev, [key]: updated };
+        });
+    }
+    const closeModal = (e) => { e.stopPropagation(); setShowDownload(false) };
+
     return (
-        <div className="research-report-container">
-            <div className="research-report-header">
+        <Modal onClose={closeModal}>
+            <div className="research-report-header" >
                 <h2>Research Report</h2>
-                <button className="close-btn" onClick={() => setShowDownload(false)}>×</button>
+                <button className="close-btn" onClick={closeModal}>×</button>
             </div>
 
-            <div className="research-report-info">
+            <div className="research-report-info" >
                 <h3>Research Information</h3>
                 <p>Research Name: {research.name}</p>
                 <p>Researcher Name: {research.researcherName}</p>
             </div>
+            <div className="research-report-images">
+                <h3>Include Images</h3>
+                {images.map((image, index) => (
+                    <div key={index} className="image-selection">
+                        <img src={image.data} alt={`Graph ${index + 1}`} style={{ height: '100px', width: '100px' }} />
+                        <label>
+                            <input
+                                type="checkbox"
+                                checked={show.images[index]?.selected}
+                                onChange={() => handleToggle(index, 'images')}
+                            />
+                            Include this image
+                        </label>
+                    </div>
+                ))}
+                {images.length === 0 && <p>No images available to include.</p>}
+            </div>
 
+            <div className="research-report-filters">
+                <h3>Include Filters</h3>
+                {research.filters.map((filter, index) => (
+                    <div key={index} className="filter-selection">
+                        <label>
+                            <input
+                                type="checkbox"
+                                checked={show.filters[index]?.selected}
+                                onChange={() => handleToggle(index, 'filters')}
+                            />
+                            {filter}
+                        </label>
+                    </div>
+                ))}
+                {research.filters.length === 0 && <p>No filters available to include.</p>}
+            </div>
             <form className="research-report-form" onSubmit={handleSubmit}>
 
                 <div>
@@ -398,13 +451,13 @@ const MyResearchReport = ({ selectedMetric, name, params, setShowDownload, hasCo
                 </div>
 
                 <div className="research-report-actions">
-                    <button type="button" className="close-btn" onClick={() => setShowDownload(false)}>
+                    <button type="button" className="close-btn" onClick={closeModal}>
                         Cancel
                     </button>
 
                     {research.name && research.researcherName && research.conclusion && (
                         <PDFDownloadLink
-                            document={<ResearchReport research={research} />}
+                            document={<ResearchReport research={research} images={images} show={show} />}
                             fileName="research_report.pdf"
                             className="download-link"
                         >
@@ -413,7 +466,7 @@ const MyResearchReport = ({ selectedMetric, name, params, setShowDownload, hasCo
                     )}
                 </div>
             </form>
-        </div>
+        </Modal>
     );
 };
 export default MyResearchReport;

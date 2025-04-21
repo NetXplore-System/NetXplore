@@ -2,72 +2,8 @@ import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 import { useSelector } from 'react-redux';
 import styled from 'styled-components';
+import { Column, FormContainer, Row, StyledInput, StyledTextarea } from './StyledComponents-El';
 
-const FormContainer = styled.div`
-  padding: 20px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-  background-color: #f9f9f9;
-`;
-
-const Row = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  margin: 0 -10px;
-`;
-
-const Column = styled.div`
-  flex: ${(props) => (props.fullWidth ? '0 0 100%' : '0 0 25%')};
-  max-width: ${(props) => (props.fullWidth ? '100%' : '25%')};
-  padding: 0 10px;
-  box-sizing: border-box;
-  margin-bottom: 20px;
-
-  @media (max-width: 768px) {
-    flex: 0 0 50%;
-    max-width: 50%;
-  }
-
-  @media (max-width: 480px) {
-    flex: 0 0 100%;
-    max-width: 100%;
-  }
-`;
-
-const StyledInput = styled.input`
-  width: 100%;
-  padding: 8px;
-  margin: 5px 0;
-  background-color: white;
-  color: black;
-  box-sizing: border-box;
-  border: 2px solid #ccc;
-  border-radius: 4px;
-  transition: border-color 0.3s;
-  &:focus {
-    border-color: #4CAF50;
-    outline: none;
-  }
-`;
-
-const StyledTextarea = styled.textarea`
-  width: 100%;
-  padding: 8px;
-  margin: 5px 0;
-  background-color: white;
-  color: black;
-  box-sizing: border-box;
-  border: 2px solid #ccc;
-  border-radius: 4px;
-  transition: border-color 0.3s;
-  &:focus {
-    border-color: #4CAF50;
-    outline: none;
-  }
-`;
 
 const Button = styled.button`
   margin: 10px 5px;

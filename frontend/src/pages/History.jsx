@@ -4,89 +4,11 @@ import { useSelector } from 'react-redux';
 import { toast } from 'react-hot-toast';
 import Loader from '../components/utils/Loader';
 import { FaEye, FaEdit, FaCopy, FaTrash } from 'react-icons/fa';
-import Modal from '../components/utils/Model';
+import Modal from '../components/utils/Modal';
 import ResearchHistory from '../components/utils/ResearcHistory';
 import UpdateResearch from '../components/utils/UpdateResearch';
-import ComparisonMetrics from '../components/utils/HistoryComparison';
 import ComparisonHistory from '../components/utils/HistoryComparison';
-
-
-const HistoryContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  padding: 2rem;
-  gap: 1.5rem;
-  overflow-x: auto;
-`;
-
-const Table = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-  th, td {
-    padding: 1rem;
-    text-align: left;
-    border-bottom: 1px solid #e0e0e0;
-  }
-  th {
-    background-color: #f8f9fa;
-  }
-  border: 1px solid #e0e0e0;
-  border-radius: 1rem;
-`;
-
-const StatusBadge = styled.span`
-  padding: 0.25rem 0.75rem;
-  border-radius: 1rem;
-  background-color: ${props => props.status ? '#d4edda' : '#f8d7da'};
-  color: ${props => props.status ? '#155724' : '#721c24'};
-`;
-const ButtonContainer = styled.div`
-  display: flex;
-  gap: 0.5rem;
-`;
-
-const Button = styled.button`
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: opacity 0.2s;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-
-  &:hover {
-    opacity: 0.9;
-  }
-
-  ${props => props.variant === 'primary' && `
-    background-color: #007bff;
-    color: white;
-  `}
-
-  ${props => props.variant === 'success' && `
-    background-color: #28a745;
-    color: white;
-  `}
-
-  ${props => props.variant === 'warning' && `
-    background-color: #ffc107;
-    color: black;
-  `}
-
-  ${props => props.variant === 'danger' && `
-    background-color: #dc3545;
-    color: white;
-  `}
-`;
-
-const ContainerLoader = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  padding: 2rem;
-`;
+import { Button, ButtonContainer, ContainerLoader, HistoryContainer, StatusBadge, Table } from '../components/utils/StyledComponents-El';
 
 
 
@@ -96,10 +18,6 @@ const History = () => {
     const [loading, setLoading] = useState(true);
     const [research, setResearch] = useState(null);
     const [inAction, setInAction] = useState(false);
-
-    const handleCompare = (researchId) => {
-        console.log('Compare research:', researchId);
-    };
 
     const handleDelete = async (researchId) => {
         try {

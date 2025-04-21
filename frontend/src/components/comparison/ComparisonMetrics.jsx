@@ -3,6 +3,8 @@ import { Card, Row, Col, Table, Form } from "react-bootstrap";
 import ComparisonGraph from "./ComparisonGraph";
 import { useDispatch } from "react-redux";
 import { clearTableData, setTableData } from "../../redux/table/tableSlice";
+import { GraphButton } from "../utils/StyledComponents-El";
+import { addToEnd } from "../../redux/images/imagesSlice";
 
 const ComparisonMetrics = ({
   originalNetworkData,
@@ -15,7 +17,7 @@ const ComparisonMetrics = ({
   onApplyComparisonFilters,
   onResetComparisonFilters,
 }) => {
-  
+
   const dispatch = useDispatch();
   const [comparisonFilter, setComparisonFilter] = useState("");
   const [minComparisonWeight, setMinComparisonWeight] = useState(1);
@@ -117,6 +119,25 @@ const ComparisonMetrics = ({
   );
 
   dispatch(clearTableData());
+
+  const handleScreenshot = (e, source, index, i) => {
+    e.stopPropagation();
+    const canvas = document.querySelectorAll("canvas");
+    source ?
+      dispatch(addToEnd({
+        data: canvas[1].toDataURL('image/png'),
+        type: "comparison",
+        source
+      }))
+      :
+      dispatch(addToEnd({
+        data: canvas[i + 2].toDataURL('image/png'),
+        type: "comparison",
+        source,
+        index
+      }))
+
+  };
 
 
   return (
@@ -232,10 +253,13 @@ const ComparisonMetrics = ({
                       width={activeComparisonIndices.length > 1 ? 1000 : 600}
                       height={500}
                       comparisonMetrics={comparisonMetrics}
+                      buttonElement={
+                        <GraphButton onClick={(e) => handleScreenshot(e, true)}>Take Screenshot</GraphButton>
+                      }
                     />
                   </Col>
 
-                  {activeComparisonIndices.map((index) => (
+                  {activeComparisonIndices.map((index, i) => (
                     <Col
                       md={activeComparisonIndices.length > 1 ? 6 : 6}
                       key={`comparison-${index}`}
@@ -253,6 +277,9 @@ const ComparisonMetrics = ({
                         height={500}
                         isComparisonGraph={true}
                         comparisonMetrics={comparisonMetrics}
+                        buttonElement={
+                          <GraphButton onClick={(e) => handleScreenshot(e, false, index, i)}>Take Screenshot2</GraphButton>
+                        }
                       />
                     </Col>
                   ))}
@@ -261,7 +288,7 @@ const ComparisonMetrics = ({
             </Card>
           </Row>
 
-          <Row className="mt-4 mb-4"> 
+          <Row className="mt-4 mb-4">
             <Card>
               <Card.Header>
                 <h5 className="fw-bold">Comparison Statistics</h5>
@@ -269,7 +296,7 @@ const ComparisonMetrics = ({
               <Card.Body>
                 {activeComparisonIndices.map((index) => {
                   console.log(comparisonData[index]?.name);
-                  
+
                   return (
                     <div key={`stats-${index}`} className="mb-4">
                       <h6>
@@ -288,7 +315,7 @@ const ComparisonMetrics = ({
                             <p>Could not calculate comparison statistics.</p>
                           );
 
-                        dispatch(setTableData({...stats, fileName: comparisonData[index]?.name || "unknon name"}));
+                        dispatch(setTableData({ ...stats, index, fileName: comparisonData[index]?.name || "unknon name" }));
 
 
                         return (

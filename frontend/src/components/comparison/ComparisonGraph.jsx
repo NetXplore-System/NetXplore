@@ -2,6 +2,7 @@ import { ForceGraph2D } from "react-force-graph";
 import { Card, Button } from "react-bootstrap";
 import { GraphContainer } from "../../pages/Form.style.js";
 import React, { useState, useRef } from "react";
+import { GraphButton } from "../utils/StyledComponents-El.js";
 
 
 const ComparisonGraph = ({
@@ -12,6 +13,7 @@ const ComparisonGraph = ({
   isComparisonGraph = false,
   selectedMetric = null,
   comparisonMetrics = [],
+  buttonElement = null,
 }) => {
   const [nodesFixed, setNodesFixed] = useState(false);
   const forceGraphRef = useRef(null);
@@ -78,6 +80,7 @@ const ComparisonGraph = ({
       </Card.Header>
       <Card.Body className="text-center">
         <GraphContainer>
+          {buttonElement}
           <ForceGraph2D
             graphData={processedData}
             width={width}

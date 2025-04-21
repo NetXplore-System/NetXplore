@@ -32,7 +32,9 @@ import {
   detectCommunities,
   compareNetworks,
 } from "../components/utils/ApiService.jsx";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import { GraphButton } from "../components/utils/StyledComponents-El.js";
+import { addToEnd, clearImages } from "../redux/images/imagesSlice.js";
 
 
 
@@ -146,10 +148,6 @@ const Home = () => {
     resetFilters,
     handleInputChange,
   } = filters;
-
-
-  console.log("object: ", filter)
-
   const [visualizationSettings, setVisualizationSettings] = useState({
     colorBy: "default",
     sizeBy: "default",
@@ -178,6 +176,7 @@ const Home = () => {
     showImportantNodes: false,
     importantNodesThreshold: 0.5,
   });
+  const dispatch = useDispatch();
 
   const unfixAllNodes = () => {
     if (networkData && networkData.nodes) {
@@ -343,6 +342,7 @@ const Home = () => {
       .then((data) => {
         console.log("Data returned from server:", data);
         if (data.nodes && data.links) {
+          dispatch(clearImages());
           setNetworkData(data);
           setOriginalNetworkData(data);
           setShouldFetchCommunities(true);
@@ -471,17 +471,17 @@ const Home = () => {
 
   const filteredNodes = networkData
     ? networkData.nodes.filter((node) =>
-        node.id.toLowerCase().includes(filter.toLowerCase())
-      )
+      node.id.toLowerCase().includes(filter.toLowerCase())
+    )
     : [];
 
 
   const filteredLinks = networkData
     ? networkData.links.filter(
-        (link) =>
-          filteredNodes.some((node) => node.id === link.source) &&
-          filteredNodes.some((node) => node.id === link.target)
-      )
+      (link) =>
+        filteredNodes.some((node) => node.id === link.source) &&
+        filteredNodes.some((node) => node.id === link.target)
+    )
     : [];
 
   const handleStrongConnections = () => {
@@ -727,7 +727,7 @@ const Home = () => {
         nodeColor =
           settings.communityColors?.[communityId] ??
           settings.customColors.communityColors[
-            communityId % settings.customColors.communityColors.length
+          communityId % settings.customColors.communityColors.length
           ];
       } else if (settings.colorBy === "degree") {
         const maxDegree = Math.max(
@@ -929,14 +929,14 @@ const Home = () => {
             (selectedMetric === "PageRank Centrality"
               ? Math.max(10, node.pagerank * 500)
               : selectedMetric === "Eigenvector Centrality"
-              ? Math.max(10, node.eigenvector * 60)
-              : selectedMetric === "Closeness Centrality"
-              ? Math.max(10, node.closeness * 50)
-              : selectedMetric === "Betweenness Centrality"
-              ? Math.max(10, node.betweenness * 80)
-              : selectedMetric === "Degree Centrality"
-              ? Math.max(10, node.degree * 80)
-              : 20);
+                ? Math.max(10, node.eigenvector * 60)
+                : selectedMetric === "Closeness Centrality"
+                  ? Math.max(10, node.closeness * 50)
+                  : selectedMetric === "Betweenness Centrality"
+                    ? Math.max(10, node.betweenness * 80)
+                    : selectedMetric === "Degree Centrality"
+                      ? Math.max(10, node.degree * 80)
+                      : 20);
 
           ctx.save();
           ctx.beginPath();
@@ -1338,8 +1338,7 @@ const Home = () => {
       });
 
       setMessage(
-        `Showing only intra-community links and hiding isolated nodes. Removed ${
-          networkData.links.length - filteredLinks.length
+        `Showing only intra-community links and hiding isolated nodes. Removed ${networkData.links.length - filteredLinks.length
         } cross-community links.`
       );
     } else {
@@ -1375,7 +1374,14 @@ const Home = () => {
     }
   };
 
-  console.log(originalNetworkData, comparisonNetworkData);
+  const handleScreenshot = (e, index) => {
+    e.stopPropagation();
+    const canvas = document.querySelectorAll('canvas');
+    canvas.length > index && dispatch(addToEnd({
+      data:canvas[index].toDataURL("image/png"),
+      type: "main"
+    }));
+  }
 
   return (
     <Container fluid className="upload-section">
@@ -1453,9 +1459,8 @@ const Home = () => {
               <Col
                 lg={3}
                 md={12}
-                className={`mb-3 metrics-panel ${
-                  showMetrics ? "open" : "closed"
-                }`}
+                className={`mb-3 metrics-panel ${showMetrics ? "open" : "closed"
+                  }`}
               >
                 <Card className="metrics-card">
                   <h4 className="fw-bold d-flex justify-content-between align-items-center">
@@ -1490,9 +1495,8 @@ const Home = () => {
                       </Button>
 
                       <Button
-                        className={`metrics-item ${
-                          strongConnectionsActive ? "active" : ""
-                        }`}
+                        className={`metrics-item ${strongConnectionsActive ? "active" : ""
+                          }`}
                         onClick={handleStrongConnections}
                       >
                         {strongConnectionsActive
@@ -1500,25 +1504,22 @@ const Home = () => {
                           : "Strongest Connections"}
                       </Button>
                       <Button
-                        className={`metrics-item ${
-                          highlightCentralNodes ? "active" : ""
-                        }`}
+                        className={`metrics-item ${highlightCentralNodes ? "active" : ""
+                          }`}
                         onClick={handleHighlightCentralNodes}
                       >
                         Highlight Central Nodes
                       </Button>
                       <Button
-                        className={`metrics-item ${
-                          networkWasRestored ? "active" : ""
-                        }`}
+                        className={`metrics-item ${networkWasRestored ? "active" : ""
+                          }`}
                         onClick={handleRestoreNetwork}
                       >
                         Restore Original Network
                       </Button>
                       <Button
-                        className={`metrics-item ${
-                          activityFilterEnabled === true ? "active" : ""
-                        }`}
+                        className={`metrics-item ${activityFilterEnabled === true ? "active" : ""
+                          }`}
                         onClick={handleActivityFilter}
                       >
                         {activityFilterEnabled
@@ -1527,9 +1528,8 @@ const Home = () => {
                       </Button>
 
                       <Button
-                        className={`metrics-item ${
-                          showOnlyIntraCommunityLinks ? "active" : ""
-                        }`}
+                        className={`metrics-item ${showOnlyIntraCommunityLinks ? "active" : ""
+                          }`}
                         onClick={handleToggleCommunitiesFilter}
                       >
                         {showOnlyIntraCommunityLinks
@@ -1543,9 +1543,8 @@ const Home = () => {
                         Release All Nodes
                       </Button>
                       <Button
-                        className={`metrics-item ${
-                          isDirectedGraph ? "active" : ""
-                        }`}
+                        className={`metrics-item ${isDirectedGraph ? "active" : ""
+                          }`}
                         onClick={() => setIsDirectedGraph(!isDirectedGraph)}
                       >
                         {isDirectedGraph
@@ -1558,7 +1557,6 @@ const Home = () => {
                 <MetricsPanel networkStats={networkStats} />{" "}
               </Col>
 
-              {/* Graph Display */}
               <Col lg={9} md={12} className="graph-area">
                 {networkData && (
                   <NetworkCustomizationToolbar
@@ -1584,6 +1582,7 @@ const Home = () => {
                   <div className="graph-placeholder">
                     {networkData && (
                       <GraphContainer>
+                        <GraphButton onClick={(e) => handleScreenshot(e, 0)}>Take Screenshot</GraphButton>
                         <NetworkGraph
                           networkData={networkData}
                           filteredNodes={filteredNodes}
@@ -1611,147 +1610,6 @@ const Home = () => {
               </Col>
             </Row>
           )}
-
-          <Row className="mt-4">
-            <Col
-              lg={3}
-              md={12}
-              className={`mb-3 metrics-panel ${showMetrics ? "open" : "closed"
-                }`}
-            >
-              <Card className="metrics-card">
-                <h4 className="fw-bold d-flex justify-content-between align-items-center">
-                  {showMetrics && "Graph Metrics"}
-                  <Button
-                    variant="link"
-                    className="metrics-toggle"
-                    onClick={() => setShowMetrics(!showMetrics)}
-                  >
-                    {showMetrics ? (
-                      <ChevronLeft size={20} />
-                    ) : (
-                      <ChevronRight size={20} />
-                    )}
-                  </Button>
-                </h4>
-                {showMetrics && (
-                  <div className="mt-2">
-                    <MetricsButton
-                      graphMetrics={graphMetrics}
-                      selectedMetric={selectedMetric}
-                      onToggleMetric={handleToggleMetric}
-                      onDensity={handleDensityMetric}
-                      onDiameter={handleDiameterMetric}
-                    />
-                    <Button
-                      className="metrics-item"
-                      onClick={() => setShowDataTable(!showDataTable)}
-                      variant={showDataTable ? "primary" : "outline-primary"}
-                    >
-                      <FileBarGraph className="me-1" /> Explore Data Table
-                    </Button>
-
-                    <Button
-                      className={`metrics-item ${strongConnectionsActive ? "active" : ""
-                        }`}
-                      onClick={handleStrongConnections}
-                    >
-                      {strongConnectionsActive
-                        ? "Show All Connections"
-                        : "Strongest Connections"}
-                    </Button>
-                    <Button
-                      className={`metrics-item ${highlightCentralNodes ? "active" : ""
-                        }`}
-                      onClick={handleHighlightCentralNodes}
-                    >
-                      Highlight Central Nodes
-                    </Button>
-                    <Button
-                      className={`metrics-item ${networkWasRestored ? "active" : ""
-                        }`}
-                      onClick={handleRestoreNetwork}
-                    >
-                      Restore Original Network
-                    </Button>
-                    <Button
-                      className={`metrics-item ${activityFilterEnabled === true ? "active" : ""
-                        }`}
-                      onClick={handleActivityFilter}
-                    >
-                      {activityFilterEnabled
-                        ? "Show All Users"
-                        : "Hide Inactive Users"}
-                    </Button>
-
-                    <Button
-                      className={`metrics-item ${showOnlyIntraCommunityLinks ? "active" : ""
-                        }`}
-                      onClick={handleToggleCommunitiesFilter}
-                    >
-                      {showOnlyIntraCommunityLinks
-                        ? "Show All Links"
-                        : "Hide Cross-Community Links"}
-                    </Button>
-                  </div>
-                )}
-              </Card>
-              <MetricsPanel networkStats={networkStats} />{" "}
-            </Col>
-
-            {/* Graph Display */}
-            <Col lg={9} md={12} className="graph-area">
-              {networkData && (
-                <NetworkCustomizationToolbar
-                  networkData={networkData}
-                  communities={communities}
-                  onApplyCustomization={handleNetworkCustomization}
-                  initialSettings={visualizationSettings}
-                />
-              )}
-              {(showDensity || showDiameter) && (
-                <Card className="density-card">
-                  {showDensity && (
-                    <h5 className="fw-bold">Graph Density: {densityValue}</h5>
-                  )}
-                  {showDiameter && (
-                    <h5 className="fw-bold">
-                      Graph Diameter: {diameterValue}
-                    </h5>
-                  )}
-                </Card>
-              )}
-
-              <Card className="graph-card">
-                <div className="graph-placeholder">
-                  {networkData && (
-                    <GraphContainer>
-                      <NetworkGraph
-                        networkData={networkData}
-                        filteredNodes={filteredNodes}
-                        filteredLinks={filteredLinks}
-                        customizedNetworkData={customizedNetworkData}
-                        selectedMetric={selectedMetric}
-                        highlightCentralNodes={highlightCentralNodes}
-                        showMetrics={showMetrics}
-                        visualizationSettings={visualizationSettings}
-                        handleNodeClick={handleNodeClick}
-                        networkWasRestored={networkWasRestored}
-                        forceGraphRef={forceGraphRef}
-                      />
-                    </GraphContainer>
-                  )}
-                </div>
-              </Card>
-              {showDataTable && networkData && (
-                <NetworkDataTable
-                  networkData={networkData}
-                  onClose={() => setShowDataTable(false)}
-                />
-              )}
-            </Col>
-          </Row>
-
 
           <Row className="mt-4">
             <ComparisonPanel
@@ -1796,7 +1654,6 @@ const Home = () => {
         </div>
       )}
 
-      {/* Node Removal Modal */}
       {showRemoveNodeModal && selectedNode && (
         <div
           className="modal show d-block"
