@@ -5,15 +5,13 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   return {
     plugins: [react()],
+    define: {
+      'import.meta.env.VITE_API_URL': JSON.stringify(env.VITE_API_URL),
+    },
     preview: {
       port: parseInt(env.PORT) || 4173,
       host: true,
-      allowedHosts: ['alpha-frontend-4rmx.onrender.com']
+      allowedHosts: ['alpha-frontend-4rmx.onrender.com'],
     },
-    define: {
-      'import.meta.env': {
-        VITE_API_URL: env.VITE_API_URL
-      }
-    }
   }
 })
