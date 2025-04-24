@@ -9,6 +9,11 @@ export default defineConfig(({ mode }) => {
       port: parseInt(env.PORT) || 4173,
       host: true,
       allowedHosts: ['alpha-frontend-4rmx.onrender.com']
+    },
+    define: {
+      'import.meta.env': {
+        VITE_API_URL: env.VITE_API_URL
+      }
     }
   }
 })
