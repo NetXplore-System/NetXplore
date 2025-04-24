@@ -17,6 +17,12 @@ jobs:
       working-directory: frontend
       run: npm install
 
+    - name: Create .env.production from GitHub Secrets
+      working-directory: frontend
+      run: |
+        echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" > .env.production
+        echo "VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }}" >> .env.production
+
     - name: Build the Vite project
       working-directory: frontend
       run: npm run build
