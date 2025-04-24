@@ -54,6 +54,21 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
+.spinner-icon {
+  animation: spin 1s linear infinite;
+  display: inline-block;
+  margin-right: 8px; /* Add spacing between the icon and text */
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;

@@ -9,11 +9,14 @@ import OAuth from "../components/OAuth.jsx";
 import Card from "react-bootstrap/Card";
 import Image from "react-bootstrap/Image";
 import logo from "../assets/Logo.png";
+import { LoaderIcon } from "react-hot-toast";
+import { AiOutlineLoading } from "react-icons/ai";
 
  
 const SignIn = () => {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
@@ -32,6 +35,7 @@ const SignIn = () => {
     const { email, password } = formData;
   
     try {
+      setLoading(true);
       const response = await fetch(import.meta.env.VITE_API_URL+"/login", {
         method: "POST",
         headers: {
@@ -51,6 +55,8 @@ const SignIn = () => {
       navigate("/choose-platform");
     } catch (err) {
       setError(err.message);
+    }finally {
+      setLoading(false);
     }
   };
   
@@ -99,8 +105,8 @@ const SignIn = () => {
             />
           </Form.Group>
 
-          <Button variant="primary" type="submit" className="w-100 mb-3"   style={{ backgroundColor: "#050d2d", borderColor: "#050d2d" }}>
-            Sign In
+          <Button disabled={loading} variant="primary" type="submit" className="w-100 mb-3"   style={{ backgroundColor: "#050d2d", borderColor: "#050d2d" }}>
+           {loading && <AiOutlineLoading className="spinner-icon"/>} Sign In
           </Button>
 
           <OAuth />

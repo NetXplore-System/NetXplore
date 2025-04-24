@@ -6,18 +6,23 @@ import Container from "react-bootstrap/Container";
 import OAuth from '../components/OAuth.jsx';
 import { useNavigate } from "react-router-dom";
 import Card from "react-bootstrap/Card";
+import toast from "react-hot-toast";
+import { useDispatch } from "react-redux";
+import { setUser } from "../redux/user/userSlice.js";
+import { AiOutlineLoading } from "react-icons/ai";
 
 
 const SignUp = () => {
+  const dispatch = useDispatch();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
     confirmPassword: "",
   });
-
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
+  // const [success, setSuccess] = useState("");
   const navigate = useNavigate();
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -30,7 +35,7 @@ const SignUp = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    setSuccess("");
+    // setSuccess(""); 
 
     const { name, email, password, confirmPassword } = formData;
 
@@ -40,7 +45,8 @@ const SignUp = () => {
     }
 
     try {
-      const response = await fetch(import.meta.env.VITE_API_URL+"/register", {
+      setLoading(true);
+      const response = await fetch(import.meta.env.VITE_API_URL + "/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -54,11 +60,13 @@ const SignUp = () => {
       }
 
       const data = await response.json();
-      setSuccess("Registration successful!");
-      setFormData({ name: "", email: "", password: "", confirmPassword: "" });
-      navigate("/profile");
+      toast.success("Registration successful!");
+      dispatch(setUser(data));
+      navigate("/choose-platform");
     } catch (err) {
       setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -67,12 +75,12 @@ const SignUp = () => {
       className="d-flex justify-content-center align-items-center"
       style={{ minHeight: "100vh" }}
     >
-       <Card style={{ width: "100%", maxWidth: "500px", borderRadius: "20px" }} className="shadow">
+      <Card style={{ width: "100%", maxWidth: "500px", borderRadius: "20px" }} className="shadow">
         <Card.Body className="p-4">
           <h3 className="text-center mb-4">Sign Up</h3>
 
           {error && <p className="text-danger text-center">{error}</p>}
-          {success && <p className="text-success text-center">{success}</p>}
+          {/* {success && <p className="text-success text-center">{success}</p>} */}
 
           <Form onSubmit={handleSubmit}>
             <Form.Group className="mb-3" controlId="formBasicName">
@@ -126,9 +134,10 @@ const SignUp = () => {
             <Button
               type="submit"
               className="w-100 mb-3"
+              disabled={loading}
               style={{ backgroundColor: "#050d2d", borderColor: "#050d2d" }}
             >
-              Sign Up
+              {loading && <AiOutlineLoading className="spinner-icon" />} Sign Up
             </Button>
 
             <OAuth />

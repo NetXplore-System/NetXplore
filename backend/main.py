@@ -189,7 +189,18 @@ async def register_user(user: UserCreate, db: AsyncSession = Depends(database.ge
         await session.commit()
         await session.refresh(new_user)
 
-        return {"id": str(new_user.user_id), "name": new_user.name, "email": new_user.email}
+        token = create_access_token(data={"user_id": str(new_user.user_id)})
+
+        return {
+                "user":{
+                    "id": str(new_user.user_id), 
+                    "name": new_user.name, 
+                    "email": new_user.email,
+                    "avatar": new_user.avatar or "https://cdn-icons-png.flaticon.com/512/64/64572.png"
+                },
+                "access_token": token,
+                "token_type": "bearer"
+            }
 
   
 @app.post("/login")  

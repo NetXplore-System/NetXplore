@@ -7,11 +7,11 @@ import Modal from './Modal';
 
 
 const formatFilterLabel = (filter) => {
-    const [key] = filter.split(':'); 
+    const [key] = filter.split(':');
     return key
-        .split('_') 
+        .split('_')
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1)) // Capitalize each word
-        .join(' '); 
+        .join(' ');
 };
 
 Font.register({
@@ -130,31 +130,39 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#1565c0',
         fontWeight: 'bold',
-        marginBottom: 10,
+        marginBottom: 5,
         textAlign: 'center',
     },
     graphImage: {
         width: '100%',
-        height: 300,
+        height: 210,
         borderRadius: 4,
         marginTop: 10,
         border: '1px solid #EEE',
     },
     comparisonImage: {
-        width: '45%',
-        height: 200,
-        marginHorizontal: 10,
+        width: '75%', // Ensure the image takes up the full width of its container
+        height: 300,
         borderRadius: 4,
         border: '1px solid #EEE',
     },
     comparisonImagesContainer: {
         flexDirection: 'row',
-        justifyContent: 'center',
-        marginVertical: 10,
+        flexWrap: 'wrap', // Allow wrapping to ensure each image container can take full width
+        justifyContent: 'center', // Center the content
+        // marginVertical: 10,
+    },
+    comparisonImageContainer: {
+        flexBasis: '100%', 
+        display: 'flex', // Use flexbox for alignment within each grid item
+        flexDirection: 'column', 
+        alignItems: 'center',
+        textAlign: 'center',
+        marginBottom: 10, // Add spacing between rows
     },
     comparisonTable: {
         width: '100%',
-        marginTop: 15,
+        marginTop: 115,
         marginBottom: 15,
     },
     tableRow: {
@@ -204,6 +212,12 @@ const styles = StyleSheet.create({
         textAlign: 'right',
         fontFamily: 'Alef',
     },
+    imageCaption: {
+        fontSize: 10,
+        color: '#666',
+        textAlign: 'center',
+        marginTop: 5,
+    },
 });
 
 // Create Document Component
@@ -212,7 +226,7 @@ const ResearchReport = ({ research, images, show }) => {
     const sourceComparisonImage = show.images.filter((image) => image.data.type === "comparison" && image.data.source && image.selected)[0];
     const comparisonImages = show.images.filter((image) => image.data.type === "comparison" && !image.data.source && image.selected);
     const filters = show.filters.filter((filter) => filter.selected).map((filter) => research.filters[filter.index]);
-    
+
     return (
         <Document>
             <Page style={styles.page}>
@@ -230,6 +244,7 @@ const ResearchReport = ({ research, images, show }) => {
                         />
                         <Text style={styles.imageCaption}>
                             Fig. 1: Visual representation of the analyzed network structure
+                            {mainImage.description && ` - ${mainImage.description}`}
                         </Text>
                     </View>
                 )}
@@ -263,7 +278,7 @@ const ResearchReport = ({ research, images, show }) => {
                 </View>}
 
                 {/* Conclusion Section */}
-                <View style={styles.section}>
+                <View style={[styles.section, { marginTop: 50 }]}>
                     <Text style={styles.sectionTitle}>Research Conclusion</Text>
                     <Text style={styles.conclusion}>{research.conclusion || research.review}</Text>
                 </View>
@@ -276,8 +291,7 @@ const ResearchReport = ({ research, images, show }) => {
             </Page>
             {research.hasComparison && comparisonImages.map((data, index) => {
                 const comparisonStats = research.stats.filter(state => state.index === data.data.index)[0];
-                console.log("comparisonStats: " ,comparisonStats, research.stats, data);
-                
+
                 return (
                     <Page key={index} style={styles.page}>
                         <Text style={styles.pageNumber}>Page {index + 2}</Text>
@@ -288,15 +302,23 @@ const ResearchReport = ({ research, images, show }) => {
                                 Comparison #{index + 1} Page: {comparisonStats.fileName}
                             </Text>
 
-                            <View style={[styles.comparisonImagesContainer]}>
-                                {sourceComparisonImage && <Image
-                                    style={[styles.comparisonImage, { height: '300px', width: '600px' }]}
-                                    src={sourceComparisonImage.data.data}
-                                />}
-                                <Image
-                                    style={[styles.comparisonImage,  { height: '300px', width: '600px' }]}
-                                    src={data.data.data}
-                                />
+                            <View style={styles.comparisonImagesContainer}>
+                                {sourceComparisonImage &&
+                                    <View style={styles.comparisonImageContainer}>
+                                        <Image
+                                            style={styles.comparisonImage}
+                                            src={sourceComparisonImage.data.data}
+                                        />
+                                        {sourceComparisonImage.description && <Text style={styles.imageCaption}>{sourceComparisonImage.description}</Text>}
+                                    </View>
+                                }
+                                <View style={styles.comparisonImageContainer}>
+                                    <Image
+                                        style={styles.comparisonImage}
+                                        src={data.data.data}
+                                    />
+                                    {data.description && <Text style={styles.imageCaption}>{data.description}</Text>}
+                                </View>
                             </View>
 
                             <View style={[styles.comparisonTable, { height: '250px' }]}>
@@ -356,8 +378,10 @@ const ResearchReport = ({ research, images, show }) => {
 
 
 const MyResearchReport = ({ selectedMetric, name, params, setShowDownload, hasComparison }) => {
-    const { user, table, images: { images } } = useSelector((state) => state);
-    const { currentUser } = user;
+    const { tableData } = useSelector((state) => state.table);
+    const { images } = useSelector((state) => state.images);
+    const { currentUser } = useSelector((state) => state.user);
+
     const [research, setResearch] = useState({
         name: name || 'unknown',
         researcherName: currentUser?.name || 'unknown',
@@ -366,21 +390,19 @@ const MyResearchReport = ({ selectedMetric, name, params, setShowDownload, hasCo
         conclusion: '',
         hasComparison,
         metric: selectedMetric,
-        stats: table.tableData || [],
+        stats: tableData || [],
     });
     const [show, setShow] = useState({
-        images: images.map((_, index) => ({ data: _, index, selected: true })),
+        images: images.map((_, index) => ({ data: _, index, selected: true, description: '' })),
         filters: research.filters.map((_, index) => ({ index, selected: true })),
     });
 
-    const handleSubmit = (e) => {
+    const handleCange = (e, index) => {
         e.stopPropagation();
-        e.preventDefault();
-        if (!research.name || !research.researcherName || !research.conclusion) {
-            toast.error("Please fill in all required fields.");
-            return;
-        }
-    };
+        const updatedImages = [...show.images];
+        updatedImages[index].description = e.target.value;
+        setShow((prev) => ({ ...prev, images: updatedImages }));
+    }
 
     const handleToggle = (index, key) => {
         setShow((prev) => {
@@ -416,6 +438,13 @@ const MyResearchReport = ({ selectedMetric, name, params, setShowDownload, hasCo
                             />
                             Include this image
                         </label>
+                        <input
+                            type="text"
+                            placeholder="Image description"
+                            maxLength={60}
+                            value={show.images[index]?.description}
+                            onChange={e => handleCange(e, index)}
+                        />
                     </div>
                 ))}
                 {images.length === 0 && <p>No images available to include.</p>}
@@ -437,7 +466,7 @@ const MyResearchReport = ({ selectedMetric, name, params, setShowDownload, hasCo
                 ))}
                 {research.filters.length === 0 && <p>No filters available to include.</p>}
             </div>
-            <form className="research-report-form" onSubmit={handleSubmit}>
+            <form className="research-report-form" >
 
                 <div>
                     <label htmlFor="conclusion">Research Conclusion</label>
@@ -469,6 +498,12 @@ const MyResearchReport = ({ selectedMetric, name, params, setShowDownload, hasCo
                             document={<ResearchReport research={research} images={images} show={show} />}
                             fileName="research_report.pdf"
                             className="download-link"
+                            onClick={(e) => {
+                                setTimeout(() => {
+                                    e.stopPropagation();
+                                    setShowDownload(false);
+                                }, 1000);
+                            }}
                         >
                             {({ loading }) => (loading ? 'Preparing...' : 'Download Report')}
                         </PDFDownloadLink>

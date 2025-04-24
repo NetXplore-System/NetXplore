@@ -56,6 +56,10 @@ const History = () => {
                     }
                 });
                 const data = await history.json();
+                if (!data.history.length) {
+                    toast.error('don\'t find history. please create research');
+                    return;
+                }
                 setUserHistory(data.history);
                 toast.success('User history fetched successfully');
             } catch (error) {
