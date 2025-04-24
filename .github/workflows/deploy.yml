@@ -3,7 +3,7 @@ name: Deploy React App to S3
 on:
   push:
     branches:
-      - main  
+      - main
 
 jobs:
   deploy:
@@ -17,7 +17,7 @@ jobs:
       working-directory: frontend
       run: npm install
 
-    - name: Build the React project
+    - name: Build the Vite project
       working-directory: frontend
       run: npm run build
 
@@ -30,4 +30,4 @@ jobs:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         AWS_REGION: ${{ secrets.AWS_REGION }}
-        SOURCE_DIR: "frontend/build"
+        SOURCE_DIR: "frontend/dist"
