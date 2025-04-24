@@ -53,4 +53,4 @@ build/
 #folder upload
 /backend/uploads/
 
-.specstory/
+.specstory/frontend/.env.production
