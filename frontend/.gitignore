@@ -33,6 +33,9 @@ __pycache__/
 
 # Ignore environment files
 .env
+.env.production
+# !.env.production
+# !frontend/.env.production
 
 # Ignore Node.js dependencies
 node_modules/
