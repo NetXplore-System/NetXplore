@@ -37,8 +37,8 @@ myenv/
 
 # Ignore environment files
 .env
-!.env.production
-!frontend/.env.production
+# !.env.production
+# !frontend/.env.production
 
 # Ignore Node.js dependencies
 node_modules/
