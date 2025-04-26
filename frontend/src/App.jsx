@@ -14,6 +14,8 @@ import History from "./pages/History.jsx";
 import ChoosePlatform from "./pages/ChoosePlatform.jsx";
 import { Toaster } from "react-hot-toast";
 import { useSelector } from "react-redux";
+import { HashRouter } from "react-router-dom";
+
 
 function AppContent() {
   const [isOpen, setIsOpen] = useState(false);
@@ -76,9 +78,11 @@ function AppContent() {
 
 function App() {
   return (
-    <BrowserRouter>
+    // <BrowserRouter>
+    <HashRouter>
       <AppContent />
-    </BrowserRouter>
+    </HashRouter>
+    // </BrowserRouter>
   );
 }
 
