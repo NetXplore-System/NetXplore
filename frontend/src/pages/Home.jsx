@@ -33,8 +33,8 @@ import {
   compareNetworks,
 } from "../components/utils/ApiService.jsx";
 import { useDispatch, useSelector } from "react-redux";
-import { GraphButton } from "../components/utils/StyledComponents-El.js";
-import { addToEnd, clearImages } from "../redux/images/imagesSlice.js";
+// import { GraphButton } from "../components/utils/StyledComponents-El.js";
+import { addToMain, clearImages } from "../redux/images/imagesSlice.js";
 
 
 
@@ -1377,9 +1377,8 @@ const Home = () => {
   const handleScreenshot = (e, index) => {
     e.stopPropagation();
     const canvas = document.querySelectorAll('canvas');
-    canvas.length > index && dispatch(addToEnd({
-      data:canvas[index].toDataURL("image/png"),
-      type: "main"
+    canvas.length > index && dispatch(addToMain({
+      data: canvas[index].toDataURL("image/png"),
     }));
   }
 
@@ -1582,7 +1581,7 @@ const Home = () => {
                   <div className="graph-placeholder">
                     {networkData && (
                       <GraphContainer>
-                        <GraphButton onClick={(e) => handleScreenshot(e, 0)}>Take Screenshot</GraphButton>
+                        <button className="graph-button" onClick={(e) => handleScreenshot(e, 0)}>Take Screenshot</button>
                         <NetworkGraph
                           networkData={networkData}
                           filteredNodes={filteredNodes}

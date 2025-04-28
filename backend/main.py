@@ -5,6 +5,7 @@ from fastapi.security import OAuth2PasswordBearer  # type: ignore
 import json
 import logging
 import os
+import re
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
@@ -30,7 +31,7 @@ import uuid
 
 load_dotenv()
 origins = os.getenv("ALLOWED_ORIGINS", "").split(",") 
- 
+
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
@@ -358,11 +359,11 @@ async def upload_avatar(
 
 
 async def delayed_file_processing(filename: str):
-    """Executes 120 seconds after file upload"""
-    await asyncio.sleep(120)
+    """Executes one day after file upload"""
+    await asyncio.sleep(24*60*60)
     
     # Add your custom processing logic here
-    print(f"Processing file {filename} after 2 minutes")
+    print(f"Processing file {filename} after one day")
     # Example: Move file to permanent storage
     # Example: Run analysis and save results
     
@@ -433,6 +434,7 @@ async def analyze_network(
         edges_counter = defaultdict(int)
         previous_sender = None
         anonymized_map = {}
+        timestamp_pattern = r"(\d{1,2}[./]\d{1,2}[./]\d{2,4}, \d{1,2}:\d{2}(?::\d{2})?)"
 
         keyword_list = [kw.strip().lower() for kw in keywords.split(",")] if keywords else []
         selected_user_list = [user.strip().lower() for user in selected_users.split(",")] if selected_users else []
@@ -456,20 +458,36 @@ async def analyze_network(
             lines = f.readlines()
 
         filtered_lines = []
+        spam_messages = ["צורף/ה","הצטרף/ה לקבוצה באמצעות קישור ההזמנה","תמונת הקבוצה השתנתה על ידי","תיאור הקבוצה שונה על ידי","GIF הושמט","סטיקר הושמט","כרטיס איש קשר הושמט","השמע הושמט","סרטון הווידאו הושמט","הוחלף למספר חדש. הקש/י כדי לשלוח הודעה או להוסיף מספר חדש.","שם הקבוצה השתנה על ידי","צירפת את", "הצטרף/ה", "צירף/ה",  "התמונה הושמטה", "הודעה זו נמחקה","צורפת על ידי" , "הקבוצה נוצרה על ידי", "ההודעה נמחקה על ידי", "ההודעות והשיחות מוצפנות מקצה לקצה. לאף אחד מחוץ לצ'אט הזה, גם לא ל-WhatsApp, אין אפשרות לקרוא אותן ולהאזין להן.", "הצטרפת לקבוצה דרך קישור הזמנה של הקבוצה"]
+        
         for line in lines:
-            # print(f"🔹 Line: {line}")
-            if line.startswith("[") and "]" in line:
-                date_part = line.split("] ")[0].strip("[]")
-                try:
-                    current_datetime = datetime.strptime(date_part, "%d.%m.%Y, %H:%M:%S")
-                except ValueError:
+            line = re.sub(r"[\u200f\u202a\u202b\u202c\u202d\u202e\u200d]", "", line)
+            match = re.search(timestamp_pattern, line)
+            if match:
+                date_part = match.group(1)  
+                current_datetime = None
+
+                for date_format in ["%d.%m.%Y, %H:%M:%S", "%m/%d/%y, %H:%M", "%d.%m.%Y, %H:%M"]:
+                    try:
+                        current_datetime = datetime.strptime(date_part, date_format)
+                        break  
+                    except ValueError:
+                        continue
+
+                if not current_datetime:
+                    print(f"Error parsing date: {date_part} in line: {line}")
                     continue
                 
-                if "~" not in line:
-                    # print(f"🔹 Line: {line}")
+                if not ":" in line:
                     continue
-                if "צירפת את" in line or "הצטרף/ה" in line or "צירף/ה" in line or "התמונה הושמטה" in line or "צורפת על ידי" in line or "הודעה זו נמחקה" in line or "הקבוצה נוצרה על ידי" in line:
+                
+                if any(spam in line for spam in spam_messages):
                     continue
+
+                MEDIA_RE = re.compile(r'\b(Media|image|video|GIF|sticker|Contact card) omitted\b', re.I)
+                if MEDIA_RE.search(line):
+                    continue
+
 
                 if ((start_datetime and current_datetime >= start_datetime) or not start_datetime) and \
                         ((end_datetime and current_datetime <= end_datetime) or not end_datetime):
@@ -483,49 +501,60 @@ async def analyze_network(
         print(f"🔹 Found {len(filtered_lines)} messages in the date range.")
 
         if limit and limit_type == "first":
-            selected_lines = filtered_lines[:limit]
+            extended_limit = limit + 100
+            selected_lines = filtered_lines[:extended_limit]
         elif limit and limit_type == "last":
-            selected_lines = filtered_lines[-limit:]
+            extended_limit = limit + 100
+            selected_lines = filtered_lines[-extended_limit:]
         else:
             selected_lines = filtered_lines
 
         print(f"🔹 Processing {len(selected_lines)} messages (Limit Type: {limit_type})")
 
         for line in selected_lines:
+            match = re.search(timestamp_pattern, line)
             try:
-                if "omitted" in line or "omitted" in line:
+                if "omitted" in line:
                     continue
 
-                if line.startswith("[") and "]" in line and ": " in line:
-                    _, message_part = line.split("] ", 1)
-                    parts = message_part.split(":", 1)
-                    sender = parts[0].strip("~").replace("\u202a", "").strip()
-                    message_content = parts[1].strip() if len(parts) > 1 else ""
-                    # print(f"🔹 Sender: {sender}, Message: {message_content}")
-                    message_length = len(message_content)
-                    if (min_length and message_length < min_length) or (max_length and message_length > max_length):
-                        continue
+                timestamp = match.group(1)
+                message_part = line.split(timestamp, 1)[1].strip(" -[]")
+                sender, message_content = message_part.split(": ", 1)
+                sender = sender.strip("~").replace("\u202a", "").strip()
+                # print(f"🔹 Sender: {sender}, Message: {message_content}")
+                message_length = len(message_content)
+                if (min_length and message_length < min_length) or (max_length and message_length > max_length):
+                    print(f"🔹 Message length {message_length} is out of bounds ({min_length}, {max_length})")
+                    continue
 
-                    if username and sender.lower() != username.lower():
-                        continue
+                if username and sender.lower() != username.lower():
+                    print(f"🔹 Sender {sender} does not match username {username}")
+                    continue
 
-                    if keywords and not any(kw in message_content.lower() for kw in keyword_list):
-                        continue
+                if keywords and not any(kw in message_content.lower() for kw in keyword_list):
+                    print(f"🔹 Message does not contain keywords: {message_content}")
+                    continue
 
-                    user_message_count[sender] += 1
+                if limit and sum(user_message_count.values()) >= limit:
+                    print(f"🔹 Reached limit of {limit} messages")
+                    break
 
-                    if sender:
-                        if anonymize:
-                            sender = anonymize_name(sender, anonymized_map)
+                user_message_count[sender] += 1
 
-                        nodes.add(sender)
-                        if previous_sender and previous_sender != sender:
-                            edge = tuple(sorted([previous_sender, sender]))
-                            edges_counter[edge] += 1
-                        previous_sender = sender
+                if sender:
+                    if anonymize:
+                        sender = anonymize_name(sender, anonymized_map)
+
+                    nodes.add(sender)
+                    if previous_sender and previous_sender != sender:
+                        edge = tuple(sorted([previous_sender, sender]))
+                        edges_counter[edge] += 1
+                    previous_sender = sender
             except Exception as e:
                 print(f"Error processing line: {line.strip()} - {e}")
                 continue
+            
+        print(f'🔹 Found {user_message_count} ')
 
         filtered_users = {
             user: count for user, count in user_message_count.items()
@@ -598,7 +627,6 @@ async def analyze_network(
     except Exception as e:
         print("Error:", e)
         return JSONResponse(content={"error": str(e)}, status_code=500)
-
 
 
 def apply_comparison_filters(network_data, node_filter, min_weight):

@@ -1,7 +1,5 @@
-import styled from 'styled-components';
-// import Graph from './Graph';
 import { FaWhatsapp, FaWikipediaW } from 'react-icons/fa';
-import { Row, Col, Button, Card, Table, Form } from 'react-bootstrap';
+import { Row, Col, Button, Card } from 'react-bootstrap';
 import { ChevronLeft, ChevronRight, FileBarGraph } from 'react-bootstrap-icons';
 import MetricsButton from '../common/MetricsButton';
 import { graphMetrics } from '../../pages/Home';
@@ -11,7 +9,6 @@ import MetricsPanel from '../network/MetricsPanel';
 import NetworkCustomizationToolbar from '../NetworkCustomizationToolbar';
 import NetworkGraph from '../network/NetworkGraph';
 import NetworkDataTable from '../NetworkDataTable';
-import { GraphContainer } from './StyledComponents-El';
 
 
 
@@ -824,7 +821,7 @@ const ResearchHistory = ({ research }) => {
 
             <div style={{ margin: '3rem 0' }}>
                 <h3>Primary Analysis</h3>
-                <GraphContainer>
+                <div className='graph-container'>
                     <Row className="mt-4">
                         <Col
                             lg={3}
@@ -938,7 +935,7 @@ const ResearchHistory = ({ research }) => {
                             <Card className="graph-card">
                                 <div className="graph-placeholder">
                                     {networkData && (
-                                        <GraphContainer>
+                                        <div className="graph-container">
                                             <NetworkGraph
                                                 networkData={networkData}
                                                 filteredNodes={filteredNodes}
@@ -952,7 +949,7 @@ const ResearchHistory = ({ research }) => {
                                                 networkWasRestored={networkWasRestored}
                                                 forceGraphRef={forceGraphRef}
                                             />
-                                        </GraphContainer>
+                                        </div>
                                     )}
                                 </div>
                             </Card>
@@ -964,7 +961,7 @@ const ResearchHistory = ({ research }) => {
                             )}
                         </Col>
                     </Row>
-                </GraphContainer>
+                </div>
             </div>
         </>
     );
