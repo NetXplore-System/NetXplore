@@ -23,7 +23,7 @@ import FilterForm from "../components/filters/FilterForm.jsx";
 import NetworkGraph from "../components/network/NetworkGraph.jsx";
 import { saveToDB } from "../components/utils/save.js";
 import MetricsPanel from "../components/network/MetricsPanel.jsx";
-
+import TriadCensusVisualization from "../components/network/TriadCensusVisualization.jsx";
 import {
   uploadFile,
   deleteFile,
@@ -31,22 +31,12 @@ import {
   analyzeNetwork,
   detectCommunities,
   compareNetworks,
+  analyzeTriadCensus,
 } from "../components/utils/ApiService.jsx";
 import { useDispatch, useSelector } from "react-redux";
 import { GraphButton } from "../components/utils/StyledComponents-El.js";
 import { addToEnd, clearImages } from "../redux/images/imagesSlice.js";
-
-
-
-export const graphMetrics = [
-  "Degree Centrality",
-  "Betweenness Centrality",
-  "Closeness Centrality",
-  "Eigenvector Centrality",
-  "PageRank Centrality",
-  "Density",
-  "Diameter",
-];
+import { graphMetrics } from "../constants/graphMetrics";
 
 const Home = () => {
   const [showDownload, setShowDownload] = useState(false);
@@ -84,7 +74,8 @@ const Home = () => {
   const [showOnlyIntraCommunityLinks, setShowOnlyIntraCommunityLinks] =
     useState(false);
   const [isDirectedGraph, setIsDirectedGraph] = useState(false);
-
+  const [showTriadCensus, setShowTriadCensus] = useState(false);
+  const [triadCensusData, setTriadCensusData] = useState(null);
   const [communityMap, setCommunityMap] = useState({});
   const {
     comparisonCount,
@@ -471,17 +462,16 @@ const Home = () => {
 
   const filteredNodes = networkData
     ? networkData.nodes.filter((node) =>
-      node.id.toLowerCase().includes(filter.toLowerCase())
-    )
+        node.id.toLowerCase().includes(filter.toLowerCase())
+      )
     : [];
-
 
   const filteredLinks = networkData
     ? networkData.links.filter(
-      (link) =>
-        filteredNodes.some((node) => node.id === link.source) &&
-        filteredNodes.some((node) => node.id === link.target)
-    )
+        (link) =>
+          filteredNodes.some((node) => node.id === link.source) &&
+          filteredNodes.some((node) => node.id === link.target)
+      )
     : [];
 
   const handleStrongConnections = () => {
@@ -727,7 +717,7 @@ const Home = () => {
         nodeColor =
           settings.communityColors?.[communityId] ??
           settings.customColors.communityColors[
-          communityId % settings.customColors.communityColors.length
+            communityId % settings.customColors.communityColors.length
           ];
       } else if (settings.colorBy === "degree") {
         const maxDegree = Math.max(
@@ -790,6 +780,33 @@ const Home = () => {
       nodes: customizedNodes,
       links: customizedLinks,
     });
+  };
+  const handleTriadCensusAnalysis = () => {
+    if (!uploadedFile) {
+      setMessage("No file selected for triad census analysis.");
+      return;
+    }
+
+    if (showTriadCensus) {
+      setShowTriadCensus(false);
+      return;
+    }
+
+    const params = filters.buildNetworkFilterParams();
+    analyzeTriadCensus(uploadedFile, params)
+      .then((data) => {
+        console.log("Triad Census data returned from server:", data);
+        if (data.triad_census) {
+          setTriadCensusData(data);
+          setShowTriadCensus(true);
+          setMessage("Triad Census analysis completed successfully!");
+        } else {
+          setMessage("No valid triad census data returned from server.");
+        }
+      })
+      .catch((error) => {
+        setMessage(error.message);
+      });
   };
 
   const interpolateColor = (color1, color2, ratio) => {
@@ -929,14 +946,14 @@ const Home = () => {
             (selectedMetric === "PageRank Centrality"
               ? Math.max(10, node.pagerank * 500)
               : selectedMetric === "Eigenvector Centrality"
-                ? Math.max(10, node.eigenvector * 60)
-                : selectedMetric === "Closeness Centrality"
-                  ? Math.max(10, node.closeness * 50)
-                  : selectedMetric === "Betweenness Centrality"
-                    ? Math.max(10, node.betweenness * 80)
-                    : selectedMetric === "Degree Centrality"
-                      ? Math.max(10, node.degree * 80)
-                      : 20);
+              ? Math.max(10, node.eigenvector * 60)
+              : selectedMetric === "Closeness Centrality"
+              ? Math.max(10, node.closeness * 50)
+              : selectedMetric === "Betweenness Centrality"
+              ? Math.max(10, node.betweenness * 80)
+              : selectedMetric === "Degree Centrality"
+              ? Math.max(10, node.degree * 80)
+              : 20);
 
           ctx.save();
           ctx.beginPath();
@@ -1338,7 +1355,8 @@ const Home = () => {
       });
 
       setMessage(
-        `Showing only intra-community links and hiding isolated nodes. Removed ${networkData.links.length - filteredLinks.length
+        `Showing only intra-community links and hiding isolated nodes. Removed ${
+          networkData.links.length - filteredLinks.length
         } cross-community links.`
       );
     } else {
@@ -1376,12 +1394,15 @@ const Home = () => {
 
   const handleScreenshot = (e, index) => {
     e.stopPropagation();
-    const canvas = document.querySelectorAll('canvas');
-    canvas.length > index && dispatch(addToEnd({
-      data:canvas[index].toDataURL("image/png"),
-      type: "main"
-    }));
-  }
+    const canvas = document.querySelectorAll("canvas");
+    canvas.length > index &&
+      dispatch(
+        addToEnd({
+          data: canvas[index].toDataURL("image/png"),
+          type: "main",
+        })
+      );
+  };
 
   return (
     <Container fluid className="upload-section">
@@ -1459,8 +1480,9 @@ const Home = () => {
               <Col
                 lg={3}
                 md={12}
-                className={`mb-3 metrics-panel ${showMetrics ? "open" : "closed"
-                  }`}
+                className={`mb-3 metrics-panel ${
+                  showMetrics ? "open" : "closed"
+                }`}
               >
                 <Card className="metrics-card">
                   <h4 className="fw-bold d-flex justify-content-between align-items-center">
@@ -1487,6 +1509,16 @@ const Home = () => {
                         onDiameter={handleDiameterMetric}
                       />
                       <Button
+                        className={`metrics-item ${
+                          showTriadCensus ? "active" : ""
+                        }`}
+                        onClick={handleTriadCensusAnalysis}
+                      >
+                        {showTriadCensus
+                          ? "Hide Triad Census"
+                          : "Show Triad Census"}
+                      </Button>
+                      <Button
                         className="metrics-item"
                         onClick={() => setShowDataTable(!showDataTable)}
                         variant={showDataTable ? "primary" : "outline-primary"}
@@ -1495,8 +1527,9 @@ const Home = () => {
                       </Button>
 
                       <Button
-                        className={`metrics-item ${strongConnectionsActive ? "active" : ""
-                          }`}
+                        className={`metrics-item ${
+                          strongConnectionsActive ? "active" : ""
+                        }`}
                         onClick={handleStrongConnections}
                       >
                         {strongConnectionsActive
@@ -1504,22 +1537,25 @@ const Home = () => {
                           : "Strongest Connections"}
                       </Button>
                       <Button
-                        className={`metrics-item ${highlightCentralNodes ? "active" : ""
-                          }`}
+                        className={`metrics-item ${
+                          highlightCentralNodes ? "active" : ""
+                        }`}
                         onClick={handleHighlightCentralNodes}
                       >
                         Highlight Central Nodes
                       </Button>
                       <Button
-                        className={`metrics-item ${networkWasRestored ? "active" : ""
-                          }`}
+                        className={`metrics-item ${
+                          networkWasRestored ? "active" : ""
+                        }`}
                         onClick={handleRestoreNetwork}
                       >
                         Restore Original Network
                       </Button>
                       <Button
-                        className={`metrics-item ${activityFilterEnabled === true ? "active" : ""
-                          }`}
+                        className={`metrics-item ${
+                          activityFilterEnabled === true ? "active" : ""
+                        }`}
                         onClick={handleActivityFilter}
                       >
                         {activityFilterEnabled
@@ -1528,8 +1564,9 @@ const Home = () => {
                       </Button>
 
                       <Button
-                        className={`metrics-item ${showOnlyIntraCommunityLinks ? "active" : ""
-                          }`}
+                        className={`metrics-item ${
+                          showOnlyIntraCommunityLinks ? "active" : ""
+                        }`}
                         onClick={handleToggleCommunitiesFilter}
                       >
                         {showOnlyIntraCommunityLinks
@@ -1543,8 +1580,9 @@ const Home = () => {
                         Release All Nodes
                       </Button>
                       <Button
-                        className={`metrics-item ${isDirectedGraph ? "active" : ""
-                          }`}
+                        className={`metrics-item ${
+                          isDirectedGraph ? "active" : ""
+                        }`}
                         onClick={() => setIsDirectedGraph(!isDirectedGraph)}
                       >
                         {isDirectedGraph
@@ -1580,9 +1618,11 @@ const Home = () => {
                 )}
                 <Card className="graph-card">
                   <div className="graph-placeholder">
-                    {networkData && (
+                    {networkData && !showTriadCensus && (
                       <GraphContainer>
-                        <GraphButton onClick={(e) => handleScreenshot(e, 0)}>Take Screenshot</GraphButton>
+                        <GraphButton onClick={(e) => handleScreenshot(e, 0)}>
+                          Take Screenshot
+                        </GraphButton>
                         <NetworkGraph
                           networkData={networkData}
                           filteredNodes={filteredNodes}
@@ -1596,6 +1636,17 @@ const Home = () => {
                           networkWasRestored={networkWasRestored}
                           forceGraphRef={forceGraphRef}
                           isDirectedGraph={isDirectedGraph}
+                        />
+                      </GraphContainer>
+                    )}
+
+                    {showTriadCensus && triadCensusData && (
+                      <GraphContainer>
+                        <GraphButton onClick={(e) => handleScreenshot(e, 0)}>
+                          Take Screenshot
+                        </GraphButton>
+                        <TriadCensusVisualization
+                          triadCensusData={triadCensusData}
                         />
                       </GraphContainer>
                     )}
