@@ -4,7 +4,7 @@ import { FaWhatsapp, FaWikipediaW } from 'react-icons/fa';
 import { Row, Col, Button, Card, Table, Form } from 'react-bootstrap';
 import { ChevronLeft, ChevronRight, FileBarGraph } from 'react-bootstrap-icons';
 import MetricsButton from '../common/MetricsButton';
-import { graphMetrics } from '../../pages/Home';
+import { graphMetrics } from "../../constants/graphMetrics";
 import { toast } from 'react-hot-toast';
 import { useState, useEffect, useRef } from 'react';
 import MetricsPanel from '../network/MetricsPanel';
@@ -12,8 +12,6 @@ import NetworkCustomizationToolbar from '../NetworkCustomizationToolbar';
 import NetworkGraph from '../network/NetworkGraph';
 import NetworkDataTable from '../NetworkDataTable';
 import { GraphContainer } from './StyledComponents-El';
-
-
 
 
 const ResearchHistory = ({ research }) => {
