@@ -8,7 +8,7 @@ const useFilters = () => {
 
   const [messageLimit, setMessageLimit] = useState(50);
   const [limitType, setLimitType] = useState("first");
-  const [minMessageLength, setMinMessageLength] = useState(10);
+  const [minMessageLength, setMinMessageLength] = useState(1);
   const [maxMessageLength, setMaxMessageLength] = useState(100);
   const [keywords, setKeywords] = useState("");
 
@@ -54,7 +54,7 @@ const useFilters = () => {
     setEndTime("");
     setMessageLimit(50);
     setLimitType("first");
-    setMinMessageLength(10);
+    setMinMessageLength(1);
     setMaxMessageLength(100);
     setKeywords("");
     setUsernameFilter("");
