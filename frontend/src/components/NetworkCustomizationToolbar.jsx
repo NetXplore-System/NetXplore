@@ -119,19 +119,30 @@ const NetworkCustomizationToolbar = ({
 
   useEffect(() => {
     if (communities && communities.length) {
-      const colors = {};
-      const names = {};
-      const scheme = colorSchemes[colorScheme] || colorSchemes.default;
+      setCommunityColors((prevColors) => {
+        const colors = { ...prevColors };
+        const scheme = colorSchemes[colorScheme] || colorSchemes.default;
 
-      communities.forEach((community, index) => {
-        colors[community.id] = scheme[index % scheme.length];
-        names[community.id] =
-          initialSettings.communityNames?.[community.id] ||
-          `Community ${community.id}`;
+        communities.forEach((community, index) => {
+          if (!colors[community.id]) {
+            colors[community.id] = scheme[index % scheme.length];
+          }
+        });
+
+        return colors;
       });
 
-      setCommunityColors(colors);
-      setCommunityNames(names);
+      setCommunityNames((prevNames) => {
+        const names = { ...prevNames };
+        communities.forEach((community) => {
+          if (!names[community.id]) {
+            names[community.id] =
+              initialSettings.communityNames?.[community.id] ||
+              `Community ${community.id}`;
+          }
+        });
+        return names;
+      });
     }
   }, [communities, colorScheme, initialSettings.communityNames]);
 
@@ -210,31 +221,11 @@ const NetworkCustomizationToolbar = ({
   };
 
   const handleCommunityColorChange = (communityId, color) => {
-    console.log(`Changing color for community ${communityId} to ${color}`);
 
-    const updatedCommunityColors = {
-      ...communityColors,
+    setCommunityColors((prevColors) => ({
+      ...prevColors,
       [communityId]: color,
-    };
-
-    setCommunityColors(updatedCommunityColors);
-
-    const updatedSettings = {
-      colorBy,
-      sizeBy,
-      highlightUsers,
-      highlightCommunities,
-      customColors,
-      nodeSizes,
-      colorScheme,
-      communityColors: updatedCommunityColors,
-      communityNames,
-      showImportantNodes,
-      importantNodesThreshold,
-    };
-
-    console.log("Applying color change immediately:", updatedSettings);
-    onApplyCustomization(updatedSettings);
+    }));
   };
 
   const handleEditCommunityName = (communityId) => {
@@ -299,9 +290,8 @@ const NetworkCustomizationToolbar = ({
       importantNodesThreshold,
     };
 
-    console.log("Apply button clicked. Settings:", settings);
-    console.log("Highlighted communities:", highlightCommunities);
     onApplyCustomization(settings);
+    setCommunityColors(settings.communityColors);
   };
 
   return (
