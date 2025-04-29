@@ -80,7 +80,7 @@ const NetworkGraph = ({
       }}
       directed={isDirectedGraph}
       width={showMetrics ? 1200 : 1500}
-      height={500}
+      height={700}
       fitView
       fitViewPadding={20}
       nodeAutoColorBy={customizedNetworkData ? null : "id"}
