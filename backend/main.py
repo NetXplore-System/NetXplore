@@ -402,8 +402,6 @@ async def delete_file(filename: str):
 
 
 
-
-
 @app.get("/analyze/network/{filename}")
 async def analyze_network(
         filename: str,
@@ -464,21 +462,7 @@ async def analyze_network(
             line = re.sub(r"[\u200f\u202a\u202b\u202c\u202d\u202e\u200d]", "", line)
             match = re.search(timestamp_pattern, line)
             if match:
-                date_part = match.group(1)  
-                current_datetime = None
-
-                for date_format in ["%d.%m.%Y, %H:%M:%S", "%m/%d/%y, %H:%M", "%d.%m.%Y, %H:%M"]:
-                    try:
-                        current_datetime = datetime.strptime(date_part, date_format)
-                        break  
-                    except ValueError:
-                        continue
-
-                if not current_datetime:
-                    print(f"Error parsing date: {date_part} in line: {line}")
-                    continue
-                
-                if not ":" in line:
+                if not ": " in line:
                     continue
                 
                 if any(spam in line for spam in spam_messages):
@@ -487,7 +471,21 @@ async def analyze_network(
                 MEDIA_RE = re.compile(r'\b(Media|image|video|GIF|sticker|Contact card) omitted\b', re.I)
                 if MEDIA_RE.search(line):
                     continue
+                
+                date_part = match.group(1)  
+                current_datetime = None
 
+                for date_format in ["%d.%m.%Y, %H:%M:%S", "%m/%d/%y, %H:%M", "%d.%m.%Y, %H:%M"]:
+                    try:
+                        current_datetime = datetime.strptime(date_part, date_format)
+                        break  
+                    except ValueError:
+                        print(f"Failed to parse date with format {date_format}: {date_part}")
+                        continue
+
+                if not current_datetime:
+                    print(f"Error parsing date: {date_part} in line: {line}")
+                    continue
 
                 if ((start_datetime and current_datetime >= start_datetime) or not start_datetime) and \
                         ((end_datetime and current_datetime <= end_datetime) or not end_datetime):
@@ -500,23 +498,19 @@ async def analyze_network(
 
         print(f"🔹 Found {len(filtered_lines)} messages in the date range.")
 
-        if limit and limit_type == "first":
-            extended_limit = limit + 100
-            selected_lines = filtered_lines[:extended_limit]
-        elif limit and limit_type == "last":
-            extended_limit = limit + 100
-            selected_lines = filtered_lines[-extended_limit:]
+        
+        if limit_type == "last":
+            selected_lines = filtered_lines[::-1]
         else:
             selected_lines = filtered_lines
 
         print(f"🔹 Processing {len(selected_lines)} messages (Limit Type: {limit_type})")
 
-        for line in selected_lines:
+        for i, line in enumerate(selected_lines):
             match = re.search(timestamp_pattern, line)
             try:
-                if "omitted" in line:
-                    continue
-
+                # print(f"🔹 Processing line: {line}")
+                
                 timestamp = match.group(1)
                 message_part = line.split(timestamp, 1)[1].strip(" -[]")
                 sender, message_content = message_part.split(": ", 1)
@@ -524,23 +518,19 @@ async def analyze_network(
                 # print(f"🔹 Sender: {sender}, Message: {message_content}")
                 message_length = len(message_content)
                 if (min_length and message_length < min_length) or (max_length and message_length > max_length):
-                    print(f"🔹 Message length {message_length} is out of bounds ({min_length}, {max_length})")
+                    print(f"🔹 Message length {message_length} is out of bounds ({min_length}, {max_length}) index: {i}")
                     continue
 
                 if username and sender.lower() != username.lower():
-                    print(f"🔹 Sender {sender} does not match username {username}")
+                    print(f"🔹 Sender {sender} does not match username {username}. index: {i}")
                     continue
 
                 if keywords and not any(kw in message_content.lower() for kw in keyword_list):
-                    print(f"🔹 Message does not contain keywords: {message_content}")
+                    print(f"🔹 Message does not contain keywords: {message_content}. index: {i}")
                     continue
 
-                if limit and sum(user_message_count.values()) >= limit:
-                    print(f"🔹 Reached limit of {limit} messages")
-                    break
-
                 user_message_count[sender] += 1
-
+                
                 if sender:
                     if anonymize:
                         sender = anonymize_name(sender, anonymized_map)
@@ -550,11 +540,16 @@ async def analyze_network(
                         edge = tuple(sorted([previous_sender, sender]))
                         edges_counter[edge] += 1
                     previous_sender = sender
+                    
+                if limit and sum(user_message_count.values()) >= limit:
+                    print(f"🔹 Reached limit of {limit} messages")
+                    break
+                    
             except Exception as e:
-                print(f"Error processing line: {line.strip()} - {e}")
+                print(f"Error processing line: {line.strip()} - {e}. index: {i}")
                 continue
             
-        print(f'🔹 Found {user_message_count} ')
+        # print(f'🔹 Found {user_message_count} ')
 
         filtered_users = {
             user: count for user, count in user_message_count.items()
@@ -575,6 +570,11 @@ async def analyze_network(
 
         G = nx.Graph()
         G.add_nodes_from(filtered_nodes)
+        
+        if G.number_of_nodes() == 0:
+            print("Warning: The graph is empty. No connectivity or centrality metrics can be calculated.")
+            return JSONResponse(content={"error": "The graph is empty. No data to analyze."}, status_code=400)
+        
         for (source, target), weight in edges_counter.items():
             if source in filtered_nodes and target in filtered_nodes:
                 G.add_edge(source, target, weight=weight)
@@ -622,12 +622,11 @@ async def analyze_network(
                     "target": target,
                     "weight": weight
                 })
-
+        # print(f"nodes_list: {nodes_list}, links_list: {links_list}")
         return JSONResponse(content={"nodes": nodes_list, "links": links_list}, status_code=200)
     except Exception as e:
         print("Error:", e)
         return JSONResponse(content={"error": str(e)}, status_code=500)
-
 
 def apply_comparison_filters(network_data, node_filter, min_weight):
     """Filter network by node filter and minimum weight."""
@@ -815,6 +814,22 @@ async def analyze_communities(
             return JSONResponse(content=network_data, status_code=400)
 
         G = nx.Graph()
+
+        if not network_data["links"]:
+            print("No links found in the input data.")
+            return JSONResponse(
+                content={
+                    "nodes": network_data["nodes"],
+                    "links": [],
+                    "communities": [],
+                    "node_communities": {},
+                    "algorithm": algorithm,
+                    "num_communities": 0,
+                    "modularity": None,
+                    "warning": "No links found in the input data."
+                },
+                status_code=200
+            )
 
         for node in network_data["nodes"]:
             G.add_node(node["id"], **{k: v for k, v in node.items() if k != "id"})
