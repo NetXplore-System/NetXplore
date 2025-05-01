@@ -1,4 +1,4 @@
-import  { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useSelector } from 'react-redux';
 import { Button, Card, Form } from 'react-bootstrap';
@@ -123,7 +123,6 @@ export default function UpdateResearch({ research, setResearch, updateResearchs 
         <h5 className='fw-bold'>Update Research</h5>
       </Card.Header>
       <Card.Body>
-        <form>
           <div className='row'>
             <Form.Group className='column full-width'>
               <Form.Label className="research-label">Research Name:</Form.Label>
@@ -151,10 +150,13 @@ export default function UpdateResearch({ research, setResearch, updateResearchs 
               key === 'anonymize' ?
                 null
                 :
-                <Form.Group className='column'>
+                <Form.Group className='column' key={key}>
                   <Form.Label className="research-label">{key.replace(/_/g, ' ')}:</Form.Label>
                   <Form.Control
-                    type={key === 'anonymize' ? 'checkbox' : 'text'}
+                    type={(key.split("_")?.[1] === 'date' || key.split("_")?.[1] === 'time') ?
+                      key.split("_")[1] === 'date' ? 'date' : 'time'
+                      :
+                      'text'}
                     name={key}
                     value={researchData.filters[key]}
                     onChange={handleChange}
@@ -184,7 +186,6 @@ export default function UpdateResearch({ research, setResearch, updateResearchs 
               {loading ? <><AiOutlineLoading className="spinner-icon" /> Saving...</> : 'Save'}
             </Button>
           </div>
-        </form>
       </Card.Body>
     </Card>
   );

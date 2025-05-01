@@ -3,11 +3,31 @@ from datetime import datetime
 from collections import defaultdict
 import networkx as nx
 import re
+from fastapi.responses import JSONResponse  # type: ignore
 
-timestamp_pattern = r"(\d{1,2}[./]\d{1,2}[./]\d{2,4}, \d{1,2}:\d{2}(?::\d{2})?)"
+
+timestamp_pattern = r"\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4},?\s\d{1,2}:\d{2}(?::\d{2})?\b"
 spam_messages = ["צורף/ה","הצטרף/ה לקבוצה באמצעות קישור ההזמנה","תמונת הקבוצה השתנתה על ידי","תיאור הקבוצה שונה על ידי","GIF הושמט","סטיקר הושמט","כרטיס איש קשר הושמט","השמע הושמט","סרטון הווידאו הושמט","הוחלף למספר חדש. הקש/י כדי לשלוח הודעה או להוסיף מספר חדש.","שם הקבוצה השתנה על ידי","צירפת את", "הצטרף/ה", "צירף/ה",  "התמונה הושמטה", "הודעה זו נמחקה","צורפת על ידי" , "הקבוצה נוצרה על ידי", "ההודעה נמחקה על ידי", "ההודעות והשיחות מוצפנות מקצה לקצה. לאף אחד מחוץ לצ'אט הזה, גם לא ל-WhatsApp, אין אפשרות לקרוא אותן ולהאזין להן.", "הצטרפת לקבוצה דרך קישור הזמנה של הקבוצה"]
 
-async def extract_messages(lines: List[str], start_date: str, end_date: str, start_time: str, end_time: str, limit: int, limit_type: str, min_length: int, max_length: int, keywords: str, min_messages: int, max_messages: int, active_users: int, selected_users: str, username: str, anonymize: bool) -> List[Tuple[str, str]]:
+
+
+async def extract_messages(
+    lines: List[str],
+    start_datetime: datetime | None,
+    end_datetime: datetime | None,
+    limit: int,
+    limit_type: str,
+    min_length: int,
+    max_length: int,
+    keywords: str,
+    min_messages: int,
+    max_messages: int,
+    active_users: int,
+    selected_users: str,
+    username: str,
+    anonymize: bool,
+    date_formats: List[str]
+) -> List[Tuple[str, str]]:
 
     keyword_list = [kw.strip().lower() for kw in keywords.split(",")] if keywords else []
     selected_user_list = [user.strip().lower() for user in selected_users.split(",")] if selected_users else []
@@ -17,67 +37,61 @@ async def extract_messages(lines: List[str], start_date: str, end_date: str, sta
     nodes = set()
     edges_counter = defaultdict(int)
     previous_sender = None
-    start_datetime = None
-    end_datetime = None
-
-    if start_date and start_time:
-        start_datetime = datetime.strptime(f"{start_date} {start_time}", "%Y-%m-%d %H:%M:%S")
-    elif start_date:
-        start_datetime = datetime.strptime(f"{start_date} 00:00:00", "%Y-%m-%d %H:%M:%S")
-
-    if end_date and end_time:
-        end_datetime = datetime.strptime(f"{end_date} {end_time}", "%Y-%m-%d %H:%M:%S")
-    elif end_date:
-        end_datetime = datetime.strptime(f"{end_date} 23:59:59", "%Y-%m-%d %H:%M:%S")
-
+    
     print(f"🔹 Converted: start_datetime={start_datetime}, end_datetime={end_datetime}")
 
     filtered_lines = []
+    current_message = ""
+    current_datetime = None
+    MEDIA_RE = re.compile(r'\b(Media|image|video|GIF|sticker|Contact card) omitted\b', re.I)
 
     for line in lines:
-        line = re.sub(r"[\u200f\u202f\u202a\u202b\u202c\u202d\u202e\u200d]", "", line)
+        line = re.sub(r"[\u200f\u202f\u202a\u202b\u202c\u202d\u202e\u200d]", "", line).strip()
         match = re.search(timestamp_pattern, line)
+        
         if match:
-            date_part = match.group(1)  
-            current_datetime = None
-
-            for date_format in ["%d.%m.%Y, %H:%M:%S", "%m/%d/%y, %H:%M", "%d.%m.%Y, %H:%M"]:
+            date_part = match.group()
+            parsed = False
+            for fmt in date_formats:
                 try:
-                    current_datetime = datetime.strptime(date_part, date_format)
-                    break  
+                    dt = datetime.strptime(date_part, fmt)
+                    parsed = True
+                    break
                 except ValueError:
                     continue
-
-            if not current_datetime:
-                print(f"Error parsing date: {date_part} in line: {line}")
+            if not parsed:
                 continue
-            
+
+            if ((start_datetime and dt < start_datetime) or
+                (end_datetime and dt > end_datetime)):
+                current_message = ""
+                current_datetime = None
+                continue
+
             if not ": " in line:
                 continue
-            
             if any(spam in line for spam in spam_messages):
                 continue
-            
-            MEDIA_RE = re.compile(r'\b(Media|image|video|GIF|sticker|Contact card) omitted\b', re.I)
             if MEDIA_RE.search(line):
                 continue
 
-            if ((start_datetime and current_datetime >= start_datetime) or not start_datetime) and \
-                    ((end_datetime and current_datetime <= end_datetime) or not end_datetime):
-                filtered_lines.append(line)
+            if current_message:
+                filtered_lines.append(current_message.strip())
+            current_message = line
+            current_datetime = dt
+
         else:
-            if filtered_lines:
-                filtered_lines[-1] += line
-            else:
-                filtered_lines.append(line)
+            if current_datetime:
+                current_message += " " + line.strip()
+
+    if current_message:
+        filtered_lines.append(current_message.strip())
 
 
     print(f"🔹 Found {len(filtered_lines)} messages in the date range.")
 
-    if limit and limit_type == "first":
-        selected_lines = filtered_lines[:limit]
-    elif limit and limit_type == "last":
-        selected_lines = filtered_lines[-limit:]
+    if limit_type == "last":
+        selected_lines = filtered_lines[::-1]
     else:
         selected_lines = filtered_lines
 
@@ -86,41 +100,43 @@ async def extract_messages(lines: List[str], start_date: str, end_date: str, sta
     for index, line in enumerate(selected_lines):
         try:
             match = re.search(timestamp_pattern, line)
-            if "omitted" in line:
-                continue
-
-            timestamp = match.group(1)
+            timestamp = match.group()
             message_part = line.split(timestamp, 1)[1].strip(" -[]")
             sender, message_content = message_part.split(": ", 1)
             sender = sender.strip("~").replace("\u202a", "").strip()
-            #print(f"🔹 Sender: {sender}, Message: {message_content}")
             message_length = len(message_content)
             if (min_length and message_length < min_length) or (max_length and message_length > max_length):
+                print(f"🔹 Message length {message_length} is out of bounds ({min_length}, {max_length}) index: {index}")
                 continue
 
             if username and sender.lower() != username.lower():
+                print(f"🔹 Sender {sender} does not match username {username}. index: {index}")
                 continue
 
             if keywords and not any(kw in message_content.lower() for kw in keyword_list):
+                print(f"🔹 Message does not contain keywords: {message_content}. index: {index}")
                 continue
 
-            if limit and len(messages) >= limit:
-                break
-            
-            user_message_count[sender] += 1
+            print(f"🔹 Sender: {sender}, Message: {message_content}")
 
+            user_message_count[sender] += 1
+            
             if sender:
                 if anonymize:
                     sender = anonymize_name(sender, anonymized_map)
-                    
+
                 nodes.add(sender)
-                
                 if previous_sender and previous_sender != sender:
                     edge = tuple(sorted([previous_sender, sender]))
                     edges_counter[edge] += 1
                 previous_sender = sender
                 
             messages.append((sender, message_content))
+            
+            if limit and sum(user_message_count.values()) >= limit:
+                print(f"🔹 Reached limit of {limit} messages")
+                break
+
         except Exception as e:
             print(f"Error processing line: {line.strip()} - {e}")
             continue

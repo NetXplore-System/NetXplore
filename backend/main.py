@@ -38,6 +38,11 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 
 UPLOAD_FOLDER = "./uploads/" 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True) 
+date_formats = [
+    "%d.%m.%Y, %H:%M:%S", "%d.%m.%Y, %H:%M", "%d.%m.%y, %H:%M:%S", "%d.%m.%y, %H:%M",
+    "%d/%m/%Y, %H:%M:%S", "%d/%m/%Y, %H:%M", "%d/%m/%y, %H:%M:%S", "%d/%m/%y, %H:%M",
+    "%m/%d/%Y, %H:%M:%S", "%m/%d/%Y, %H:%M", "%m/%d/%y, %H:%M:%S", "%m/%d/%y, %H:%M",
+]
 
 
 app = FastAPI()
@@ -402,6 +407,30 @@ async def delete_file(filename: str):
 
 
 
+def detect_date_format(first_line: str) -> list[str]:
+    if re.search(r"\[\d{1,2}[.]\d{1,2}[.]\d{4},\s\d{2}:\d{2}:\d{2}\]", first_line):
+        # פורמט עברי עם סוגריים מרובעים
+        return ["%d.%m.%Y, %H:%M:%S", "%d.%m.%Y, %H:%M"]
+    elif re.search(r"\d{1,2}/\d{1,2}/\d{2,4},\s\d{1,2}:\d{2}", first_line):
+        # פורמט אנגלי
+        return ["%m/%d/%y, %H:%M", "%m/%d/%Y, %H:%M"]
+    else:
+        # פורמט לא מזוהה, נ fallback
+        return ["%d/%m/%y, %H:%M", "%d.%m.%Y, %H:%M"]
+
+def parse_date_time(date_str: str | None, time_str: str | None) -> datetime | None:
+    if not date_str:
+        return None
+    try:
+        if time_str:
+            return datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M:%S")
+        else:
+            return datetime.strptime(f"{date_str} 00:00:00", "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        raise ValueError("Invalid date/time format. Expected format: YYYY-MM-DD and HH:MM:SS")
+
+
+
 @app.get("/analyze/network/{filename}")
 async def analyze_network(
         filename: str,
@@ -432,72 +461,76 @@ async def analyze_network(
         edges_counter = defaultdict(int)
         previous_sender = None
         anonymized_map = {}
-        timestamp_pattern = r"(\d{1,2}[./]\d{1,2}[./]\d{2,4}, \d{1,2}:\d{2}(?::\d{2})?)"
+        timestamp_pattern = r"\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4},?\s\d{1,2}:\d{2}(?::\d{2})?\b"
+
 
         keyword_list = [kw.strip().lower() for kw in keywords.split(",")] if keywords else []
         selected_user_list = [user.strip().lower() for user in selected_users.split(",")] if selected_users else []
-
         start_datetime = None
         end_datetime = None
 
-        if start_date and start_time:
-            start_datetime = datetime.strptime(f"{start_date} {start_time}", "%Y-%m-%d %H:%M:%S")
-        elif start_date:
-            start_datetime = datetime.strptime(f"{start_date} 00:00:00", "%Y-%m-%d %H:%M:%S")
 
-        if end_date and end_time:
-            end_datetime = datetime.strptime(f"{end_date} {end_time}", "%Y-%m-%d %H:%M:%S")
-        elif end_date:
-            end_datetime = datetime.strptime(f"{end_date} 23:59:59", "%Y-%m-%d %H:%M:%S")
+        try:
+            start_datetime = parse_date_time(start_date, start_time)
+            end_datetime = parse_date_time(end_date, end_time)
+        except ValueError as e:
+            print(f"Error parsing date/time: {e}")
+            return JSONResponse(status_code=400, content={"error": str(e)})
+
 
         print(f"🔹 Converted: start_datetime={start_datetime}, end_datetime={end_datetime}")
 
         with open(file_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
 
-        filtered_lines = []
         spam_messages = ["צורף/ה","הצטרף/ה לקבוצה באמצעות קישור ההזמנה","תמונת הקבוצה השתנתה על ידי","תיאור הקבוצה שונה על ידי","GIF הושמט","סטיקר הושמט","כרטיס איש קשר הושמט","השמע הושמט","סרטון הווידאו הושמט","הוחלף למספר חדש. הקש/י כדי לשלוח הודעה או להוסיף מספר חדש.","שם הקבוצה השתנה על ידי","צירפת את", "הצטרף/ה", "צירף/ה",  "התמונה הושמטה", "הודעה זו נמחקה","צורפת על ידי" , "הקבוצה נוצרה על ידי", "ההודעה נמחקה על ידי", "ההודעות והשיחות מוצפנות מקצה לקצה. לאף אחד מחוץ לצ'אט הזה, גם לא ל-WhatsApp, אין אפשרות לקרוא אותן ולהאזין להן.", "הצטרפת לקבוצה דרך קישור הזמנה של הקבוצה"]
-        
+        date_formats = detect_date_format(lines[0])
+        filtered_lines = []
+        current_message = ""
+        current_datetime = None
+        MEDIA_RE = re.compile(r'\b(Media|image|video|GIF|sticker|Contact card) omitted\b', re.I)
+
         for line in lines:
-            line = re.sub(r"[\u200f\u202a\u202b\u202c\u202d\u202e\u200d]", "", line)
+            line = re.sub(r"[\u200f\u202f\u202a\u202b\u202c\u202d\u202e\u200d]", "", line).strip()
             match = re.search(timestamp_pattern, line)
+
             if match:
+                date_part = match.group()
+                parsed = False
+                for fmt in date_formats:
+                    try:
+                        dt = datetime.strptime(date_part, fmt)
+                        parsed = True
+                        break
+                    except ValueError:
+                        continue
+                if not parsed:
+                    continue
+
+                if ((start_datetime and dt < start_datetime) or
+                    (end_datetime and dt > end_datetime)):
+                    current_message = ""
+                    current_datetime = None
+                    continue
+
                 if not ": " in line:
                     continue
-                
                 if any(spam in line for spam in spam_messages):
                     continue
-
-                MEDIA_RE = re.compile(r'\b(Media|image|video|GIF|sticker|Contact card) omitted\b', re.I)
                 if MEDIA_RE.search(line):
                     continue
-                
-                date_part = match.group(1)  
-                current_datetime = None
 
-                for date_format in ["%d.%m.%Y, %H:%M:%S", "%m/%d/%y, %H:%M", "%d.%m.%Y, %H:%M"]:
-                    try:
-                        current_datetime = datetime.strptime(date_part, date_format)
-                        break  
-                    except ValueError:
-                        print(f"Failed to parse date with format {date_format}: {date_part}")
-                        continue
+                if current_message:
+                    filtered_lines.append(current_message.strip())
+                current_message = line
+                current_datetime = dt
 
-                if not current_datetime:
-                    print(f"Error parsing date: {date_part} in line: {line}")
-                    continue
-
-                if ((start_datetime and current_datetime >= start_datetime) or not start_datetime) and \
-                        ((end_datetime and current_datetime <= end_datetime) or not end_datetime):
-                    filtered_lines.append(line)
             else:
-                if filtered_lines:
-                    filtered_lines[-1] += line
-                else:
-                    filtered_lines.append(line)
+                if current_datetime:
+                    current_message += " " + line.strip()
 
-        print(f"🔹 Found {len(filtered_lines)} messages in the date range.")
-
+        if current_message:
+            filtered_lines.append(current_message.strip())
         
         if limit_type == "last":
             selected_lines = filtered_lines[::-1]
@@ -511,11 +544,10 @@ async def analyze_network(
             try:
                 # print(f"🔹 Processing line: {line}")
                 
-                timestamp = match.group(1)
+                timestamp = match.group()
                 message_part = line.split(timestamp, 1)[1].strip(" -[]")
                 sender, message_content = message_part.split(": ", 1)
                 sender = sender.strip("~").replace("\u202a", "").strip()
-                # print(f"🔹 Sender: {sender}, Message: {message_content}")
                 message_length = len(message_content)
                 if (min_length and message_length < min_length) or (max_length and message_length > max_length):
                     print(f"🔹 Message length {message_length} is out of bounds ({min_length}, {max_length}) index: {i}")
@@ -528,6 +560,8 @@ async def analyze_network(
                 if keywords and not any(kw in message_content.lower() for kw in keyword_list):
                     print(f"🔹 Message does not contain keywords: {message_content}. index: {i}")
                     continue
+
+                print(f"🔹 Sender: {sender}, Message: {message_content}, line: {line}")
 
                 user_message_count[sender] += 1
                 
@@ -549,7 +583,7 @@ async def analyze_network(
                 print(f"Error processing line: {line.strip()} - {e}. index: {i}")
                 continue
             
-        # print(f'🔹 Found {user_message_count} ')
+        print(f'🔹 Found {user_message_count} ')
 
         filtered_users = {
             user: count for user, count in user_message_count.items()
@@ -1068,10 +1102,37 @@ async def save_research(
         with open(file_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
 
-        data = await extract_messages(lines, start_date, end_date, start_time, end_time, limit, limit_type, min_length, max_length, keywords, min_messages, max_messages, active_users, selected_users, username, anonymize)
+        try:
+            start_datetime = parse_date_time(start_date, start_time)
+            end_datetime = parse_date_time(end_date, end_time)
+        except ValueError as e:
+            print(f"Error parsing date/time: {e}")
+            return JSONResponse(status_code=400, content={"error": str(e)})
+
+        date_formats = detect_date_format(lines[0])
+        
+
+        data = await extract_messages(
+            lines,
+            start_datetime,
+            end_datetime,
+            limit,
+            limit_type,
+            min_length,
+            max_length,
+            keywords,
+            min_messages,
+            max_messages,
+            active_users,
+            selected_users,
+            username,
+            anonymize,
+            date_formats,
+        )
 
         # print(f"🔹 Messages: {data['messages']}")
-        # return JSONResponse(content={"data": data}, status_code=200)
+        # return JSONResponse(content={"data": data},
+        # status_code=200)
         new_research = Research(
             research_name=research_name,
             description=description,

@@ -86,7 +86,7 @@ const History = () => {
             <Card className="history-table mt-4">
                 <Card.Header className="d-flex justify-content-between align-items-center">
                     <h4 className="m-0 fw-bold">History Area</h4>
-                    {userHistory.length ? <p className="m-0">Date Rang: {`${new Date(userHistory?.at(0)?.created_at).toLocaleDateString()} - ${new Date(userHistory?.at(-1)?.created_at).toLocaleDateString()}`}</p> : ""}
+                    {userHistory.length ? <p className="m-0 fw-bold">Date Rang: {`${new Date(userHistory?.at(0)?.created_at).toLocaleDateString()} - ${new Date(userHistory?.at(-1)?.created_at).toLocaleDateString()}`}</p> : ""}
                 </Card.Header>
                 <Card.Body>
                     {loading ? (

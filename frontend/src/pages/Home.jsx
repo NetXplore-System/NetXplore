@@ -362,10 +362,21 @@ const Home = () => {
       toast.error("Please fill in all required fields.");
       return;
     }
-    saveToDB(id, name, description, uploadedFile, params, selectedMetric, {
-      hasComparison: comparisonNetworkData.length ? true : false,
-      data: comparisonNetworkData || undefined,
-    });
+    toast.promise(
+      saveToDB(id, name, description, uploadedFile, params, selectedMetric, {
+        hasComparison: comparisonNetworkData.length ? true : false,
+        data: comparisonNetworkData || undefined,
+      }),
+      {
+        loading: "Saving...",
+        success: (data) => {
+          return data?.detail || "Research saved successfully!";
+        },
+        error: (error) => {
+          return error?.detail || "Error saving research.";
+        },
+      }
+    )
   };
 
   const calculateNetworkStats = () => {
