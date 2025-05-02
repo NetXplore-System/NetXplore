@@ -38,11 +38,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 
 UPLOAD_FOLDER = "./uploads/" 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True) 
-date_formats = [
-    "%d.%m.%Y, %H:%M:%S", "%d.%m.%Y, %H:%M", "%d.%m.%y, %H:%M:%S", "%d.%m.%y, %H:%M",
-    "%d/%m/%Y, %H:%M:%S", "%d/%m/%Y, %H:%M", "%d/%m/%y, %H:%M:%S", "%d/%m/%y, %H:%M",
-    "%m/%d/%Y, %H:%M:%S", "%m/%d/%Y, %H:%M", "%m/%d/%y, %H:%M:%S", "%m/%d/%y, %H:%M",
-]
+
 
 
 app = FastAPI()
@@ -656,7 +652,7 @@ async def analyze_network(
                     "target": target,
                     "weight": weight
                 })
-        # print(f"nodes_list: {nodes_list}, links_list: {links_list}")
+        print(f" links_list: {links_list}")
         return JSONResponse(content={"nodes": nodes_list, "links": links_list}, status_code=200)
     except Exception as e:
         print("Error:", e)
@@ -1130,9 +1126,9 @@ async def save_research(
             date_formats,
         )
 
-        # print(f"🔹 Messages: {data['messages']}")
-        # return JSONResponse(content={"data": data},
-        # status_code=200)
+        print(f"🔹 Messages: {data['links']}")
+        return JSONResponse(content={"data": data},
+        status_code=200)
         new_research = Research(
             research_name=research_name,
             description=description,

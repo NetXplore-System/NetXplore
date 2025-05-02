@@ -287,18 +287,35 @@ const Home = () => {
 
   const handleSubmit = (selectedFile) => {
     if (!selectedFile) {
-      setMessage("Please select a file before uploading.");
+      // setMessage("Please select a file before uploading.");
+      toast.error("Please select a file before uploading.");
       return;
     }
 
-    uploadFile(selectedFile)
-      .then((data) => {
-        if (data.message) {
-          setMessage(data.message);
-          setUploadedFile(data.filename);
-        }
-      })
-      .catch((error) => setMessage(error.message));
+    toast.promise(
+      uploadFile(selectedFile),
+      {
+        loading: "Uploading...",
+        success: (data) => {
+          if (data.message) {
+            setUploadedFile(data.filename);
+          }
+          return data.message || "File uploaded successfully!";
+        },
+        error: (error) => {
+          return error?.message || "Error uploading file.";
+        },
+      }
+    );
+
+    // uploadFile(selectedFile)
+    //   .then((data) => {
+    //     if (data.message) {
+    //       setMessage(data.message);
+    //       setUploadedFile(data.filename);
+    //     }
+    //   })
+    //   .catch((error) => setMessage(error.message));
   };
 
   const handleDelete = async () => {
@@ -338,21 +355,44 @@ const Home = () => {
     setNetworkWasRestored(false);
 
     const params = filters.buildNetworkFilterParams();
-    analyzeNetwork(uploadedFile, params)
-      .then((data) => {
-        console.log("Data returned from server:", data);
-        if (data.nodes && data.links) {
-          dispatch(clearImages());
-          setNetworkData(data);
-          setOriginalNetworkData(data);
-          setShouldFetchCommunities(true);
-        } else {
-          setMessage("No data returned from server.");
-        }
-      })
-      .catch((error) => {
-        setMessage(error.message);
-      });
+
+    toast.promise(
+      analyzeNetwork(uploadedFile, params),
+      {
+        loading: "Analyzing network...",
+        success: (data) => {
+          if (data.nodes && data.links) {
+            dispatch(clearImages());
+            setNetworkData(data);
+            setOriginalNetworkData(data);
+            setShouldFetchCommunities(true);
+            return "Analysis completed successfully!";
+          } else {
+            // setMessage("No data returned from server.");
+            return "No data returned from server.";
+          }
+        },
+        error: (error) => {
+          // setMessage(error.message);
+          return error?.message || "Error analyzing network.";
+        },
+      }
+    )
+    // analyzeNetwork(uploadedFile, params)
+    //   .then((data) => {
+    //     console.log("Data returned from server:", data);
+    //     if (data.nodes && data.links) {
+    //       dispatch(clearImages());
+    //       setNetworkData(data);
+    //       setOriginalNetworkData(data);
+    //       setShouldFetchCommunities(true);
+    //     } else {
+    //       setMessage("No data returned from server.");
+    //     }
+    //   })
+    //   .catch((error) => {
+    //     setMessage(error.message);
+    //   });
   };
 
   const handleSaveToDB = () => {
