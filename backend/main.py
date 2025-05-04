@@ -1126,9 +1126,9 @@ async def save_research(
             date_formats,
         )
 
-        print(f"🔹 Messages: {data['links']}")
-        return JSONResponse(content={"data": data},
-        status_code=200)
+        # print(f"🔹 Messages: {data['links']}")
+        # return JSONResponse(content={"data": data},
+        # status_code=200)
         new_research = Research(
             research_name=research_name,
             description=description,
