@@ -10,10 +10,11 @@
     align-items: flex-start;
     z-index: 1000;
     overflow-y: auto;
+    
 }
 
 .dialog-content {
-    background-color: white;
+    background-color: #f8f9fa;
     padding: 2rem;
     border-radius: 8px;
     width: 90%;

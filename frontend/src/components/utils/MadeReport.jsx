@@ -47,17 +47,17 @@ const MadeReport = ({ selectedMetric, name, params, setShowDownload, hasComparis
 
     return (
         <Modal onClose={closeModal}>
-            <div className="research-report-header" >
+            <div className="general-style research-report-header flex-row " >
                 <h2>Research Report</h2>
                 <button className="close-btn" onClick={closeModal}>×</button>
             </div>
 
-            <div className="research-report-info" >
+            <div className="general-style research-report-info" >
                 <h3>Research Information</h3>
                 <p>Research Name: {research.name}</p>
                 <p>Researcher Name: {research.researcherName}</p>
             </div>
-            <div className="research-report-images">
+            <div className="general-style flex-row research-report-images">
                 <h3>Include Images</h3>
                 {show.images.map((image, index) => (
                     <div key={index} className="image-selection">
@@ -82,7 +82,7 @@ const MadeReport = ({ selectedMetric, name, params, setShowDownload, hasComparis
                 {show.images.length === 0 && <p>No images available to include.</p>}
             </div>
 
-            <div className="research-report-filters">
+            <div className="general-style flex-row research-report-filters">
                 <h3>Include Filters</h3>
                 {research.filters.map((filter, index) => (
                     <div key={index} className="filter-selection">
@@ -98,10 +98,10 @@ const MadeReport = ({ selectedMetric, name, params, setShowDownload, hasComparis
                 ))}
                 {research.filters.length === 0 && <p>No filters available to include.</p>}
             </div>
-            <form className="research-report-form" >
+            <form className="general-style research-report-form" >
 
                 <div>
-                    <label htmlFor="conclusion">Research Conclusion</label>
+                    <label htmlFor="conclusion" className='mb-3'>Research Conclusion</label>
                     <textarea
                         id="conclusion"
                         value={research.conclusion}
@@ -121,7 +121,7 @@ const MadeReport = ({ selectedMetric, name, params, setShowDownload, hasComparis
                 </div>
 
                 <div className="research-report-actions">
-                    <button type="button" className="close-btn" onClick={closeModal}>
+                    <button type="button" className="action-btn me-2 btn btn-primary" onClick={closeModal}>
                         Cancel
                     </button>
 

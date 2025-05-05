@@ -779,7 +779,7 @@ const ResearchHistory = ({ research }) => {
 
     return (
         <>
-            <div className="d-flex justify-content-between align-items-center mb-4">
+            <div className="general-style flex-row justify-content-between align-items-center mb-4 ">
                 <h3 className="fw-bold">{research.research_name}</h3>
                 <div className="d-flex align-items-center gap-1">
                     {research.platform === 'whatsapp' ? (
@@ -787,18 +787,15 @@ const ResearchHistory = ({ research }) => {
                     ) : (
                         <FaWikipediaW size={20} color="#636466" />
                     )}
-                    {/* <div>
-                        <p className="m-0">Platform: {research.platform.charAt(0).toUpperCase() + research.platform.slice(1)}</p>
-                    </div> */}
                 </div>
             </div>
 
-            <div className="mb-4">
+            <div className="mb-4 general-style">
                 <h5 className="fw-bold">Description</h5>
-                <p>{research.description || 'No description provided'}</p>
+                <p className='p-3 bg-light rounded'>{research.description || 'No description provided'}</p>
             </div>
 
-            <div>
+            <div className='general-style'>
                 <h5 className="fw-bold">Applied Filters</h5>
                 <div className="row g-3 mt-3">
                     {filters.map(filter => (
@@ -813,9 +810,7 @@ const ResearchHistory = ({ research }) => {
                 </div>
             </div>
 
-            <div className="my-5">
-                <h5 className='fw-bold'>Primary Analysis</h5>
-                <div className='graph-container'>
+                <div className='graph-container my-3'>
                     <Row className="mt-4">
                         <Col
                             lg={3}
@@ -956,7 +951,6 @@ const ResearchHistory = ({ research }) => {
                         </Col>
                     </Row>
                 </div>
-            </div>
         </>
     );
 };

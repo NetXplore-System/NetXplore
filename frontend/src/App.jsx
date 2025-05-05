@@ -35,11 +35,8 @@ function AppContent() {
           duration: 5000,
           removeDelay: 1000,
           style: {
-            background: '#050d2d',
-            color: '#fff',
             fontWeight: 'bold',
             fontSize: '12px',
-            marginTop: '30px',
           },
           success: {
             duration: 3000,

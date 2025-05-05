@@ -103,10 +103,10 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: str = payload.get("user_id")
         if not user_id:
-            raise HTTPException(status_code=401, detail="Invalid token")
+            raise HTTPException(status_code=401, error="Invalid token")
         return {"user_id": user_id}
     except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        raise HTTPException(status_code=401, error="Invalid token")
 
 
 
@@ -180,7 +180,7 @@ async def register_user(user: UserCreate, db: AsyncSession = Depends(database.ge
         existing_user = result.scalars().first()
 
         if existing_user:
-            raise HTTPException(status_code=400, detail="Email already exists")
+            raise HTTPException(status_code=400, error="Email already exists")
 
         # Hash the password
         hashed_password = bcrypt.hashpw(user.password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
@@ -219,7 +219,7 @@ async def login_user(user: UserLogin, db: AsyncSession = Depends(database.get_db
                 if not db_user:
                     raise HTTPException(
                         status_code=401, 
-                        detail="Invalid email or password"
+                        error="Invalid email or password"
                     )
 
                 try:
@@ -230,7 +230,7 @@ async def login_user(user: UserLogin, db: AsyncSession = Depends(database.get_db
                     ):
                         raise HTTPException(
                             status_code=401, 
-                            detail="Invalid email or password"
+                            error="Invalid email or password"
                         )
 
                     # Generate token
@@ -251,7 +251,7 @@ async def login_user(user: UserLogin, db: AsyncSession = Depends(database.get_db
                     logger.error(f"Password verification error: {password_error}")
                     raise HTTPException(
                         status_code=500,
-                        detail="Error verifying password"
+                        error="Error verifying password"
                     )
 
             except HTTPException:
@@ -260,7 +260,7 @@ async def login_user(user: UserLogin, db: AsyncSession = Depends(database.get_db
                 logger.error(f"Database query error: {query_error}")
                 raise HTTPException(
                     status_code=500,
-                    detail="Error querying database"
+                    error="Error querying database"
                 )
 
     except HTTPException:
@@ -269,7 +269,7 @@ async def login_user(user: UserLogin, db: AsyncSession = Depends(database.get_db
         logger.error(f"Login error: {e}")
         raise HTTPException(
             status_code=500,
-            detail="Internal server error during login"
+            error="Internal server error during login"
         )
 
 
@@ -289,7 +289,7 @@ async def update_user(user_id: str, user_update: UserUpdate, db: AsyncSession = 
         # async with session.begin():
         user = await session.get(User, user_id)
         if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+            raise HTTPException(status_code=404, error="User not found")
 
         update_data = user_update.dict(exclude_unset=True)
         if "password" in update_data:
@@ -317,7 +317,7 @@ async def delete_user(user_id: str, db: AsyncSession = Depends(database.get_db))
         async with session.begin():
             user = await session.get(User, user_id)
             if not user:
-                raise HTTPException(status_code=404, detail="User not found")
+                raise HTTPException(status_code=404, error="User not found")
             await session.delete(user)
             await session.commit()
             return {"message": "User deleted successfully"}
@@ -335,7 +335,7 @@ async def upload_avatar(
     """
     current_user = get_current_user(token)
     if not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="File must be an image")
+        raise HTTPException(status_code=400, error="File must be an image")
 
     avatar_folder = os.path.join(UPLOAD_FOLDER, "avatars")
     os.makedirs(avatar_folder, exist_ok=True)
@@ -350,7 +350,7 @@ async def upload_avatar(
     async with db as session:
         user = await session.get(User, current_user["user_id"])
         if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+            raise HTTPException(status_code=404, error="User not found")
         
         user.avatar = avatar_url
         await session.commit()
@@ -537,8 +537,6 @@ async def analyze_network(
         for i, line in enumerate(selected_lines):
             match = re.search(timestamp_pattern, line)
             try:
-                # print(f"🔹 Processing line: {line}")
-                
                 timestamp = match.group()
                 message_part = line.split(timestamp, 1)[1].strip(" -[]")
                 sender, message_content = message_part.split(": ", 1)
@@ -1083,7 +1081,6 @@ async def save_research(
     username: str = Query(None),
     anonymize: bool = Query(False),
     algorithm: str = Query("louvain"),
-    # network_analysis: List[NetworkAnalysisData] = Form(...),
     db: AsyncSession = Depends(database.get_db)
 ):
     
@@ -1222,7 +1219,7 @@ async def save_research(
 
     except Exception as e:
         print(f"Error saving data: {e}")
-        raise HTTPException(status_code=500, detail=f"Error saving data: {str(e)}")
+        raise HTTPException(status_code=500, error=f"Error saving data: {str(e)}")
 
 
 @app.get("/history/{user_id}")
@@ -1240,7 +1237,7 @@ async def get_user_history(
         if str(user_uuid) != current_user["user_id"]:
             raise HTTPException(
                 status_code=403,
-                detail="Access forbidden: You can only view your own research history"
+                error="Access forbidden: You can only view your own research history"
             )
         
         # Query all research entries for the user
@@ -1295,13 +1292,13 @@ async def get_user_history(
         logger.error(f"Invalid UUID format: {ve}")
         raise HTTPException(
             status_code=400,
-            detail="Invalid user ID format"
+            error="Invalid user ID format"
         )
     except Exception as e:
         logger.error(f"Error fetching user history: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Error fetching history: {str(e)}"
+            error=f"Error fetching history: {str(e)}"
         )
 
 @app.delete("/research/{research_id}")
@@ -1315,9 +1312,9 @@ async def delete_research(
         # Verify research exists and belongs to current user
         research = await db.get(Research, research_id)
         if not research:
-            raise HTTPException(status_code=404, detail="Research not found")
+            raise HTTPException(status_code=404, error="Research not found")
         if str(research.user_id) != current_user["user_id"]:
-            raise HTTPException(status_code=403, detail="Not authorized to delete this research")
+            raise HTTPException(status_code=403, error="Not authorized to delete this research")
 
         # Delete comparisons first
         await db.execute(
@@ -1363,7 +1360,7 @@ async def delete_research(
         await db.rollback()
         raise HTTPException(
             status_code=500,
-            detail=f"Error deleting research: {str(e)}"
+            error=f"Error deleting research: {str(e)}"
         )
     
   
@@ -1382,7 +1379,7 @@ async def analyze_network_comparison_history(
        
         research = await db.get(Research, research_id)
         if not research:
-            raise HTTPException(status_code=404, detail="Research not found")
+            raise HTTPException(status_code=404, error="Research not found")
         
         
         analysis_query = select(NetworkAnalysis).where(NetworkAnalysis.research_id == research_id)
@@ -1398,7 +1395,7 @@ async def analyze_network_comparison_history(
         if original_data:
             original_data = original_data.to_dict()
         if comparison_index < 0 or comparison_index >= len(comparison_data):
-            raise HTTPException(status_code=404, detail="Comparison index out of range")
+            raise HTTPException(status_code=404, error="Comparison index out of range")
 
         specific_comparison = comparison_data[comparison_index].to_dict()
 
@@ -1435,9 +1432,9 @@ async def update_research_data(
         # --- 1. Validation & permissions ---
         research = await db.get(Research, research_id)
         if not research:
-            raise HTTPException(status_code=404, detail="Research not found")
+            raise HTTPException(status_code=404, error="Research not found")
         if str(research.user_id) != current_user["user_id"]:
-            raise HTTPException(status_code=403, detail="Not authorized")
+            raise HTTPException(status_code=403, error="Not authorized")
 
         # --- 2. File existence check ---
         file_name = updated_data.get("file_name")
@@ -1555,7 +1552,7 @@ async def update_research_data(
     except Exception as e:
         logger.error(f"Error updating research data: {e}")
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+        raise HTTPException(status_code=500, error=f"Error: {str(e)}")
 
 
 logging.basicConfig(level=logging.INFO)

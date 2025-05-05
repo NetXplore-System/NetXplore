@@ -69,15 +69,15 @@ const ComparisonHistory = ({ research }) => {
     return (
         <>
             {research?.comparisons?.length > 0 ?
-                <Card className="comparison-history">
-                    <Card.Header className="d-flex justify-content-between align-items-center">
+                <div className="comparison-history">
+                    <div className="general-style mb-4 flex-row justify-content-between align-items-center">
                         <h3 className="m-0 fw-bold">Comparisons History</h3>
                         <p>Length: {research.comparisons.length}</p>
-                    </Card.Header>
-                    <Card.Body>
+                    </div>
+                    <div className="comparison-history-content">
                         {research?.comparisons.map((comparison, index) => (
-                            <div className="comparison-data" key={index}>
-                                <div className="d-flex align-items-center justify-content-between mb-3 p-2 border-bottom">
+                            <div className="comparison-data " key={index}>
+                                <div className="general-style flex-row align-items-center justify-content-between mb-3 p-2 border-bottom">
                                     <h4 className="mb-0">Comparison #{index + 1}</h4>
                                     <Button
                                         variant="link"
@@ -183,8 +183,8 @@ const ComparisonHistory = ({ research }) => {
                                 )}
                             </div>
                         ))}
-                    </Card.Body>
-                </Card>
+                    </div>
+                </div>
                 :
                 <div className="text-center mt-5">
                     <h4>No comparisons available.</h4>
