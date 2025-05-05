@@ -113,7 +113,7 @@ const SignIn = () => {
 
           <p className="text-center mt-3">
             Don't have an account?{" "}
-            <Link to="/sign-up" style={{ textDecoration: "none" }}>
+            <Link to="/register" style={{ textDecoration: "none" }}>
               Sign Up
             </Link>
           </p>
