@@ -37,7 +37,7 @@ const OAuth = () => {
       dispatch(setUser(data));
       navigate("/profile");
     } catch (error) {
-      console.error("Google Sign-In Error:", error.message);
+      console.error("Google SignIn Error:", error.message);
       alert("Failed to sign in with Google.");
     }
   };

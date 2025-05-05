@@ -30,7 +30,7 @@ const Menu = ({ isOpen, setIsOpen }) => {
   const handleLogout = () => {
     dispatch(logoutUser());
     localStorage.removeItem("token");
-    navigate("/sign-in");
+    navigate("/signin");
   };
 
   return (
