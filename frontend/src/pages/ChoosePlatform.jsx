@@ -12,7 +12,7 @@ const ChoosePlatform = () => {
       <h2 className="title">Choose Platform</h2>
       <Row className="justify-content-center align-items-center vh-100">
         <Col md={6} lg={4} className="text-center">
-          <Card className="option-card" onClick={() => navigate("/home")}>
+          <Card className="option-card" onClick={() => navigate("/explore")}>
             <Whatsapp size={50} className="option-icon whatsapp" />
             <h5>WhatsApp</h5>
           </Card>

@@ -13,15 +13,15 @@ const Profile = () => {
 
   useEffect(() => {
     if (!currentUser || !token) {
-      console.log("User not authenticated, redirecting to sign-in...");
-      navigate("/sign-in");
+      console.log("User not authenticated, redirecting to signin...");
+      navigate("/signin");
     }
   }, [currentUser, token, navigate]);
 
   const handleLogout = () => {
     dispatch(logoutUser());
     localStorage.removeItem("token");
-    navigate("/sign-in");
+    navigate("/signin");
   };
 
   const handleEditProfile = () => {
@@ -48,7 +48,7 @@ const Profile = () => {
 
       dispatch(deleteUser());
       localStorage.removeItem("token");
-      navigate("/sign-in");
+      navigate("/signin");
     } catch (error) {
       alert(error.message);
     }

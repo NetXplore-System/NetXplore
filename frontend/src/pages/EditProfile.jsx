@@ -17,7 +17,7 @@ const EditProfile = () => {
 
   useEffect(() => {
     if (!token) {
-      navigate("/sign-in");
+      navigate("/signin");
     }
   }, [token, navigate]);
 
