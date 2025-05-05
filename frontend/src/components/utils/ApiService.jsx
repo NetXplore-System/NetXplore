@@ -17,9 +17,9 @@ export const uploadFile = async (file) => {
     });
 
     if (!response.ok) {
-      const { error } = await response.json();
-      console.error("Error response:", error);
-      throw new Error(`${error || "An error occurred during the upload."}`);
+      const { detail } = await response.json();
+      console.error("Error response:", detail);
+      throw new Error(`${detail || "An error occurred during the upload."}`);
     }
 
     return await response.json();
@@ -36,9 +36,9 @@ export const deleteFile = async (filename) => {
     });
 
     if (!response.ok) {
-      const { error } = await response.json();
-      console.error("Error response:", error);
-      throw new Error(error || "An error occurred during the delete operation.");
+      const { detail } = await response.json();
+      console.error("Error response:", detail);
+      throw new Error(detail || "An error occurred during the delete operation.");
     }
     
     return await response.json();
@@ -58,9 +58,9 @@ export const saveFormToDB = async (formData) => {
       body: JSON.stringify(formData),
     });
     if (!response.ok) {
-      const { error } = await response.json();
-      console.error("Error response:", error);
-      throw new Error(error || "An error occurred while saving the form.");
+      const { detail } = await response.json();
+      console.error("Error response:", detail);
+      throw new Error(detail || "An error occurred while saving the form.");
     }
 
     return await response.json();
@@ -78,9 +78,9 @@ export const analyzeNetwork = async (filename, params) => {
     const response = await fetch(url);
 
     if (!response.ok) {
-      const { error } = await response.json();
-      console.error("Error response:", error);
-      throw new Error(error || "An error occurred during network analysis.");
+      const { detail } = await response.json();
+      console.error("Error response:", detail);
+      throw new Error(detail || "An error occurred during network analysis.");
     }
     return await response.json();
   } catch (error) {
@@ -97,9 +97,9 @@ export const detectCommunities = async (filename, params) => {
 
     const response = await fetch(url);
     if (!response.ok) {
-      const { error } = await response.json();
-      console.error("Error response:", error);
-      throw new Error(error || "An error occurred during community detection.");
+      const { detail } = await response.json();
+      console.error("Error response:", detail);
+      throw new Error(detail || "An error occurred during community detection.");
     }
     return await response.json();
   } catch (error) {
@@ -113,9 +113,9 @@ export const compareNetworks = async (params) => {
     const url = `${BASE_URL}/analyze/compare-networks?${params.toString()}`;
     const response = await fetch(url);
     if (!response.ok) {
-      const { error } = await response.json();
-      console.error("Error response:", error);
-      throw new Error(error || "An error occurred during network comparisons.");
+      const { detail } = await response.json();
+      console.error("Error response:", detail);
+      throw new Error(detail || "An error occurred during network comparisons.");
     }
     return await response.json();
   } catch (error) {
