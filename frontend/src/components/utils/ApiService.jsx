@@ -1,5 +1,8 @@
-// export const BASE_URL = import.meta.env.VITE_API_URL;
-export const BASE_URL = 'http://localhost:8000';
+import { toast } from 'react-hot-toast';
+
+export const BASE_URL = import.meta.env.VITE_API_URL;
+
+
 export const uploadFile = async (file) => {
   try {
     const formData = new FormData();
