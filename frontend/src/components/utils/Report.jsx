@@ -148,7 +148,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap', 
         justifyContent: 'center', 
-        // marginVertical: 10,
     },
     comparisonImageContainer: {
         flexBasis: '100%',

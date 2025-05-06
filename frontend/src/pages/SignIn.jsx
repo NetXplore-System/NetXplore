@@ -9,7 +9,6 @@ import OAuth from "../components/OAuth.jsx";
 import Card from "react-bootstrap/Card";
 import Image from "react-bootstrap/Image";
 import logo from "../assets/Logo.png";
-import { LoaderIcon } from "react-hot-toast";
 import { AiOutlineLoading } from "react-icons/ai";
 
  
@@ -51,7 +50,6 @@ const SignIn = () => {
   
       const data = await response.json();
       dispatch(setUser(data)); 
-      // navigate("/profile");
       navigate("/choose-platform");
     } catch (err) {
       setError(err.message);

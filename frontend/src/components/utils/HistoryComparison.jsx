@@ -76,8 +76,8 @@ const ComparisonHistory = ({ research }) => {
                     </div>
                     <div className="comparison-history-content">
                         {research?.comparisons.map((comparison, index) => (
-                            <div className="comparison-data " key={index}>
-                                <div className="general-style flex-row align-items-center justify-content-between mb-3 p-2 border-bottom">
+                            <div className={`${activeIndexes.includes(index) ? 'comparison-data' : 'mb-1'}`} key={index}>
+                                <div className="general-style flex-row align-items-center justify-content-between border-bottom">
                                     <h4 className="mb-0">Comparison #{index + 1}</h4>
                                     <Button
                                         variant="link"

@@ -1,4 +1,3 @@
-import { toast } from "react-hot-toast";
 
 export const saveToDB = async (
   id,
@@ -35,11 +34,9 @@ export const saveToDB = async (
     if (response.ok) {
       return (data?.detail || "Research saved successfully!");
     } else {
-      // toast.error(data?.detail || "An error occurred while saving the research.");
-      throw new Error(data?.error || "An error occurred while saving the research.");
+      throw new Error(data?.detail || "An error occurred while saving the research.");
     }
   } catch (error) {
-    // toast.error("An error occurred while saving the research.");
     console.error("Save error:", error);
     throw new Error("An error occurred while saving the research.");
   }

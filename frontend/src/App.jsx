@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
-import "./App.css";
+import {  Routes, Route, useLocation } from "react-router-dom";
 import Home from "./pages/Home.jsx";
 import SignIn from "./pages/SignIn.jsx";
 import SignUp from "./pages/SignUp.jsx";
@@ -13,19 +12,20 @@ import HomeW from "./pages/HomeW.jsx";
 import History from "./pages/History.jsx";
 import ChoosePlatform from "./pages/ChoosePlatform.jsx";
 import { Toaster } from "react-hot-toast";
-import { useSelector } from "react-redux";
 import { HashRouter } from "react-router-dom";
+import { Tooltip } from 'react-tooltip';
+
 
 
 function AppContent() {
   const [isOpen, setIsOpen] = useState(false);
-  const { currentUser } = useSelector((state) => state.user);
   const location = useLocation();
   
   const isAuthPage = location.pathname === '/sign-in' || location.pathname === '/' || location.pathname === '/sign-up';
   
   return (
     <>
+    <Tooltip id="my-tooltip" place="top" type="dark" effect="solid" />
       <Toaster
         position="top-center"
         reverseOrder={false}

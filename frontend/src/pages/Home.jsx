@@ -33,7 +33,6 @@ import {
   compareNetworks,
 } from "../components/utils/ApiService.jsx";
 import { useDispatch, useSelector } from "react-redux";
-// import { GraphButton } from "../components/utils/StyledComponents-El.js";
 import { addToMain, clearImages } from "../redux/images/imagesSlice.js";
 
 

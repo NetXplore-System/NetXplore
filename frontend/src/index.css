@@ -57,7 +57,7 @@ button:focus-visible {
 .spinner-icon {
   animation: spin 1s linear infinite;
   display: inline-block;
-  margin-right: 8px; /* Add spacing between the icon and text */
+  margin-right: 8px; 
 }
 
 @keyframes spin {
@@ -81,3 +81,18 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+.main-content {
+  transition: margin-left 0.3s ease-in-out;
+  padding-top: 70px; 
+  height: 100dvh;
+}
+
+.main-content.expanded {
+  margin-left: 250px; 
+}
+
+.main-content.collapsed {
+  margin-left: 80px; 
+}
+

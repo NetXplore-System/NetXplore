@@ -22,8 +22,8 @@ const SignUp = () => {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  // const [success, setSuccess] = useState("");
   const navigate = useNavigate();
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({
@@ -35,7 +35,6 @@ const SignUp = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    // setSuccess(""); 
 
     const { name, email, password, confirmPassword } = formData;
 
@@ -56,7 +55,7 @@ const SignUp = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || "Something went wrong");
+        throw new Error(errorData?.detail || "Something went wrong");
       }
 
       const data = await response.json();
@@ -80,7 +79,6 @@ const SignUp = () => {
           <h3 className="text-center mb-4">Sign Up</h3>
 
           {error && <p className="text-danger text-center">{error}</p>}
-          {/* {success && <p className="text-success text-center">{success}</p>} */}
 
           <Form onSubmit={handleSubmit}>
             <Form.Group className="mb-3" controlId="formBasicName">

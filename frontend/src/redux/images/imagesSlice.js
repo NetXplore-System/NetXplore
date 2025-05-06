@@ -22,10 +22,6 @@ const imagesSlice = createSlice({
             state.comparison[action.payload.type].push({ ...action.payload, type: action.payload.type });
             toast.success("Image added to comparison list.");
         },
-        replaseImage(state, action) {
-            toast.success("Image already exists for this graph, replacing it.");
-            // state.images[action.payload.imageIndex] = action.payload;
-        },
         clearImages(state) {
             state.main = [];
             state.comparison.comparison = [];

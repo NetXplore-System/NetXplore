@@ -9,6 +9,11 @@
     height: 100%;
 }
 
+.react-tooltip {
+    z-index: 9999 !important;
+}
+
+
 .loader-container {
     display: flex;
     justify-content: center;
@@ -457,7 +462,7 @@
 }
 
 
-.general-style{
+.general-style {
     display: flex;
     flex-direction: column;
     padding: 2rem;
