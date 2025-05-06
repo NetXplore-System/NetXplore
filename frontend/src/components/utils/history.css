@@ -409,7 +409,6 @@
 
 .comparison-data {
     display: grid;
-    margin-top: 2rem;
     grid-template-rows: repeat(3, auto);
     grid-template-columns: repeat(2, 1fr);
     gap: 2rem;
