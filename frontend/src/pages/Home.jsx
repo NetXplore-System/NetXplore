@@ -76,6 +76,8 @@ const Home = () => {
   const [isDirectedGraph, setIsDirectedGraph] = useState(false);
   const [showTriadCensus, setShowTriadCensus] = useState(false);
   const [triadCensusData, setTriadCensusData] = useState(null);
+  const [triadCensusMode, setTriadCensusMode] = useState(false);
+  const [selectedTriad, setSelectedTriad] = useState(null);
   const [communityMap, setCommunityMap] = useState({});
   const {
     comparisonCount,
@@ -283,21 +285,18 @@ const Home = () => {
       return;
     }
 
-    toast.promise(
-      uploadFile(selectedFile),
-      {
-        loading: "Uploading...",
-        success: (data) => {
-          if (data.message) {
-            setUploadedFile(data.filename);
-          }
-          return data.message || "File uploaded successfully!";
-        },
-        error: (error) => {
-          return error?.message || "Error uploading file.";
-        },
-      }
-    );
+    toast.promise(uploadFile(selectedFile), {
+      loading: "Uploading...",
+      success: (data) => {
+        if (data.message) {
+          setUploadedFile(data.filename);
+        }
+        return data.message || "File uploaded successfully!";
+      },
+      error: (error) => {
+        return error?.message || "Error uploading file.";
+      },
+    });
 
     // uploadFile(selectedFile)
     //   .then((data) => {
@@ -347,28 +346,25 @@ const Home = () => {
 
     const params = filters.buildNetworkFilterParams();
 
-    toast.promise(
-      analyzeNetwork(uploadedFile, params),
-      {
-        loading: "Analyzing network...",
-        success: (data) => {
-          if (data.nodes && data.links) {
-            dispatch(clearImages());
-            setNetworkData(data);
-            setOriginalNetworkData(data);
-            setShouldFetchCommunities(true);
-            return "Analysis completed successfully!";
-          } else {
-            // setMessage("No data returned from server.");
-            return "No data returned from server.";
-          }
-        },
-        error: (error) => {
-          // setMessage(error.message);
-          return error?.message || "Error analyzing network.";
-        },
-      }
-    )
+    toast.promise(analyzeNetwork(uploadedFile, params), {
+      loading: "Analyzing network...",
+      success: (data) => {
+        if (data.nodes && data.links) {
+          dispatch(clearImages());
+          setNetworkData(data);
+          setOriginalNetworkData(data);
+          setShouldFetchCommunities(true);
+          return "Analysis completed successfully!";
+        } else {
+          // setMessage("No data returned from server.");
+          return "No data returned from server.";
+        }
+      },
+      error: (error) => {
+        // setMessage(error.message);
+        return error?.message || "Error analyzing network.";
+      },
+    });
     // analyzeNetwork(uploadedFile, params)
     //   .then((data) => {
     //     console.log("Data returned from server:", data);
@@ -407,7 +403,7 @@ const Home = () => {
           return error?.detail || "Error saving research.";
         },
       }
-    )
+    );
   };
 
   const calculateNetworkStats = () => {
@@ -1445,11 +1441,14 @@ const Home = () => {
 
   const handleScreenshot = (e, index) => {
     e.stopPropagation();
-    const canvas = document.querySelectorAll('canvas');
-    canvas.length > index && dispatch(addToMain({
-      data: canvas[index].toDataURL("image/png"),
-    }));
-  }
+    const canvas = document.querySelectorAll("canvas");
+    canvas.length > index &&
+      dispatch(
+        addToMain({
+          data: canvas[index].toDataURL("image/png"),
+        })
+      );
+  };
 
   return (
     <Container fluid className="upload-section">
@@ -1667,7 +1666,12 @@ const Home = () => {
                   <div className="graph-placeholder">
                     {networkData && !showTriadCensus && (
                       <GraphContainer>
-                        <button className="graph-button" onClick={(e) => handleScreenshot(e, 0)}>Take Screenshot</button>
+                        <button
+                          className="graph-button"
+                          onClick={(e) => handleScreenshot(e, 0)}
+                        >
+                          Take Screenshot
+                        </button>
                         <NetworkGraph
                           networkData={networkData}
                           filteredNodes={filteredNodes}
@@ -1687,9 +1691,13 @@ const Home = () => {
 
                     {showTriadCensus && triadCensusData && (
                       <GraphContainer>
-                        <GraphButton onClick={(e) => handleScreenshot(e, 0)}>
+                        <button
+                          className="graph-button"
+                          onClick={(e) => handleScreenshot(e, 0)}
+                        >
                           Take Screenshot
-                        </GraphButton>
+                        </button>
+
                         <TriadCensusVisualization
                           triadCensusData={triadCensusData}
                         />
