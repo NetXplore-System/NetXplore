@@ -15,6 +15,8 @@ const NetworkGraph = ({
   networkWasRestored,
   forceGraphRef,
   isDirectedGraph,
+  triadCensusMode,
+  triadCensusData,
 }) => {
   useEffect(() => {
     if (forceGraphRef.current) {
