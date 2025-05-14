@@ -3,7 +3,5 @@ export const graphMetrics = [
   "Betweenness Centrality",
   "Closeness Centrality",
   "Eigenvector Centrality",
-  "PageRank Centrality",
-  "Density",
-  "Diameter",
+  "PageRank Centrality"
 ];
