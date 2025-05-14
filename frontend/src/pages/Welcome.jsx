@@ -448,7 +448,7 @@ const Welcome = () => {
             >
               <AnimatedButton
                 variant="primary"
-                onClick={() => navigate("/explore")}
+                onClick={() => navigate("/choose-platform")}
               >
                 Start Analyzing
               </AnimatedButton>
@@ -541,7 +541,7 @@ const Welcome = () => {
             >
               <AnimatedButton
                 variant="primary"
-                onClick={() => navigate("/explore")}
+                onClick={() => navigate("/choose-platform")}
               >
                 Start Analyzing
               </AnimatedButton>
@@ -606,7 +606,7 @@ const Welcome = () => {
                 </AnimatedButton>
                 <AnimatedButton
                   variant="primary"
-                  onClick={() => navigate("/explore")}
+                  onClick={() => navigate("/choose-platform")}
                 >
                   Start Analyzing
                 </AnimatedButton>
