@@ -1,32 +1,58 @@
-import { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Routes, Route, useLocation, HashRouter } from "react-router-dom";
 import "./App.css";
+
+// Pages
+import ResearchWizard from "./pages/ResearchWizard.jsx";
 import Home from "./pages/Home.jsx";
 import SignIn from "./pages/SignIn.jsx";
 import SignUp from "./pages/SignUp.jsx";
 import Profile from "./pages/Profile.jsx";
 import EditProfile from "./pages/EditProfile.jsx";
-import PrivateRoute from "./components/PrivateRoute";
-import Header from "./components/Header/Header.jsx";
-import Menu from "./components/Menu/Menu.jsx";
 import HomeW from "./pages/HomeW.jsx";
 import History from "./pages/History.jsx";
+import Dashboard from "./pages/Dashboard.jsx";
 import ChoosePlatform from "./pages/ChoosePlatform.jsx";
-import { Toaster } from "react-hot-toast";
-import { useSelector } from "react-redux";
 import Welcome from "./pages/Welcome.jsx";
+
+// Components
+import Header from "./components/Header/Header.jsx";
+import Menu from "./components/Menu/Menu.jsx";
+import PrivateRoute from "./components/PrivateRoute.jsx";
+
+// State
+import { useDispatch, useSelector } from "react-redux";
+import { setUser } from "./redux/user/userSlice";
+
+// UI
+import { Toaster } from "react-hot-toast";
 
 function AppContent() {
   const [isOpen, setIsOpen] = useState(false);
+  const [isAppReady, setIsAppReady] = useState(false);
   const { currentUser } = useSelector((state) => state.user);
+  const dispatch = useDispatch();
   const location = useLocation();
 
-  const isAuthPage =
-    location.pathname === "/signin" ||
-    location.pathname === "/register" ||
-    location.pathname === "/";
+  useEffect(() => {
+    const savedUser = localStorage.getItem("user");
+    const savedToken = localStorage.getItem("token");
 
-  const isWelcome = location.pathname === "/";
+    if (savedUser && savedToken) {
+      dispatch(
+        setUser({
+          user: JSON.parse(savedUser),
+          access_token: savedToken,
+        })
+      );
+    }
+    setIsAppReady(true);
+  }, [dispatch]);
+
+  if (!isAppReady) return null;
+
+  const isAuthPage =
+    location.pathname === "/signin" || location.pathname === "/register";
 
   return (
     <>
@@ -61,26 +87,27 @@ function AppContent() {
         </>
       )}
 
-      {isWelcome ? (
+      <div className={`main-content ${isOpen ? "expanded" : "collapsed"}`}>
         <Routes>
-          <Route path="/" element={<Welcome />} />
+          {/* Public Routes */}
+          <Route path="/signin" element={<SignIn />} />
+          <Route path="/register" element={<SignUp />} />
+          <Route path="/choose-platform" element={<ChoosePlatform />} />
+          <Route path="/explore" element={<Home />} />
+          <Route path="/newresearch" element={<ResearchWizard />} />
+          <Route path="/home_wikipedia" element={<HomeW />} />
+
+          <Route path="/" element={currentUser ? <Dashboard /> : <Welcome />} />
+
+          {/* Protected Routes */}
+          <Route element={<PrivateRoute />}>
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/edit-profile" element={<EditProfile />} />
+            <Route path="/history" element={<History />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+          </Route>
         </Routes>
-      ) : (
-        <div className={`main-content ${isOpen ? "expanded" : "collapsed"}`}>
-          <Routes>
-            <Route path="/signin" element={<SignIn />} />
-            <Route path="/register" element={<SignUp />} />
-            <Route path="/choose-platform" element={<ChoosePlatform />} />
-            <Route path="/explore" element={<Home />} />
-            <Route path="/home_wikipedia" element={<HomeW />} />
-            <Route element={<PrivateRoute />}>
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/edit-profile" element={<EditProfile />} />
-              <Route path="/history" element={<History />} />
-            </Route>
-          </Routes>
-        </div>
-      )}
+      </div>
     </>
   );
 }
