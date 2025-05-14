@@ -35,6 +35,8 @@ const OAuth = () => {
 
       const data = await res.json();
       dispatch(setUser(data));
+      localStorage.setItem("user", JSON.stringify(data.user));
+      localStorage.setItem("token", data.access_token);
       navigate("/profile");
     } catch (error) {
       console.error("Google SignIn Error:", error.message);
