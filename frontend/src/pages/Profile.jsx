@@ -5,7 +5,6 @@ import Container from "react-bootstrap/Container";
 import { useDispatch, useSelector } from "react-redux";
 import { logoutUser, deleteUser } from "../redux/user/userSlice";
 
-
 const Profile = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -20,6 +19,7 @@ const Profile = () => {
 
   const handleLogout = () => {
     dispatch(logoutUser());
+    localStorage.removeItem("user");
     localStorage.removeItem("token");
     navigate("/signin");
   };
@@ -34,12 +34,15 @@ const Profile = () => {
     }
 
     try {
-      const response = await fetch(`http://localhost:8000/users/${currentUser.id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        `http://localhost:8000/users/${currentUser.id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -62,29 +65,33 @@ const Profile = () => {
 
   return (
     <>
-    <Container className="text-center mt-5">
-      <div className="mb-4">
-        <img
-          src={avatarUrl}
-          alt="Profile"
-          className="rounded-circle img-thumbnail"
-          style={{ width: "150px", height: "150px" }}
-        />
-      </div>
-      <h2>Welcome, {currentUser.name}!</h2>
-      <p>Email: {currentUser.email}</p>
-      <div className="mt-4">
-        <Button variant="primary" className="me-2" onClick={handleEditProfile}>
-          Edit Profile
-        </Button>
-        <Button variant="danger" className="me-2" onClick={handleLogout}>
-          Logout
-        </Button>
-        <Button variant="outline-danger" onClick={handleDeleteAccount}>
-          Delete Account
-        </Button>
-      </div>
-    </Container>
+      <Container className="text-center mt-5">
+        <div className="mb-4">
+          <img
+            src={avatarUrl}
+            alt="Profile"
+            className="rounded-circle img-thumbnail"
+            style={{ width: "150px", height: "150px" }}
+          />
+        </div>
+        <h2>Welcome, {currentUser.name}!</h2>
+        <p>Email: {currentUser.email}</p>
+        <div className="mt-4">
+          <Button
+            variant="primary"
+            className="me-2"
+            onClick={handleEditProfile}
+          >
+            Edit Profile
+          </Button>
+          <Button variant="danger" className="me-2" onClick={handleLogout}>
+            Logout
+          </Button>
+          <Button variant="outline-danger" onClick={handleDeleteAccount}>
+            Delete Account
+          </Button>
+        </div>
+      </Container>
     </>
   );
 };
