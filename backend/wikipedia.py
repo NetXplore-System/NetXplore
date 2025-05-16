@@ -37,8 +37,7 @@ async def fetch_wikipedia_data(request: Request):
 
         discussion_graph = None
         opinions = {"for": 0, "against": 0, "neutral": 0}
-#$$
-# New dictionaries to track users by opinion type
+
         opinion_users = {
             "for": [],
             "against": [],
@@ -52,7 +51,7 @@ async def fetch_wikipedia_data(request: Request):
                 opinions["for"] += section["opinion_count"]["for"]
                 opinions["against"] += section["opinion_count"]["against"]
                 opinions["neutral"] += section["opinion_count"]["neutral"]
-#$$$
+
             for comment in section["comments"]:
                     username = comment["username"]
                     opinion = comment["opinion"]
@@ -72,6 +71,18 @@ async def fetch_wikipedia_data(request: Request):
         if discussion_graph:
             result["nodes"] = discussion_graph["nodes"]
             result["links"] = discussion_graph["links"]
+
+            degree_map = {}
+            for link in discussion_graph["links"]:
+                source = link["source"]
+                target = link["target"]
+                degree_map[source] = degree_map.get(source, 0) + 1
+                degree_map[target] = degree_map.get(target, 0) + 1
+
+            for node in discussion_graph["nodes"]:
+                node_id = node["id"]
+                node["degree"] = degree_map.get(node_id, 0)
+
 
         with open("wikipedia_data.json", "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
@@ -98,19 +109,15 @@ async def analyze_network(filename: str,
         data = json.load(f)
 
     
-    # וודא שיש לנו nodes ו-links 
     nodes = data.get("nodes", [])
     links = data.get("links", [])
     
-    # אם links ריק, ננסה למצוא אותם בתוך content
     if not links and "content" in data and len(data["content"]) > 0:
         if "discussion_graph" in data["content"][0]:
             links = data["content"][0]["discussion_graph"].get("links", [])
-            # אם מצאנו links בתוך discussion_graph, נוודא שה-nodes תואמים
             if not nodes and "nodes" in data["content"][0]["discussion_graph"]:
                 nodes = data["content"][0]["discussion_graph"].get("nodes", [])
     
-    # הוסף לוגים לדיבוג
     logger.info(f"Found {len(nodes)} nodes and {len(links)} links in {filename}")
 
     result = {
@@ -178,18 +185,13 @@ def extract_user_and_timestamp(html_content):
 
 
 def analyze_comment_for_opinion(text):
-    # The primary issue is here - you need to check if the comment STARTS with these words
-    # rather than just containing them anywhere in the text
-    
     text_lower = text.lower().strip()
     
-    # Check if the comment STARTS with these voting indicators
     if text_lower.startswith("בעד") or text_lower.startswith("בעד "):
         return "for"
     elif text_lower.startswith("נגד") or text_lower.startswith("נגד "):
         return "against"
     
-    # Your existing checks as fallbacks
     indicators_for = ["אני בעד", "אני תומך", "i agree", "{{בעד}}"]
     indicators_against = ["אני נגד", "אני מתנגד", "i disagree", "{{נגד}}"]
     
@@ -199,9 +201,6 @@ def analyze_comment_for_opinion(text):
         return "against"
     
     return "neutral"
-
-
-
 
 def build_conversation_tree(comments):
     tree = {}
@@ -217,7 +216,6 @@ def build_conversation_tree(comments):
             tree[parent_index]["responders"].append(i)
         stack.append({"index": i, "indentation": indentation})
     return tree
-
 
 def extract_reply_to_from_id(element_id: str) -> str:
   

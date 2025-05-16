@@ -204,11 +204,12 @@ const home_wikipedia = () => {
         const fullData = {
           nodes: data.nodes,
           links: data.links,
-          content: data.content, // זה מה שחסר היה
+          content: data.content,
           opinions: data.opinions || { for: 0, against: 0, neutral: 0 },
         };
 
         setNetworkData(fullData);
+        console.log("First node from Wikipedia data:", fullData.nodes?.[0]);
         setOriginalNetworkData(fullData);
         setUploadedFile("wikipedia_data");
         toast.success("Wikipedia discussion analyzed successfully!");
@@ -285,6 +286,43 @@ const home_wikipedia = () => {
     handleNetworkCustomization(updatedSettings);
   };
 
+  // useEffect(() => {
+  //   if (!uploadedFile) {
+  //     setFile(null);
+  //     setChartData(null);
+  //     setNetworkData(null);
+  //     filters.setFilter("");
+  //     filters.setStartDate("");
+  //     filters.setEndDate("");
+  //     filters.setMessageLimit(50);
+  //     filters.setKeywords("");
+  //     setInputKey(Date.now());
+  //     if (forceGraphRef.current) {
+  //       forceGraphRef.current.zoomToFit(400, 100);
+  //     }
+  //   }
+
+  //   if (graphReady) {
+  //     setShowMetrics(true); // ← פותח את הפאנל כשמופעל הגרף
+  //   }
+  //   if (networkData) {
+  //     calculateNetworkStats();
+  //   }
+  //   if (
+  //     shouldFetchCommunities &&
+  //     networkData &&
+  //     networkData.nodes?.length > 0
+  //   ) {
+  //     fetchCommunityData();
+  //     setShouldFetchCommunities(false);
+  //   }
+  // }, [
+  //   shouldFetchCommunities,
+  //   uploadedFile,
+  //   showMetrics,
+  //   networkData,
+  //   graphReady,
+  // ]);
   useEffect(() => {
     if (!uploadedFile) {
       setFile(null);
@@ -296,17 +334,29 @@ const home_wikipedia = () => {
       filters.setMessageLimit(50);
       filters.setKeywords("");
       setInputKey(Date.now());
-      if (forceGraphRef.current) {
-        forceGraphRef.current.zoomToFit(400, 100);
-      }
+     
     }
-
+  
     if (graphReady) {
-      setShowMetrics(true); // ← פותח את הפאנל כשמופעל הגרף
+      setShowMetrics(true);
     }
+  
     if (networkData) {
       calculateNetworkStats();
+  
+      // להפעיל את כוח הדחייה רק אם יש צמתים
+      if (forceGraphRef.current && networkData.nodes.length > 0) {
+        // כוח דחייה
+        forceGraphRef.current.d3Force("charge").strength(-400);
+  
+        // מרחק אידיאלי בין צמתים מחוברים
+        forceGraphRef.current.d3Force("link").distance(200);
+  
+        // הפעלת הסימולציה מחדש
+        forceGraphRef.current.d3ReheatSimulation();
+      }
     }
+  
     if (
       shouldFetchCommunities &&
       networkData &&
@@ -322,7 +372,7 @@ const home_wikipedia = () => {
     networkData,
     graphReady,
   ]);
-
+  
   const handleFileChange = (event) => {
     const selectedFile = event.target.files[0];
     if (!selectedFile) return;
@@ -396,6 +446,59 @@ const home_wikipedia = () => {
     }
   };
 
+  // const handleNetworkAnalysis = async () => {
+  //   if (!uploadedFile || !selectedSection) {
+  //     setMessage("Please select a section to analyze.");
+  //     return false;
+  //   }
+
+  //   setNetworkWasRestored(false);
+  //   const params = filters.buildNetworkFilterParams();
+
+  //   try {
+  //     const data = await analyzeNetwork(uploadedFile, params);
+
+  //     if (data.nodes && data.links) {
+  //       dispatch(clearImages());
+
+  //       const validUsernames = new Set(
+  //         selectedSection.comments.map((c) => c.username?.toString().trim())
+  //       );
+
+  //       const filteredNodes = data.nodes.filter((n) =>
+  //         validUsernames.has(n.id?.toString().trim())
+  //       );
+
+  //       const filteredLinks = data.links.filter(
+  //         (l) =>
+  //           validUsernames.has(l.source?.toString().trim()) &&
+  //           validUsernames.has(l.target?.toString().trim())
+  //       );
+
+  //       const filteredData = {
+  //         nodes: filteredNodes,
+  //         links: filteredLinks,
+  //         content: networkData?.content || [],
+  //       };
+
+  //       if (filteredNodes.length === 0 || filteredLinks.length === 0) {
+  //       }
+
+  //       setNetworkData(filteredData);
+  //       setOriginalNetworkData(filteredData);
+  //       setShouldFetchCommunities(true);
+  //       setGraphReady(true);
+
+  //       return true;
+  //     } else {
+  //       setMessage("No data returned from server.");
+  //       return false;
+  //     }
+  //   } catch (error) {
+  //     setMessage(error?.message || "Error analyzing network.");
+  //     return false;
+  //   }
+  // };
   const handleNetworkAnalysis = async () => {
     if (!uploadedFile || !selectedSection) {
       setMessage("Please select a section to analyze.");
@@ -411,28 +514,51 @@ const home_wikipedia = () => {
       if (data.nodes && data.links) {
         dispatch(clearImages());
 
+        // סט שמות משתמשים חוקיים מהתגובות
         const validUsernames = new Set(
           selectedSection.comments.map((c) => c.username?.toString().trim())
         );
 
-        const filteredNodes = data.nodes.filter((n) =>
-          validUsernames.has(n.id?.toString().trim())
-        );
-
+        // סינון הקשתות לפי שמות חוקיים
         const filteredLinks = data.links.filter(
           (l) =>
             validUsernames.has(l.source?.toString().trim()) &&
             validUsernames.has(l.target?.toString().trim())
         );
 
+        // כל הצמתים ששייכים לסקשן הזה
+        const filteredNodes = data.nodes.filter((n) =>
+          validUsernames.has(n.id?.toString().trim())
+        );
+
+        // הוספת מיקומים אקראיים לצמתים שאין להם מיקום
+        filteredNodes.forEach((node) => {
+          if (node.x == null || node.y == null) {
+            node.x = Math.random() * 500 - 250;
+            node.y = Math.random() * 500 - 250;
+          }
+        });
+
+        // חישוב Degree לכל צומת
+        const degreeMap = {};
+        filteredLinks.forEach((link) => {
+          const source = link.source?.toString().trim();
+          const target = link.target?.toString().trim();
+          degreeMap[source] = (degreeMap[source] || 0) + 1;
+          degreeMap[target] = (degreeMap[target] || 0) + 1;
+        });
+
+        filteredNodes.forEach((node) => {
+          const id = node.id?.toString().trim();
+          node.degree = degreeMap[id] || 0;
+        });
+
+        // יצירת המידע המלא לאחר שהצמתים עודכנו
         const filteredData = {
           nodes: filteredNodes,
           links: filteredLinks,
           content: networkData?.content || [],
         };
-
-        if (filteredNodes.length === 0 || filteredLinks.length === 0) {
-        }
 
         setNetworkData(filteredData);
         setOriginalNetworkData(filteredData);
@@ -450,6 +576,29 @@ const home_wikipedia = () => {
     }
   };
 
+  // const handleSaveToDB = () => {
+  //   const params = filters.buildNetworkFilterParams();
+  //   const id = currentUser?.id;
+  //   if (!name || !description || !uploadedFile || !params || !id) {
+  //     toast.error("Please fill in all required fields.");
+  //     return;
+  //   }
+  //   toast.promise(
+  //     saveToDB(id, name, description, uploadedFile, params, selectedMetric, {
+  //       hasComparison: comparisonNetworkData.length ? true : false,
+  //       data: comparisonNetworkData || undefined,
+  //     }),
+  //     {
+  //       loading: "Saving...",
+  //       success: (data) => {
+  //         return data?.detail || "Research saved successfully!";
+  //       },
+  //       error: (error) => {
+  //         return error?.detail || "Error saving research.";
+  //       },
+  //     }
+  //   );
+  // };
   const handleSaveToDB = () => {
     const params = filters.buildNetworkFilterParams();
     const id = currentUser?.id;
@@ -458,10 +607,19 @@ const home_wikipedia = () => {
       return;
     }
     toast.promise(
-      saveToDB(id, name, description, uploadedFile, params, selectedMetric, {
-        hasComparison: comparisonNetworkData.length ? true : false,
-        data: comparisonNetworkData || undefined,
-      }),
+      saveToDB(
+        id,
+        name,
+        description,
+        uploadedFile,
+        params,
+        selectedMetric,
+        {
+          hasComparison: comparisonNetworkData.length ? true : false,
+          data: comparisonNetworkData || undefined,
+        },
+        "wikipedia" 
+      ),
       {
         loading: "Saving...",
         success: (data) => {
@@ -473,7 +631,7 @@ const home_wikipedia = () => {
       }
     );
   };
-
+  
   const calculateNetworkStats = () => {
     if (!networkData) return;
 
@@ -507,10 +665,59 @@ const home_wikipedia = () => {
     });
   };
 
-  const handleToggleMetric = (metric) => {
-    setSelectedMetric(selectedMetric === metric ? null : metric);
-  };
-
+  // const handleToggleMetric = (metric) => {
+  //   setSelectedMetric(selectedMetric === metric ? null : metric);
+  // };
+  // Replace the current handleToggleMetric function with this:
+  
+const handleToggleMetric = (metric) => {
+  const isTogglingOff = selectedMetric === metric;
+  setSelectedMetric(isTogglingOff ? null : metric);
+  
+  if (forceGraphRef.current) {
+    if (isTogglingOff) {
+      // Resetting to normal parameters when turning off a metric
+      forceGraphRef.current.d3Force("charge").strength(-400); 
+      forceGraphRef.current.d3Force("link").distance(200);
+    } else {
+      // Increase forces when turning on a metric
+      forceGraphRef.current.d3Force("charge").strength(-800);
+      forceGraphRef.current.d3Force("link").distance(250);
+    }
+    
+    // Re-spread nodes when toggling metrics
+    if (networkData && networkData.nodes) {
+      // Add slight random offset to prevent nodes from stacking
+      const jitter = 20;
+      const updatedNodes = [...networkData.nodes].map(node => {
+        if (!node.fx && !node.fy) { // Only jitter unfixed nodes
+          return {
+            ...node,
+            fx: null,
+            fy: null,
+            x: node.x + (Math.random() - 0.5) * jitter,
+            y: node.y + (Math.random() - 0.5) * jitter
+          };
+        }
+        return node;
+      });
+      
+      setNetworkData({
+        nodes: updatedNodes,
+        links: networkData.links
+      });
+    }
+    
+    // Reheat with more ticks to ensure proper spacing
+    forceGraphRef.current.d3Force("charge").distanceMax(1000);
+    forceGraphRef.current.d3ReheatSimulation();
+    
+    // After a short delay, zoom to fit the graph
+    setTimeout(() => {
+      forceGraphRef.current.zoomToFit(400, 150);
+    }, 500);
+  }
+};
   const handleDensityMetric = () => {
     const density = calculateDensity(networkData.nodes, networkData.links);
     setDensityValue(density.toFixed(4));
@@ -1021,11 +1228,21 @@ const home_wikipedia = () => {
         linkWidth={(link) => Math.sqrt(link.weight || 1)}
         linkColor={() => linkColor}
         directed={isDirectedGraph}
+        d3VelocityDecay={0.2}
+        nodeRelSize={1.5} 
+
+        cooldownTicks={100}
+        onEngineStop={() => {
+          forceGraphRef.current.zoomToFit(400);
+        }}
+        
         onNodeDragEnd={(node) => {
           node.fx = node.x;
           node.fy = node.y;
           setNodesFixed(true);
         }}
+        ref={forceGraphRef}
+
         nodeCanvasObject={(node, ctx, globalScale) => {
           const fontSize = 12 / globalScale;
 
@@ -1495,26 +1712,25 @@ const home_wikipedia = () => {
     if (!section || !section.comments) {
       return { for: [], against: [], neutral: [] };
     }
-  
+
     const opinionUsers = {
       for: [],
       against: [],
-      neutral: []
+      neutral: [],
     };
-  
-    section.comments.forEach(comment => {
+
+    section.comments.forEach((comment) => {
       const { username, opinion } = comment;
       if (username && !opinionUsers[opinion].includes(username)) {
         opinionUsers[opinion].push(username);
       }
     });
-  
+
     return opinionUsers;
   };
 
   return (
     <Container fluid className="upload-section">
-      {/* Research Upload */}
       <ResearchCard
         filters={filters}
         name={name}
@@ -1543,14 +1759,13 @@ const home_wikipedia = () => {
 
       {uploadedFile && (
         <div>
-          {/* Discussion Picker (נבחרת רק אחרי העלאה) */}
           {networkData?.content && (
             <DiscussionSectionPicker
               content={networkData.content}
               selectedSection={selectedSection}
               onSelect={(section) => {
                 setSelectedSection(section);
-                setSelectedTitle(section.title); // משתנה חדש להצגה
+                setSelectedTitle(section.title);
               }}
             />
           )}
@@ -1592,7 +1807,6 @@ const home_wikipedia = () => {
             />
           )}
 
-          {/* Activity Slider רק אם מופעל */}
           {activityFilterEnabled && (
             <ActivitySlider
               activityThreshold={activityThreshold}
@@ -1601,7 +1815,6 @@ const home_wikipedia = () => {
             />
           )}
 
-          {/* הצגת הגרף והמדדים רק כאשר יש נתוני רשת */}
           {graphReady &&
             networkData &&
             networkData.nodes &&
@@ -1640,6 +1853,86 @@ const home_wikipedia = () => {
                             onDensity={handleDensityMetric}
                             onDiameter={handleDiameterMetric}
                           />
+                          <Button
+                            className="metrics-item"
+                            onClick={() => setShowDataTable(!showDataTable)}
+                            variant={
+                              showDataTable ? "primary" : "outline-primary"
+                            }
+                          >
+                            <FileBarGraph className="me-1" /> Explore Data Table
+                          </Button>
+
+                          <Button
+                            className={`metrics-item ${
+                              strongConnectionsActive ? "active" : ""
+                            }`}
+                            onClick={handleStrongConnections}
+                          >
+                            {strongConnectionsActive
+                              ? "Show All Connections"
+                              : "Strongest Connections"}
+                          </Button>
+
+                          <Button
+                            className={`metrics-item ${
+                              highlightCentralNodes ? "active" : ""
+                            }`}
+                            onClick={handleHighlightCentralNodes}
+                          >
+                            Highlight Central Nodes
+                          </Button>
+
+                          <Button
+                            className={`metrics-item ${
+                              networkWasRestored ? "active" : ""
+                            }`}
+                            onClick={handleRestoreNetwork}
+                          >
+                            Restore Original Network
+                          </Button>
+
+                          <Button
+                            className={`metrics-item ${
+                              activityFilterEnabled ? "active" : ""
+                            }`}
+                            onClick={handleActivityFilter}
+                          >
+                            {activityFilterEnabled
+                              ? "Show All Users"
+                              : "Hide Inactive Users"}
+                          </Button>
+
+                          <Button
+                            className={`metrics-item ${
+                              showOnlyIntraCommunityLinks ? "active" : ""
+                            }`}
+                            onClick={handleToggleCommunitiesFilter}
+                          >
+                            {showOnlyIntraCommunityLinks
+                              ? "Show All Links"
+                              : "Hide Cross-Community Links"}
+                          </Button>
+
+                          <Button
+                            className={`metrics-item ${
+                              nodesFixed ? "active" : ""
+                            }`}
+                            onClick={unfixAllNodes}
+                          >
+                            Release All Nodes
+                          </Button>
+
+                          <Button
+                            className={`metrics-item ${
+                              isDirectedGraph ? "active" : ""
+                            }`}
+                            onClick={() => setIsDirectedGraph(!isDirectedGraph)}
+                          >
+                            {isDirectedGraph
+                              ? "Show Undirected Graph"
+                              : "Show Directed Graph"}
+                          </Button>
                         </div>
                       )}
                     </Card>
