@@ -32,6 +32,7 @@ import {
   analyzeNetwork,
   detectCommunities,
   compareNetworks,
+  analyzeWikipediaNetwork,
 } from "../components/utils/ApiService.jsx";
 import { useDispatch, useSelector } from "react-redux";
 // import { GraphButton } from "../components/utils/StyledComponents-El.js";
@@ -334,29 +335,22 @@ const home_wikipedia = () => {
       filters.setMessageLimit(50);
       filters.setKeywords("");
       setInputKey(Date.now());
-     
     }
-  
+
     if (graphReady) {
       setShowMetrics(true);
     }
-  
+
     if (networkData) {
       calculateNetworkStats();
-  
-      // להפעיל את כוח הדחייה רק אם יש צמתים
+
       if (forceGraphRef.current && networkData.nodes.length > 0) {
-        // כוח דחייה
         forceGraphRef.current.d3Force("charge").strength(-400);
-  
-        // מרחק אידיאלי בין צמתים מחוברים
         forceGraphRef.current.d3Force("link").distance(200);
-  
-        // הפעלת הסימולציה מחדש
         forceGraphRef.current.d3ReheatSimulation();
       }
     }
-  
+
     if (
       shouldFetchCommunities &&
       networkData &&
@@ -372,7 +366,7 @@ const home_wikipedia = () => {
     networkData,
     graphReady,
   ]);
-  
+
   const handleFileChange = (event) => {
     const selectedFile = event.target.files[0];
     if (!selectedFile) return;
@@ -509,29 +503,27 @@ const home_wikipedia = () => {
     const params = filters.buildNetworkFilterParams();
 
     try {
+      // const data = await analyzeNetwork(uploadedFile, params);
       const data = await analyzeNetwork(uploadedFile, params);
+
 
       if (data.nodes && data.links) {
         dispatch(clearImages());
 
-        // סט שמות משתמשים חוקיים מהתגובות
         const validUsernames = new Set(
           selectedSection.comments.map((c) => c.username?.toString().trim())
         );
 
-        // סינון הקשתות לפי שמות חוקיים
         const filteredLinks = data.links.filter(
           (l) =>
             validUsernames.has(l.source?.toString().trim()) &&
             validUsernames.has(l.target?.toString().trim())
         );
 
-        // כל הצמתים ששייכים לסקשן הזה
         const filteredNodes = data.nodes.filter((n) =>
           validUsernames.has(n.id?.toString().trim())
         );
 
-        // הוספת מיקומים אקראיים לצמתים שאין להם מיקום
         filteredNodes.forEach((node) => {
           if (node.x == null || node.y == null) {
             node.x = Math.random() * 500 - 250;
@@ -539,7 +531,6 @@ const home_wikipedia = () => {
           }
         });
 
-        // חישוב Degree לכל צומת
         const degreeMap = {};
         filteredLinks.forEach((link) => {
           const source = link.source?.toString().trim();
@@ -553,7 +544,6 @@ const home_wikipedia = () => {
           node.degree = degreeMap[id] || 0;
         });
 
-        // יצירת המידע המלא לאחר שהצמתים עודכנו
         const filteredData = {
           nodes: filteredNodes,
           links: filteredLinks,
@@ -618,7 +608,7 @@ const home_wikipedia = () => {
           hasComparison: comparisonNetworkData.length ? true : false,
           data: comparisonNetworkData || undefined,
         },
-        "wikipedia" 
+        "wikipedia"
       ),
       {
         loading: "Saving...",
@@ -631,7 +621,7 @@ const home_wikipedia = () => {
       }
     );
   };
-  
+
   const calculateNetworkStats = () => {
     if (!networkData) return;
 
@@ -669,55 +659,49 @@ const home_wikipedia = () => {
   //   setSelectedMetric(selectedMetric === metric ? null : metric);
   // };
   // Replace the current handleToggleMetric function with this:
-  
-const handleToggleMetric = (metric) => {
-  const isTogglingOff = selectedMetric === metric;
-  setSelectedMetric(isTogglingOff ? null : metric);
-  
-  if (forceGraphRef.current) {
-    if (isTogglingOff) {
-      // Resetting to normal parameters when turning off a metric
-      forceGraphRef.current.d3Force("charge").strength(-400); 
-      forceGraphRef.current.d3Force("link").distance(200);
-    } else {
-      // Increase forces when turning on a metric
-      forceGraphRef.current.d3Force("charge").strength(-800);
-      forceGraphRef.current.d3Force("link").distance(250);
+
+  const handleToggleMetric = (metric) => {
+    const isTogglingOff = selectedMetric === metric;
+    setSelectedMetric(isTogglingOff ? null : metric);
+
+    if (forceGraphRef.current) {
+      if (isTogglingOff) {
+        forceGraphRef.current.d3Force("charge").strength(-400);
+        forceGraphRef.current.d3Force("link").distance(200);
+      } else {
+        forceGraphRef.current.d3Force("charge").strength(-800);
+        forceGraphRef.current.d3Force("link").distance(250);
+      }
+
+      if (networkData && networkData.nodes) {
+        const jitter = 20;
+        const updatedNodes = [...networkData.nodes].map((node) => {
+          if (!node.fx && !node.fy) {
+            return {
+              ...node,
+              fx: null,
+              fy: null,
+              x: node.x + (Math.random() - 0.5) * jitter,
+              y: node.y + (Math.random() - 0.5) * jitter,
+            };
+          }
+          return node;
+        });
+
+        setNetworkData({
+          nodes: updatedNodes,
+          links: networkData.links,
+        });
+      }
+
+      forceGraphRef.current.d3Force("charge").distanceMax(1000);
+      forceGraphRef.current.d3ReheatSimulation();
+
+      setTimeout(() => {
+        forceGraphRef.current.zoomToFit(400, 150);
+      }, 500);
     }
-    
-    // Re-spread nodes when toggling metrics
-    if (networkData && networkData.nodes) {
-      // Add slight random offset to prevent nodes from stacking
-      const jitter = 20;
-      const updatedNodes = [...networkData.nodes].map(node => {
-        if (!node.fx && !node.fy) { // Only jitter unfixed nodes
-          return {
-            ...node,
-            fx: null,
-            fy: null,
-            x: node.x + (Math.random() - 0.5) * jitter,
-            y: node.y + (Math.random() - 0.5) * jitter
-          };
-        }
-        return node;
-      });
-      
-      setNetworkData({
-        nodes: updatedNodes,
-        links: networkData.links
-      });
-    }
-    
-    // Reheat with more ticks to ensure proper spacing
-    forceGraphRef.current.d3Force("charge").distanceMax(1000);
-    forceGraphRef.current.d3ReheatSimulation();
-    
-    // After a short delay, zoom to fit the graph
-    setTimeout(() => {
-      forceGraphRef.current.zoomToFit(400, 150);
-    }, 500);
-  }
-};
+  };
   const handleDensityMetric = () => {
     const density = calculateDensity(networkData.nodes, networkData.links);
     setDensityValue(density.toFixed(4));
@@ -829,7 +813,8 @@ const handleToggleMetric = (metric) => {
 
     const params = buildNetworkFilterParams();
 
-    analyzeNetwork(comparisonFile.filename, params)
+    // analyzeNetwork(comparisonFile.filename, params)
+    analyzeWikipediaNetwork(uploadedFile, params)
       .then((data) => {
         console.log(`Comparison data ${index} returned:`, data);
         if (data.nodes && data.links) {
@@ -1229,20 +1214,17 @@ const handleToggleMetric = (metric) => {
         linkColor={() => linkColor}
         directed={isDirectedGraph}
         d3VelocityDecay={0.2}
-        nodeRelSize={1.5} 
-
+        nodeRelSize={1.5}
         cooldownTicks={100}
         onEngineStop={() => {
           forceGraphRef.current.zoomToFit(400);
         }}
-        
         onNodeDragEnd={(node) => {
           node.fx = node.x;
           node.fy = node.y;
           setNodesFixed(true);
         }}
         ref={forceGraphRef}
-
         nodeCanvasObject={(node, ctx, globalScale) => {
           const fontSize = 12 / globalScale;
 
