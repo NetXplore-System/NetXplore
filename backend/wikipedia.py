@@ -93,7 +93,8 @@ async def fetch_wikipedia_data(request: Request):
         logger.error(f"Error fetching Wikipedia data: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     
-@router.get("/analyze/network/{filename}")
+# @router.get("/analyze/network/{filename}")
+@router.get("/analyze/wikipedia/{filename}")
 async def analyze_network(filename: str, 
                           limit: int = 50,
                           min_length: int = 0,
