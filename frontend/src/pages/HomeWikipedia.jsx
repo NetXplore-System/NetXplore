@@ -504,7 +504,7 @@ const home_wikipedia = () => {
 
     try {
       // const data = await analyzeNetwork(uploadedFile, params);
-      const data = await analyzeNetwork(uploadedFile, params);
+      const data = await analyzeWikipediaNetwork(uploadedFile, params);
 
 
       if (data.nodes && data.links) {
