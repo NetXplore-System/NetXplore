@@ -11,6 +11,7 @@ import {
   Clock,
   BoxArrowRight,
   Person,
+  List,
 } from "react-bootstrap-icons";
 import LogoFull from "../../assets/Logo.png";
 import LogoMini from "../../assets/LogoMini.png";
@@ -93,6 +94,17 @@ const Menu = ({ isOpen, setIsOpen }) => {
               <Person size={22} />
               <span className={isOpen ? "ms-4 d-inline" : "d-none"}>
                 Profile
+              </span>
+            </MenuItem>
+          </Link>
+          <Link to="/choose-platform">
+            <MenuItem
+              isOpen={isOpen}
+              className="d-flex align-items-center py-3 px-4"
+            >
+              <List size={22} />
+              <span className={isOpen ? "ms-4 d-inline" : "d-none"}>
+                Platform
               </span>
             </MenuItem>
           </Link>

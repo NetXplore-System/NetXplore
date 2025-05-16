@@ -1,6 +1,6 @@
 import React from "react";
 import { Row, Col, Card, Button, Form } from "react-bootstrap";
-import {  Save, Trash } from "react-bootstrap-icons";
+import { Save, Trash, Upload } from "react-bootstrap-icons";
 import AnonymizationToggle from "../AnonymizationToggle.jsx";
 import FileUploader from "../common/FileUploader.jsx";
 import MyResearchReport from "../utils/MadeReport.jsx";
@@ -25,8 +25,11 @@ const ResearchCard = ({
   filters,
   selectedMetric,
   hasComparison,
+  showUrlField = false,
+  url,
+  setUrl,
+  handleWikipediaUrlSubmit,
 }) => {
-
   return (
     <Card className="research-card">
       <Form>
@@ -35,7 +38,6 @@ const ResearchCard = ({
             <h4 className="fw-bold">New Research</h4>
           </Col>
           <Col className="text-end">
-
             {showDownload && (
               <MyResearchReport
                 hasComparison={hasComparison}
@@ -43,8 +45,8 @@ const ResearchCard = ({
                 name={name}
                 description={description}
                 params={filters.buildNetworkFilterParams()}
-                setShowDownload={setShowDownload} 
-                />
+                setShowDownload={setShowDownload}
+              />
             )}
             {networkData && (
               <Button
@@ -85,6 +87,7 @@ const ResearchCard = ({
                 className="research-input"
               />
             </Form.Group>
+
             <div className="mx-2 my-4 align-items-center">
               <AnonymizationToggle
                 isAnonymized={isAnonymized}
@@ -92,18 +95,45 @@ const ResearchCard = ({
               />
             </div>
           </Col>
+
           <Col
             lg={4}
             md={12}
-            className="d-flex flex-column align-items-center mt-3 mt-lg-0"
+            className="d-flex flex-column align-items-center justify-content-center"
           >
-            <FileUploader
-              inputKey={inputKey}
-              fileInputRef={fileInputRef}
-              handleUploadClick={handleUploadClick}
-              handleFileChange={handleFileChange}
-              message={message}
-            />
+            {showUrlField ? (
+              <div className="text-center w-100">
+                <Form.Label className="research-label fw-bold">
+                  Research URL:
+                </Form.Label>
+                <Form.Control
+                  type="text"
+                  value={url}
+                  placeholder="Paste Wikipedia link"
+                  onChange={(e) => setUrl(e.target.value)}
+                  className="research-input mb-3"
+                  style={{ maxWidth: "300px", margin: "0 auto" }}
+                />
+             <div className="d-flex justify-content-center">
+                  <Button
+                    className="upload-btn"
+                    // onClick={() => toast.success("URL saved!")}
+                    onClick={handleWikipediaUrlSubmit}
+
+                  >
+                    <Upload size={16} /> Upload URL
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <FileUploader
+                inputKey={inputKey}
+                fileInputRef={fileInputRef}
+                handleUploadClick={handleUploadClick}
+                handleFileChange={handleFileChange}
+                message={message}
+              />
+            )}
           </Col>
         </Row>
       </Form>

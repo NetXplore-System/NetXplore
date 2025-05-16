@@ -27,6 +27,7 @@ from typing import List, Optional
 from models import User, Research, ResearchFilter, NetworkAnalysis, Message, Comparisons
 from utils import extract_messages, anonymize_name, clean_filter_value
 import uuid
+from wikipedia import router as wikipedia_router
 
 
 load_dotenv()
@@ -60,6 +61,7 @@ app.add_middleware(
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
+app.include_router(wikipedia_router)
 
 class UserCreate(BaseModel):
     name: str
