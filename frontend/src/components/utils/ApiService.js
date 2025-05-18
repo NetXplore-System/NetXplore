@@ -1,5 +1,4 @@
 export const BASE_URL = import.meta.env.VITE_API_URL;
-// export const BASE_URL = "http://localhost:8001";
 
 
 export const uploadFile = async (file) => {
@@ -16,15 +15,13 @@ export const uploadFile = async (file) => {
     });
 
     if (!response.ok) {
-      const { detail } = await response.json();
-      console.error("Error response:", detail);
-      throw new Error(`${detail || "An error occurred during the upload."}`);
+      throw new Error(response.statusText);
     }
 
     return await response.json();
   } catch (error) {
     console.error("Error uploading file:", error);
-    throw new Error("An error occurred during the upload.");
+    throw Error(error || "An error occurred during the upload.");
   }
 };
 
@@ -35,15 +32,13 @@ export const deleteFile = async (filename) => {
     });
 
     if (!response.ok) {
-      const { detail } = await response.json();
-      console.error("Error response:", detail);
-      throw new Error(detail || "An error occurred during the delete operation.");
+      throw new Error(response.statusText);
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error("Error deleting file:", error);
-    throw new Error("An error occurred during the delete operation.");
+    throw new Error(error || "An error occurred during the delete operation.");
   }
 };
 
@@ -57,15 +52,13 @@ export const saveFormToDB = async (formData) => {
       body: JSON.stringify(formData),
     });
     if (!response.ok) {
-      const { detail } = await response.json();
-      console.error("Error response:", detail);
-      throw new Error(detail || "An error occurred while saving the form.");
+      throw new Error(response.statusText);
     }
 
     return await response.json();
   } catch (error) {
     console.error("Error saving form:", error);
-    throw new Error("An error occurred while saving the form.");
+    throw new Error(error || "An error occurred while saving the form.");
   }
 };
 
@@ -77,14 +70,30 @@ export const analyzeNetwork = async (filename, params) => {
     const response = await fetch(url);
 
     if (!response.ok) {
-      const { detail } = await response.json();
-      console.error("Error response:", detail);
-      throw new Error(detail || "An error occurred during network analysis.");
+      throw new Error(response.statusText);
     }
     return await response.json();
   } catch (error) {
     console.error("Error during network analysis:", error);
-    throw new Error("An error occurred during network analysis.");
+    throw new Error(error || "An error occurred during network analysis.");
+  }
+};
+
+export const analyzeDecayingNetwork = async (filename, params) => {
+  try {
+    const url = `${BASE_URL}/analyze/decaying-network/${filename}?${params.toString()}`;
+    console.log("Request URL:", url);
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(response.statusText);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error during decaying network analysis:", error);
+    throw new Error(error || "An error occurred during decaying network analysis.");
   }
 };
 
@@ -95,15 +104,15 @@ export const detectCommunities = async (filename, params) => {
     console.log("Community detection URL:", url);
 
     const response = await fetch(url);
+
     if (!response.ok) {
-      const { detail } = await response.json();
-      console.error("Error response:", detail);
-      throw new Error(detail || "An error occurred during community detection.");
+      throw new Error(response.statusText);
     }
+
     return await response.json();
   } catch (error) {
     console.error("Error during community detection:", error);
-    throw new Error("An error occurred during community detection.");
+    throw new Error(error || "An error occurred during community detection.");
   }
 };
 
@@ -112,14 +121,12 @@ export const compareNetworks = async (params) => {
     const url = `${BASE_URL}/analyze/compare-networks?${params.toString()}`;
     const response = await fetch(url);
     if (!response.ok) {
-      const { detail } = await response.json();
-      console.error("Error response:", detail);
-      throw new Error(detail || "An error occurred during network comparisons.");
+      throw new Error(response.statusText);
     }
     return await response.json();
   } catch (error) {
     console.error("Error during network comparisons:", error);
-    throw new Error("An error occurred during network comparisons");
+    throw new Error(error || "An error occurred during network comparisons.");
   }
 };
 
@@ -128,9 +135,7 @@ export const analyzeWikipediaNetwork = async (filename, params) => {
     const url = `${BASE_URL}/analyze/wikipedia/${filename}?${params.toString()}`;
     const response = await fetch(url);
     if (!response.ok) {
-      const { detail } = await response.json();
-      console.error("Error response:", detail);
-      throw new Error(detail || "An error occurred during Wikipedia network analysis.");
+     throw new Error(response.statusText);
     }
     return await response.json();
   } catch (error) {

@@ -21,7 +21,6 @@ import {
 import { ForceGraph2D } from "react-force-graph";
 import "./Home.css";
 import { AlertBox, GraphContainer } from "./Form.style.js";
-import AnonymizationToggle from "../components/AnonymizationToggle.jsx";
 import WikipediaDataFetcher from "../components/WikipediaDataFetcher.jsx";
 
 const HomeW = () => {
@@ -132,7 +131,7 @@ const HomeW = () => {
     }
     const formData = new FormData();
     formData.append("file", selectedFile);
-    fetch("http://localhost:8001/upload", {
+    fetch(`${import.meta.env.VITE_API_URL}/upload`, {
       method: "POST",
       body: formData,
       headers: {
@@ -156,11 +155,11 @@ const HomeW = () => {
     }
     try {
       const response = await fetch(
-        `http://localhost:8001/delete/${uploadedFile}`,
+        `${import.meta.env.VITE_API_URL}/delete/${uploadedFile}`,
         { method: "DELETE" }
       );
       if (wikiUrl) {
-        
+
         setWikiUrl("");
         setNetworkData(null);
         setOriginalNetworkData(null);
@@ -199,8 +198,8 @@ const HomeW = () => {
 
     if (wikiUrl) {
       console.log("Applying filters on Wikipedia data");
-      setMessage("Applying filters to Wikipedia data..."); 
-      
+      setMessage("Applying filters to Wikipedia data...");
+
       if (
         originalNetworkData &&
         originalNetworkData.nodes &&
@@ -209,17 +208,17 @@ const HomeW = () => {
         setNetworkData({ ...originalNetworkData });
         setMessage("Filters applied to Wikipedia data successfully!");
       } else {
-        setMessage("No valid Wikipedia data available."); 
+        setMessage("No valid Wikipedia data available.");
       }
     }
     else {
-        if (!uploadedFile) {
-          setMessage("No file selected for analysis.");
-          console.log("No file available for network analysis.");
-          return;
-        }
-        
-      let url = `http://localhost:8001/analyze/network/${uploadedFile}`;
+      if (!uploadedFile) {
+        setMessage("No file selected for analysis.");
+        console.log("No file available for network analysis.");
+        return;
+      }
+
+      let url = `${import.meta.env.VITE_API_URL}/analyze/network/${uploadedFile}`;
       const params = new URLSearchParams();
 
       if (startDate) params.append("start_date", startDate);
@@ -258,12 +257,12 @@ const HomeW = () => {
             const processedData = {
               nodes: data.nodes.map((node) => ({
                 ...node,
-                id: String(node.id), 
+                id: String(node.id),
               })),
               links: data.links.map((link) => ({
                 ...link,
-                source: String(link.source), 
-                target: String(link.target), 
+                source: String(link.source),
+                target: String(link.target),
               })),
             };
 
@@ -299,7 +298,7 @@ const HomeW = () => {
       end_date: endDate,
       message_limit: messageLimit,
     };
-    fetch("http://localhost:8001/save-form", {
+    fetch(`${import.meta.env.VITE_API_URL}/save-form`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -421,7 +420,7 @@ const HomeW = () => {
       });
     });
 
-    return maxDistance === Infinity ? 0 : maxDistance; 
+    return maxDistance === Infinity ? 0 : maxDistance;
   };
 
   const handleDiameterMetric = () => {
@@ -434,15 +433,15 @@ const HomeW = () => {
 
   const filteredNodes = networkData
     ? networkData.nodes.filter((node) =>
-        node.id.toLowerCase().includes(filter.toLowerCase())
-      )
+      node.id.toLowerCase().includes(filter.toLowerCase())
+    )
     : [];
   const filteredLinks = networkData
     ? networkData.links.filter(
-        (link) =>
-          filteredNodes.some((node) => node.id === link.source) &&
-          filteredNodes.some((node) => node.id === link.target)
-      )
+      (link) =>
+        filteredNodes.some((node) => node.id === link.source) &&
+        filteredNodes.some((node) => node.id === link.target)
+    )
     : [];
 
   const handleStrongConnections = () => {
@@ -531,10 +530,14 @@ const HomeW = () => {
                 />
               </Form.Group>
               <div>
-                <AnonymizationToggle
-                  isAnonymized={isAnonymized}
-                  setIsAnonymized={setIsAnonymized}
-                />
+                <div className="custom-switch">
+                  <label>Enable Anonymization</label>
+                  <input
+                    type="checkbox"
+                    checked={isAnonymized}
+                    onChange={() => setIsAnonymized((prev) => !prev)}
+                  />
+                </div>
               </div>
             </Col>
             <Col
@@ -547,7 +550,7 @@ const HomeW = () => {
                   console.log("Wikipedia Data received in HomeW:", data);
                   setNetworkData(data);
                   setOriginalNetworkData(data);
-                  setUploadedFile(""); 
+                  setUploadedFile("");
                 }}
                 setWikiUrl={setWikiUrl}
               />
@@ -818,9 +821,8 @@ const HomeW = () => {
               <Col
                 lg={3}
                 md={12}
-                className={`mb-3 metrics-panel ${
-                  showMetrics ? "open" : "closed"
-                }`}
+                className={`mb-3 metrics-panel ${showMetrics ? "open" : "closed"
+                  }`}
               >
                 <Card className="metrics-card">
                   <h4 className="fw-bold d-flex justify-content-between align-items-center">
@@ -842,9 +844,8 @@ const HomeW = () => {
                       {graphMetrics.map((metric) => (
                         <Button
                           key={metric}
-                          className={`metrics-item ${
-                            selectedMetric === metric ? "active" : ""
-                          }`}
+                          className={`metrics-item ${selectedMetric === metric ? "active" : ""
+                            }`}
                           onClick={() => {
                             handleToggleMetric(metric);
                             if (metric === "Density") handleDensityMetric();
@@ -856,9 +857,8 @@ const HomeW = () => {
                       ))}
 
                       <Button
-                        className={`metrics-item ${
-                          strongConnectionsActive ? "active" : ""
-                        }`}
+                        className={`metrics-item ${strongConnectionsActive ? "active" : ""
+                          }`}
                         onClick={handleStrongConnections}
                       >
                         {strongConnectionsActive
@@ -955,9 +955,9 @@ const HomeW = () => {
                       />
                     )} */}
                   {networkData &&
-                  networkData.nodes &&
-                  networkData.links &&
-                  networkData.nodes.length > 0 ? (
+                    networkData.nodes &&
+                    networkData.links &&
+                    networkData.nodes.length > 0 ? (
                     <GraphContainer>
                       <ForceGraph2D
                         ref={forceGraphRef}

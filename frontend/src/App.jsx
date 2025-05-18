@@ -1,5 +1,5 @@
 import { useState } from "react";
-import {  Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 import Home from "./pages/Home.jsx";
 import SignIn from "./pages/SignIn.jsx";
 import SignUp from "./pages/SignUp.jsx";
@@ -21,12 +21,12 @@ import { Tooltip } from 'react-tooltip';
 function AppContent() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
-  
+
   const isAuthPage = location.pathname === '/sign-in' || location.pathname === '/' || location.pathname === '/sign-up';
-  
+
   return (
     <>
-    <Tooltip id="my-tooltip" place="top" type="dark" effect="solid" />
+      <Tooltip id="my-tooltip" place="top" type="dark" effect="solid" />
       <Toaster
         position="top-center"
         reverseOrder={false}
@@ -44,18 +44,18 @@ function AppContent() {
             iconTheme: {
               primary: 'green',
               secondary: 'black',
-            },  
+            },
           },
         }}
       />
-      
+
       {!isAuthPage && (
         <>
           <Menu isOpen={isOpen} setIsOpen={setIsOpen} />
           <Header isOpen={isOpen} />
         </>
       )}
-      
+
       <div className={`main-content ${isOpen ? "expanded" : "collapsed"}`}>
         <Routes>
           <Route path="/" element={<SignIn />} />

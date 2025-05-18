@@ -1,12 +1,13 @@
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Container, Row, Col, Button, Card } from "react-bootstrap";
 import {
-  ChevronDown,
-  ChevronUp,
-  ChevronLeft,
-  ChevronRight,
-  FileBarGraph,
-} from "react-bootstrap-icons";
+  BsChevronLeft,
+  BsChevronRight,
+  BsFileBarGraph,
+} from "react-icons/bs";
+import { FaBalanceScale } from "react-icons/fa";
+import { FiRefreshCw } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import { ForceGraph2D } from "react-force-graph";
 import "./Home.css";
@@ -31,9 +32,12 @@ import {
   analyzeNetwork,
   detectCommunities,
   compareNetworks,
-} from "../components/utils/ApiService.jsx";
+  analyzeDecayingNetwork,
+} from "../components/utils/ApiService.js";
 import { useDispatch, useSelector } from "react-redux";
 import { addToMain, clearImages } from "../redux/images/imagesSlice.js";
+import { FaCamera } from "react-icons/fa";
+import Modal from "../components/utils/Modal.jsx";
 
 
 
@@ -83,6 +87,13 @@ const Home = () => {
   const [showOnlyIntraCommunityLinks, setShowOnlyIntraCommunityLinks] =
     useState(false);
   const [isDirectedGraph, setIsDirectedGraph] = useState(false);
+  const [openModal, setOpenModal] = useState(false);
+  const [normalized, setNormalized] = useState({
+    isNormalized: false,
+    data: null
+  });
+  const [userWeightSums, setUserWeightSums] = useState({});
+
 
   const [communityMap, setCommunityMap] = useState({});
   const {
@@ -136,6 +147,8 @@ const Home = () => {
     setActiveUsers,
     selectedUsers,
     setSelectedUsers,
+    weightCalculationDepth,
+    setWeightCalculationDepth,
     isAnonymized,
     setIsAnonymized,
     showFilters,
@@ -258,6 +271,12 @@ const Home = () => {
     }
     if (networkData) {
       calculateNetworkStats();
+      networkData.links && !normalized.isNormalized && setUserWeightSums(
+        networkData.links.reduce((acc, link) => {
+          acc[link.target] = (acc[link.target] || 0) + link.weight;
+          return acc;
+        }, {})
+      );
     }
     if (
       shouldFetchCommunities &&
@@ -302,10 +321,10 @@ const Home = () => {
           if (data.message) {
             setUploadedFile(data.filename);
           }
-          return data.message || "File uploaded successfully!";
+          return data?.message || "File uploaded successfully!";
         },
         error: (error) => {
-          return error || "Error uploading file.";
+          return error?.message || "Error uploading file.";
         },
       }
     );
@@ -337,7 +356,7 @@ const Home = () => {
           } else {
             toast.error("Error: Could not delete the file.");
           }
-          return data.message || "File deleted successfully!";
+          return data?.message || "File deleted successfully!";
         },
         error: (error) => {
           console.error("Error deleting file:", error);
@@ -358,8 +377,10 @@ const Home = () => {
 
     const params = filters.buildNetworkFilterParams();
 
+    const correctFunction = isDirectedGraph ? analyzeDecayingNetwork : analyzeNetwork;
+
     toast.promise(
-      analyzeNetwork(uploadedFile, params),
+      correctFunction(uploadedFile, params),
       {
         loading: "Analyzing network...",
         success: (data) => {
@@ -368,6 +389,7 @@ const Home = () => {
             setNetworkData(data);
             setOriginalNetworkData(data);
             setShouldFetchCommunities(true);
+            isDirectedGraph && setNormalized({ isNormalized: false, data: null });
             return "Analysis completed successfully!";
           } else {
             return "No data returned from server.";
@@ -380,16 +402,45 @@ const Home = () => {
     )
   };
 
+  const getSumWeightOfUser = (user) => {
+    return userWeightSums[user] || 0;
+  };
+
+  const handleNormalizeGraphData = (e) => {
+    e.stopPropagation()
+    setNetworkData(data => {
+      const newData = {
+        ...data,
+        links: normalized.isNormalized ? normalized.data.map((n) => ({ ...n })) : data.links.map((n) => ({ ...n, weight: +(n.weight / getSumWeightOfUser(n.target)).toFixed(1) }))
+      };
+      normalized.isNormalized ? setNormalized({
+        isNormalized: false,
+        data: null
+      }) : setNormalized({
+        isNormalized: true,
+        data: data.links.map((n) => ({ ...n }))
+      });
+      return newData;
+    });
+    setOriginalNetworkData(data => {
+      const newData = {
+        ...data,
+        links: normalized.isNormalized ? normalized.data.map((n) => ({ ...n })) : data.links.map((n) => ({ ...n, weight: 1 }))
+      };
+      return newData;
+    });
+  };
+
   const handleSaveToDB = () => {
     const params = filters.buildNetworkFilterParams();
     const id = currentUser?.id;
     if (!name || !description || !uploadedFile || !params || !id) {
+      if (!id) { setOpenModal(true); return; }
       let msg = "Please fill in all required fields.(";
       if (!name) msg += " Name is required.";
       if (!description) msg += " Description is required.";
       if (!uploadedFile) msg += " File is required.";
       if (!params) msg += " Filters are required.";
-      if (!id) msg += " Login is required.";
       msg += ")";
       toast.error(msg);
       return;
@@ -402,10 +453,10 @@ const Home = () => {
       {
         loading: "Saving...",
         success: (data) => {
-          return data?.detail || "Research saved successfully!";
+          return data?.message || "Research saved successfully!";
         },
         error: (error) => {
-          return error?.detail || "Error saving research.";
+          return error?.message || "Error saving research.";
         },
       }
     )
@@ -1438,7 +1489,21 @@ const Home = () => {
 
   return (
     <Container fluid className="upload-section">
-      {/* Research Upload */}
+      {
+        openModal && (
+          <Modal>
+            <div className="text-center p-4">
+              <h5 className="mb-3">You need to sign in to save your research!</h5>
+              <p className="mb-4">
+                Please <Link to="/sign-in">sign in</Link> to continue.
+              </p>
+              <Button variant="primary" onClick={() => setOpenModal(false)}>
+                Close
+              </Button>
+            </div>
+          </Modal>
+        )
+      }
       <ResearchCard
         filters={filters}
         name={name}
@@ -1459,6 +1524,10 @@ const Home = () => {
         networkData={networkData ? true : false}
         selectedMetric={selectedMetric}
         hasComparison={comparisonNetworkData.length ? true : false}
+        isDirectedGraph={isDirectedGraph}
+        setIsDirectedGraph={setIsDirectedGraph}
+        weightCalculationDepth={weightCalculationDepth}
+        setWeightCalculationDepth={setWeightCalculationDepth}
       />
 
       {uploadedFile && (
@@ -1524,9 +1593,9 @@ const Home = () => {
                       onClick={() => setShowMetrics(!showMetrics)}
                     >
                       {showMetrics ? (
-                        <ChevronLeft size={20} />
+                        <BsChevronLeft size={20} />
                       ) : (
-                        <ChevronRight size={20} />
+                        <BsChevronRight size={20} />
                       )}
                     </Button>
                   </h4>
@@ -1544,7 +1613,7 @@ const Home = () => {
                         onClick={() => setShowDataTable(!showDataTable)}
                         variant={showDataTable ? "primary" : "outline-primary"}
                       >
-                        <FileBarGraph className="me-1" /> Explore Data Table
+                        <BsFileBarGraph className="me-1" /> Explore Data Table
                       </Button>
 
                       <Button
@@ -1635,7 +1704,20 @@ const Home = () => {
                   <div className="graph-placeholder">
                     {networkData && (
                       <GraphContainer>
-                        <button className="graph-button" onClick={(e) => handleScreenshot(e, 0)}>Take Screenshot</button>
+                        {isDirectedGraph && <button
+                          className="graph-button-2"
+                          data-tooltip-id="my-tooltip"
+                          data-tooltip-content={normalized.isNormalized ? "Restore Original Weights" : "Normalize Weights"}
+                          data-tooltip-place="top"
+                          onClick={handleNormalizeGraphData}>
+                          {normalized.isNormalized ? <FiRefreshCw /> : <FaBalanceScale />}
+                        </button>}
+                        <button
+                          className="graph-button"
+                          data-tooltip-id="my-tooltip"
+                          data-tooltip-content="Add screenshot to report"
+                          data-tooltip-place="top"
+                          onClick={(e) => handleScreenshot(e, 0)}><FaCamera /></button>
                         <NetworkGraph
                           networkData={networkData}
                           filteredNodes={filteredNodes}

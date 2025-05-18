@@ -106,7 +106,7 @@ const MadeReport = ({ selectedMetric, name, params, setShowDownload, hasComparis
                         id="conclusion"
                         value={research.conclusion}
                         onChange={(e) => setResearch({ ...research, conclusion: e.target.value })}
-                        placeholder="Enter your research conclusion or findings"
+                        placeholder="Enter your research conclusion or findings. (is required)"
                     />
                 </div>
 

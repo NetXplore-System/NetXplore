@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "react-bootstrap/Button";
 import Form from "react-bootstrap/Form";
@@ -35,7 +35,7 @@ const EditProfile = () => {
         const formData = new FormData();
         formData.append("file", file);
 
-        const response = await fetch("http://localhost:8000/upload-avatar", {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/upload-avatar`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -56,7 +56,7 @@ const EditProfile = () => {
     }
 
     try {
-      const response = await fetch(`http://localhost:8001/users/${currentUser.id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/users/${currentUser.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

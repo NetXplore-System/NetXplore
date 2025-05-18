@@ -1,7 +1,6 @@
 import React from "react";
 import { Row, Col, Card, Button, Form } from "react-bootstrap";
 import { Save, Trash, Upload } from "react-bootstrap-icons";
-import AnonymizationToggle from "../AnonymizationToggle.jsx";
 import FileUploader from "../common/FileUploader.jsx";
 import MyResearchReport from "../utils/MadeReport.jsx";
 
@@ -29,6 +28,9 @@ const ResearchCard = ({
   url,
   setUrl,
   handleWikipediaUrlSubmit,
+  setWeightCalculationDepth,
+  isDirectedGraph,
+  setIsDirectedGraph
 }) => {
   return (
     <Card className="research-card">
@@ -88,11 +90,34 @@ const ResearchCard = ({
               />
             </Form.Group>
 
-            <div className="mx-2 my-4 align-items-center">
-              <AnonymizationToggle
-                isAnonymized={isAnonymized}
-                setIsAnonymized={setIsAnonymized}
-              />
+            <div className="mx-2 my-4 d-flex justify-content-start align-items-center gap-2">
+              <div className="custom-switch">
+                <label>Enable Anonymization</label>
+                <input
+                  type="checkbox"
+                  checked={isAnonymized}
+                  onChange={() => setIsAnonymized((prev) => !prev)}
+                />
+              </div>
+              <div className="custom-switch">
+                <label>Directed Graph</label>
+                <input
+                  type="checkbox"
+                  checked={isDirectedGraph}
+                  onChange={() => setIsDirectedGraph((prev) => !prev)}
+                />
+              </div>
+              {isDirectedGraph &&
+                <Form.Select
+                  aria-placeholder="Select depth"
+                  style={{ maxWidth: "200px" }}
+                  aria-label="Select the number of previous messages for weight calculation"
+                  onChange={e => setWeightCalculationDepth(e.target.value)}
+                >
+                  <option value="3">Consider 3 previous messages</option>
+                  <option value="2">Consider 2 previous messages</option>
+                </Form.Select>
+              }
             </div>
           </Col>
 
@@ -114,7 +139,7 @@ const ResearchCard = ({
                   className="research-input mb-3"
                   style={{ maxWidth: "300px", margin: "0 auto" }}
                 />
-             <div className="d-flex justify-content-center">
+                <div className="d-flex justify-content-center">
                   <Button
                     className="upload-btn"
                     // onClick={() => toast.success("URL saved!")}

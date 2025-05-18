@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { BASE_URL } from "../components/utils/ApiService.jsx";
+import { BASE_URL } from "../components/utils/ApiService.js";
 
 const useComparison = (originalNetworkData, uploadedFile) => {
   const [comparisonCount, setComparisonCount] = useState(1);
@@ -47,8 +47,17 @@ const useComparison = (originalNetworkData, uploadedFile) => {
         body: formData,
         headers: { Accept: "application/json" },
       });
-
+      if (!response.ok) {
+        console.error(`Error: ${response.status} - ${response.statusText}`);
+        return {
+          success: false,
+          message: `Server error: ${response.statusText}`,
+        };
+      }
+      console.log(response);
+      
       const data = await response.json();
+      console.log(response, data);
 
       if (data.filename) {
         const updatedData = [...comparisonData];

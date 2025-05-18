@@ -4,14 +4,135 @@ from collections import defaultdict
 import networkx as nx
 import re
 from fastapi.responses import JSONResponse  # type: ignore
+from collections import deque, defaultdict
+from typing import List, Tuple, Dict
 
 
 timestamp_pattern = r"\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4},?\s\d{1,2}:\d{2}(?::\d{2})?\b"
 spam_messages = ["This message was deleted","צורף/ה","הצטרף/ה לקבוצה באמצעות קישור ההזמנה","תמונת הקבוצה השתנתה על ידי","תיאור הקבוצה שונה על ידי","GIF הושמט","סטיקר הושמט","כרטיס איש קשר הושמט","השמע הושמט","סרטון הווידאו הושמט","הוחלף למספר חדש. הקש/י כדי לשלוח הודעה או להוסיף מספר חדש.","שם הקבוצה השתנה על ידי","צירפת את", "הצטרף/ה", "צירף/ה",  "התמונה הושמטה", "הודעה זו נמחקה","צורפת על ידי" , "הקבוצה נוצרה על ידי", "ההודעה נמחקה על ידי", "ההודעות והשיחות מוצפנות מקצה לקצה. לאף אחד מחוץ לצ'אט הזה, גם לא ל-WhatsApp, אין אפשרות לקרוא אותן ולהאזין להן.", "הצטרפת לקבוצה דרך קישור הזמנה של הקבוצה"]
 
+def detect_date_format(first_line: str) -> list[str]:
+    if re.search(r"\[\d{1,2}[.]\d{1,2}[.]\d{4},\s\d{2}:\d{2}:\d{2}\]", first_line):
+        # פורמט עברי עם סוגריים מרובעים
+        return ["%d.%m.%Y, %H:%M:%S", "%d.%m.%Y, %H:%M"]
+    elif re.search(r"\d{1,2}/\d{1,2}/\d{2,4},\s\d{1,2}:\d{2}", first_line):
+        # פורמט אנגלי
+        return ["%m/%d/%y, %H:%M", "%m/%d/%Y, %H:%M"]
+    else:
+        # פורמט לא מזוהה, נ fallback
+        return ["%d/%m/%y, %H:%M", "%d.%m.%Y, %H:%M"]
+
+def parse_date_time(date_str: str | None, time_str: str | None) -> datetime | None:
+    if not date_str:
+        return None
+    try:
+        if time_str:
+            return datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M:%S")
+        else:
+            return datetime.strptime(f"{date_str} 00:00:00", "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        raise ValueError("Invalid date/time format. Expected format: YYYY-MM-DD and HH:MM:SS")
 
 
-async def extract_messages(
+def apply_comparison_filters(network_data, node_filter, min_weight):
+    """Filter network by node filter and minimum weight."""
+    if not network_data or "nodes" not in network_data or "links" not in network_data:
+        return network_data
+
+    filtered_nodes = []
+    if node_filter:
+        filtered_nodes = [
+            node for node in network_data["nodes"]
+            if node_filter.lower() in node["id"].lower()
+        ]
+    else:
+        filtered_nodes = network_data["nodes"]
+
+    node_ids = {node["id"] for node in filtered_nodes}
+
+    filtered_links = [
+        link for link in network_data["links"]
+        if (link["weight"] >= min_weight and
+            (get_node_id(link["source"]) in node_ids) and
+            (get_node_id(link["target"]) in node_ids))
+    ]
+
+    return {"nodes": filtered_nodes, "links": filtered_links}
+
+
+def get_node_id(node_ref):
+    """Get node ID whether it's a string or an object."""
+    if isinstance(node_ref, dict) and "id" in node_ref:
+        return node_ref["id"]
+    return node_ref
+
+
+def find_common_nodes(original_data, comparison_data):
+    """Find common nodes between two networks."""
+    original_ids = {node["id"] for node in original_data["nodes"]}
+    comparison_ids = {node["id"] for node in comparison_data["nodes"]}
+    return original_ids.intersection(comparison_ids)
+
+
+def mark_common_nodes(network_data, common_node_ids):
+    """Mark common nodes in a network."""
+    for node in network_data["nodes"]:
+        node["isCommon"] = node["id"] in common_node_ids
+    return network_data
+
+
+def get_network_metrics(original_data, comparison_data, metrics_list):
+    """Calculate network metrics for comparison."""
+    if not metrics_list:
+        return {}
+
+    metrics_names = [m.strip() for m in metrics_list.split(",")]
+    results = {}
+
+    results["node_count"] = {
+        "original": len(original_data["nodes"]),
+        "comparison": len(comparison_data["nodes"]),
+        "difference": len(comparison_data["nodes"]) - len(original_data["nodes"]),
+        "percent_change": (
+            ((len(comparison_data["nodes"]) - len(original_data["nodes"])) / len(original_data["nodes"])) * 100
+            if len(original_data["nodes"]) > 0 else 0
+        )
+    }
+
+    results["link_count"] = {
+        "original": len(original_data["links"]),
+        "comparison": len(comparison_data["links"]),
+        "difference": len(comparison_data["links"]) - len(original_data["links"]),
+        "percent_change": (
+            ((len(comparison_data["links"]) - len(original_data["links"])) / len(original_data["links"])) * 100
+            if len(original_data["links"]) > 0 else 0
+        )
+    }
+
+    return results
+
+def calculate_sequential_weights(
+    sequence: List[Tuple[str, str]],
+    n_prev: int = 3
+) -> Dict[Tuple[str, str], float]:
+    weight_schemes = {2: [0.7, 0.3], 3: [0.5, 0.3, 0.2]}
+    weights = weight_schemes[n_prev]
+    last = deque(maxlen=n_prev)
+    edge_weights = defaultdict(float)
+
+    for sender, _ in sequence:
+        for idx, prior in enumerate(reversed(last)):
+            if prior != sender:
+                # **no sorting**: (prior → sender) keeps orientation
+                edge_weights[(prior, sender)] += weights[idx]
+        last.append(sender)
+
+    return dict(edge_weights)
+
+
+
+
+async def extract_data(
     lines: List[str],
     start_datetime: datetime | None,
     end_datetime: datetime | None,
@@ -26,7 +147,9 @@ async def extract_messages(
     selected_users: str,
     username: str,
     anonymize: bool,
-    date_formats: List[str]
+    date_formats: List[str],
+    for_decaying_network: bool = False  
+        
 ) -> List[Tuple[str, str]]:
 
     keyword_list = [kw.strip().lower() for kw in keywords.split(",")] if keywords else []
@@ -86,16 +209,8 @@ async def extract_messages(
             filtered_lines.append(current_message.strip())
 
 
-    print(f"🔹 Found {len(filtered_lines)} messages in the date range.")
-
-    if limit_type == "last":
-        selected_lines = filtered_lines[::-1]
-    else:
-        selected_lines = filtered_lines
-
-    print(f"🔹 Processing {len(selected_lines)} messages (Limit Type: {limit_type}) | extract_massages function")
-
-    for index, line in enumerate(selected_lines):
+    all_messages: List[Tuple[str, str]] = []
+    for index, line in enumerate(filtered_lines):
         try:
             match = re.search(timestamp_pattern, line)
             timestamp = match.group()
@@ -104,41 +219,64 @@ async def extract_messages(
             sender = sender.strip("~").replace("\u202a", "").strip()
             message_length = len(message_content)
             if (min_length and message_length < min_length) or (max_length and message_length > max_length):
-                print(f"🔹 Message length {message_length} is out of bounds ({min_length}, {max_length}) index: {index}")
                 continue
 
             if username and sender.lower() != username.lower():
-                print(f"🔹 Sender {sender} does not match username {username}. index: {index}")
                 continue
 
             if keywords and not any(kw in message_content.lower() for kw in keyword_list):
-                print(f"🔹 Message does not contain keywords: {message_content}. index: {index}")
                 continue
 
-            print(f"🔹 Sender: {sender}, Message: {message_content}")
-
-            user_message_count[sender] += 1
-            
-            if sender:
-                if anonymize:
-                    sender = anonymize_name(sender, anonymized_map)
-
-                nodes.add(sender)
-                if previous_sender and previous_sender != sender:
-                    edge = tuple(sorted([previous_sender, sender]))
-                    edges_counter[edge] += 1
-                previous_sender = sender
-                
-            messages.append((sender, message_content))
-            
-            if limit and sum(user_message_count.values()) >= limit:
-                print(f"🔹 Reached limit of {limit} messages")
-                break
+            all_messages.append((sender, message_content))
 
         except Exception as e:
             print(f"Error processing line: {line.strip()} - {e}")
             continue
+        
+        
+    if for_decaying_network:
+        if limit:
+            if limit_type == "last":
+                selected_messages = all_messages[-limit:]
+            else:
+                selected_messages = all_messages[:limit]
+        else:
+            if limit_type == "last":
+                selected_messages = all_messages[::-1]
+            else:
+                selected_messages = all_messages
+    else:
+        if limit:
+            if limit_type == "last":
+                all_messages = all_messages[::-1]
+                selected_messages = all_messages[-limit:]
+            else:
+                selected_messages = all_messages[:limit]
+        else:
+            if limit_type == "last":
+                selected_messages = all_messages[::-1]
+            else:
+                selected_messages = all_messages
+        
+    for line in selected_messages:
+        sender, message_content = line
+        user_message_count[sender] += 1
+            
+        if sender:
+            if anonymize:
+                sender = anonymize_name(sender, anonymized_map)
 
+            nodes.add(sender)
+            if previous_sender and previous_sender != sender:
+                edge = tuple(sorted([previous_sender, sender]))
+                edges_counter[edge] += 1
+            previous_sender = sender
+            
+        messages.append((sender, message_content))
+        
+    if for_decaying_network:
+        return messages
+    
     filtered_users = {
         user: count for user, count in user_message_count.items()
         if (not min_messages or count >= min_messages) and (not max_messages or count <= max_messages)
@@ -153,7 +291,7 @@ async def extract_messages(
                             if user.lower() in selected_user_list}
 
     messages = [msg for msg in messages if msg[0] in filtered_users]
-
+        
     filtered_nodes = set(filtered_users.keys())
     if anonymize:
         filtered_nodes = {anonymize_name(node, anonymized_map) for node in filtered_nodes}
@@ -246,7 +384,6 @@ def anonymize_name(name, anonymized_map):
     if name not in anonymized_map:
         anonymized_map[name] = f"User_{len(anonymized_map) + 1}"
     return anonymized_map[name]
-
 
 
 def clean_filter_value(key: str, value: Any):

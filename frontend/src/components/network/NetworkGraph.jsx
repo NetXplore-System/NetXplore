@@ -4,17 +4,17 @@ import PropTypes from "prop-types";
 
 const NetworkGraph = ({
   networkData,
-  filteredNodes,
-  filteredLinks,
+  filteredNodes = [],
+  filteredLinks = [],
   customizedNetworkData,
   selectedMetric,
-  highlightCentralNodes,
-  showMetrics,
-  visualizationSettings,
+  highlightCentralNodes = false,
+  showMetrics = true,
+  visualizationSettings = {},
   handleNodeClick,
-  networkWasRestored,
+  networkWasRestored = false,
   forceGraphRef,
-  isDirectedGraph,
+  isDirectedGraph = false,
 }) => {
   useEffect(() => {
     if (forceGraphRef.current) {
@@ -284,14 +284,6 @@ NetworkGraph.propTypes = {
   isDirectedGraph: PropTypes.bool,
 };
 
-NetworkGraph.defaultProps = {
-  filteredNodes: [],
-  filteredLinks: [],
-  highlightCentralNodes: false,
-  showMetrics: true,
-  visualizationSettings: {},
-  networkWasRestored: false,
-  isDirectedGraph: false,
-};
+
 
 export default NetworkGraph;

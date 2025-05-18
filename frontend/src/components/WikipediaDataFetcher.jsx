@@ -16,7 +16,7 @@ const WikipediaDataFetcher = ({ setNetworkData, setWikiUrl }) => {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:8001/fetch-wikipedia-data", {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/fetch-wikipedia-data`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: localWikiUrl }),

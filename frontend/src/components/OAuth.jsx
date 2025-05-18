@@ -1,23 +1,28 @@
-import React from "react";
+import { useState } from "react";
 import Button from "react-bootstrap/Button";
 import { GoogleAuthProvider, getAuth, signInWithPopup } from "firebase/auth";
 import { app } from "../firebase";
 import { useDispatch } from "react-redux";
 import { setUser } from "../redux/user/userSlice";
 import { useNavigate } from "react-router-dom";
+import { AiOutlineLoading } from "react-icons/ai";
+import { toast } from "react-hot-toast";
+
 
 const OAuth = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(null);
 
   const handleGoogleClick = async () => {
     try {
+      setLoading(true);
       const provider = new GoogleAuthProvider();
       const auth = getAuth(app);
 
       const result = await signInWithPopup(auth, provider);
 
-      const res = await fetch("http://localhost:8000/api/auth/google", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/google`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -38,7 +43,9 @@ const OAuth = () => {
       navigate("/profile");
     } catch (error) {
       console.error("Google Sign-In Error:", error.message);
-      alert("Failed to sign in with Google.");
+      toast.error(`${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -48,6 +55,7 @@ const OAuth = () => {
       className="w-100 mb-3"
       onClick={handleGoogleClick}
     >
+      {loading && <AiOutlineLoading className="spinner-icon"/>}
       Sign In with Google
     </Button>
   );

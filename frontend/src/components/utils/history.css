@@ -365,27 +365,55 @@
 .graph-button {
     position: absolute;
     top: 20px;
-    right: 20px;
+    left: 20px;
     z-index: 900;
-    background-color: #007bff;
-    color: white;
+    background-color: white;
+    color: #1a1e3c;
     border: none;
     border-radius: 5px;
     padding: 10px 20px;
     font-size: 14px;
     cursor: pointer;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    transition: background-color 0.3s ease;
+    transition: background-color 0.5s ease;
 }
 
 .graph-button:hover {
-    background-color: #0056b3;
+    background-color: #1a1e3c;
+    color: white;
 }
 
 .graph-button:active {
-    background-color: #003f7f;
+    background-color: #1a1e3c;
+    color: white;
 }
 
+
+.graph-button-2 {
+    position: absolute;
+    top: 20px;
+    left: 100px;
+    z-index: 900;
+    background-color: white;
+    color: #1a1e3c;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 20px;
+    font-size: 14px;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: background-color 0.5s ease;
+}
+
+.graph-button-2:hover {
+    background-color: #1a1e3c;
+    color: white;
+}
+
+.graph-button-2:active {
+    background-color: #1a1e3c;
+    color: white;
+}
 
 /* comparison page */
 .comparison-history {

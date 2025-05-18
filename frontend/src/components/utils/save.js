@@ -28,14 +28,14 @@ export const saveToDB = async (
         body: formData,
       }
     );
-
-    const data = await response.json();
-
-    if (response.ok) {
-      return (data?.detail || "Research saved successfully!");
-    } else {
-      throw new Error(data?.detail || "An error occurred while saving the research.");
+    if (!response.ok) {
+      const { detail } = await response.json();
+      console.error("Error response:", detail);
+      throw new Error(detail || "An error occurred while saving the research.");
     }
+
+    return "Research saved successfully!";
+
   } catch (error) {
     console.error("Save error:", error);
     throw new Error("An error occurred while saving the research.");

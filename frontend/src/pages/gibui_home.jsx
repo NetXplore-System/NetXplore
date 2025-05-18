@@ -21,7 +21,6 @@ import {
 import { ForceGraph2D } from "react-force-graph";
 import "./Home.css";
 import { AlertBox, GraphContainer } from "./Form.style.js";
-import AnonymizationToggle from "../components/AnonymizationToggle.jsx";
 import NetworkCustomizationToolbar from "../components/NetworkCustomizationToolbar.jsx";
 
 const Home = () => {
@@ -79,13 +78,13 @@ const Home = () => {
   const [nodeToRemove, setNodeToRemove] = useState(null);
   const [showRemoveNodeModal, setShowRemoveNodeModal] = useState(false);
   const [activityFilterEnabled, setActivityFilterEnabled] = useState(false);
-  const [activityThreshold, setActivityThreshold] = useState(2); 
+  const [activityThreshold, setActivityThreshold] = useState(2);
   const forceGraphRef = useRef(null);
   const [networkWasRestored, setNetworkWasRestored] = useState(false);
   const [shouldFetchCommunities, setShouldFetchCommunities] = useState(false);
   const [showOnlyIntraCommunityLinks, setShowOnlyIntraCommunityLinks] =
     useState(false);
-    const [communityMap, setCommunityMap] = useState({});
+  const [communityMap, setCommunityMap] = useState({});
 
 
   const [visualizationSettings, setVisualizationSettings] = useState({
@@ -220,7 +219,7 @@ const Home = () => {
     }
     const formData = new FormData();
     formData.append("file", selectedFile);
-    fetch("http://localhost:8001/upload", {
+    fetch(`${import.meta.env.VITE_API_URL}/upload`, {
       method: "POST",
       body: formData,
       headers: {
@@ -244,7 +243,7 @@ const Home = () => {
     }
     try {
       const response = await fetch(
-        `http://localhost:8001/delete/${uploadedFile}`,
+        `${import.meta.env.VITE_API_URL}/delete/${uploadedFile}`,
         { method: "DELETE" }
       );
       const data = await response.json();
@@ -283,7 +282,7 @@ const Home = () => {
     setNetworkWasRestored(false);
 
     const params = buildNetworkFilterParams();
-    const url = `http://localhost:8001/analyze/network/${uploadedFile}?${params.toString()}`;
+    const url = `${import.meta.env.VITE_API_URL}/analyze/network/${uploadedFile}?${params.toString()}`;
 
     console.log("Request URL:", url);
     fetch(url)
@@ -316,7 +315,7 @@ const Home = () => {
       end_date: endDate,
       message_limit: messageLimit,
     };
-    fetch("http://localhost:8001/save-form", {
+    fetch(`${import.meta.env.VITE_API_URL}/save-form`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -445,15 +444,15 @@ const Home = () => {
 
   const filteredNodes = networkData
     ? networkData.nodes.filter((node) =>
-        node.id.toLowerCase().includes(filter.toLowerCase())
-      )
+      node.id.toLowerCase().includes(filter.toLowerCase())
+    )
     : [];
   const filteredLinks = networkData
     ? networkData.links.filter(
-        (link) =>
-          filteredNodes.some((node) => node.id === link.source) &&
-          filteredNodes.some((node) => node.id === link.target)
-      )
+      (link) =>
+        filteredNodes.some((node) => node.id === link.source) &&
+        filteredNodes.some((node) => node.id === link.target)
+    )
     : [];
 
   const handleStrongConnections = () => {
@@ -501,7 +500,7 @@ const Home = () => {
     const formData = new FormData();
     formData.append("file", selectedFile);
 
-    fetch("http://localhost:8001/upload", {
+    fetch(`${import.meta.env.VITE_API_URL}/upload`, {
       method: "POST",
       body: formData,
       headers: { Accept: "application/json" },
@@ -533,9 +532,8 @@ const Home = () => {
     }
 
     const params = buildNetworkFilterParams();
-    const url = `http://localhost:8001/analyze/network/${
-      comparisonFile.filename
-    }?${params.toString()}`;
+    const url = `${import.meta.env.VITE_API_URL}/analyze/network/${comparisonFile.filename}?${params.toString()}`;
+
 
     console.log(`Analyzing comparison file ${index}: ${url}`);
     fetch(url)
@@ -604,15 +602,15 @@ const Home = () => {
 
     const nodeChangePercent = originalNodeCount
       ? (
-          ((comparisonNodeCount - originalNodeCount) / originalNodeCount) *
-          100
-        ).toFixed(2)
+        ((comparisonNodeCount - originalNodeCount) / originalNodeCount) *
+        100
+      ).toFixed(2)
       : 0;
     const linkChangePercent = originalLinkCount
       ? (
-          ((comparisonLinkCount - originalLinkCount) / originalLinkCount) *
-          100
-        ).toFixed(2)
+        ((comparisonLinkCount - originalLinkCount) / originalLinkCount) *
+        100
+      ).toFixed(2)
       : 0;
 
     const originalNodeIds = new Set(originalData.nodes.map((node) => node.id));
@@ -637,61 +635,61 @@ const Home = () => {
       commonNodesCount,
     };
   };
-  
+
   const fetchCommunityData = () => {
     if (!uploadedFile) {
       setMessage("No file selected for community detection.");
       return;
     }
-  
+
     const params = buildNetworkFilterParams();
     params.append("algorithm", "louvain");
-  
-    const url = `http://localhost:8001/analyze/communities/${uploadedFile}?${params.toString()}`;
-  
+
+    const url = `${import.meta.env.VITE_API_URL}/analyze/communities/${uploadedFile}?${params.toString()}`;
+
     console.log("Community detection URL:", url);
     fetch(url)
       .then((response) => response.json())
       .then((data) => {
         console.log("Community data returned from server:", data);
-  
+
         if (data.communities && data.nodes) {
           setCommunities(data.communities);
-  
+
           const newCommunityMap = {};
-  
+
           data.nodes.forEach((node) => {
             if (node.community !== undefined) {
               newCommunityMap[node.id.toString().trim()] = node.community;
             }
           });
-  
+
           console.log("CommunityMap:", newCommunityMap);
           setCommunityMap(newCommunityMap);
-  
+
           if (networkData && networkData.nodes) {
             const updatedNodes = networkData.nodes.map((node) => {
               const normalizedId = node.id.toString().trim();
               const community = newCommunityMap[normalizedId];
-  
+
               if (community !== undefined) {
                 console.log(`Assigning node ${node.id} to community ${community}`);
                 return { ...node, community };
               }
-  
+
               return node;
             });
-  
+
             setNetworkData({
               nodes: updatedNodes,
               links: networkData.links,
             });
-  
+
             setOriginalNetworkData({
               nodes: updatedNodes,
               links: networkData.links,
             });
-  
+
             setMessage(`Detected ${data.communities.length} communities in the network.`);
           }
         } else {
@@ -710,55 +708,55 @@ const Home = () => {
       setMessage("No file selected for community detection.");
       return;
     }
-  
+
     const params = buildNetworkFilterParams();
     params.append("algorithm", "louvain");
-  
-    const url = `http://localhost:8001/analyze/communities/${uploadedFile}?${params.toString()}`;
-  
+
+    const url = `${import.meta.env.VITE_API_URL}/analyze/communities/${uploadedFile}?${params.toString()}`;
+
     console.log("Community detection URL:", url);
     fetch(url)
       .then((response) => response.json())
       .then((data) => {
         console.log("Community data returned from server:", data);
-  
+
         if (data.communities && data.nodes) {
           setCommunities(data.communities);
-  
+
           const newCommunityMap = {};
-  
+
           data.nodes.forEach((node) => {
             if (node.community !== undefined) {
               newCommunityMap[node.id.toString().trim()] = node.community;
             }
           });
-  
+
           console.log("CommunityMap:", newCommunityMap);
           setCommunityMap(newCommunityMap);
-  
+
           if (networkData && networkData.nodes) {
             const updatedNodes = networkData.nodes.map((node) => {
               const normalizedId = node.id.toString().trim();
               const community = newCommunityMap[normalizedId];
-  
+
               if (community !== undefined) {
                 console.log(`Assigning node ${node.id} to community ${community}`);
                 return { ...node, community };
               }
-  
+
               return node;
             });
-  
+
             setNetworkData({
               nodes: updatedNodes,
               links: networkData.links,
             });
-  
+
             setOriginalNetworkData({
               nodes: updatedNodes,
               links: networkData.links,
             });
-  
+
             setMessage(`Detected ${data.communities.length} communities in the network.`);
           }
         } else {
@@ -770,8 +768,8 @@ const Home = () => {
         console.error("Error during community detection:", err);
       });
   };
-  
-  
+
+
   const handleNetworkCustomization = (settings) => {
     setVisualizationSettings(settings);
     console.log("Applying visualization settings:", settings);
@@ -806,7 +804,7 @@ const Home = () => {
         nodeColor =
           settings.communityColors?.[communityId] ??
           settings.customColors.communityColors[
-            communityId % settings.customColors.communityColors.length
+          communityId % settings.customColors.communityColors.length
           ];
       } else if (settings.colorBy === "degree") {
         const maxDegree = Math.max(
@@ -921,7 +919,7 @@ const Home = () => {
         comparisonParams.append("metrics", comparisonMetrics.join(","));
       }
       return fetch(
-        `http://localhost:8001/analyze/compare-networks?${comparisonParams.toString()}`
+        `${import.meta.env.VITE_API_URL}/analyze/compare-networks?${comparisonParams.toString()}`
       ).then((response) => response.json());
     });
     setMessage("Processing network comparison...");
@@ -1098,14 +1096,14 @@ const Home = () => {
             (selectedMetric === "PageRank Centrality"
               ? Math.max(10, node.pagerank * 500)
               : selectedMetric === "Eigenvector Centrality"
-              ? Math.max(10, node.eigenvector * 60)
-              : selectedMetric === "Closeness Centrality"
-              ? Math.max(10, node.closeness * 50)
-              : selectedMetric === "Betweenness Centrality"
-              ? Math.max(10, node.betweenness * 80)
-              : selectedMetric === "Degree Centrality"
-              ? Math.max(10, node.degree * 80)
-              : 20);
+                ? Math.max(10, node.eigenvector * 60)
+                : selectedMetric === "Closeness Centrality"
+                  ? Math.max(10, node.closeness * 50)
+                  : selectedMetric === "Betweenness Centrality"
+                    ? Math.max(10, node.betweenness * 80)
+                    : selectedMetric === "Degree Centrality"
+                      ? Math.max(10, node.degree * 80)
+                      : 20);
 
           ctx.save();
           ctx.beginPath();
@@ -1416,32 +1414,32 @@ const Home = () => {
 
   const handleToggleCommunitiesFilter = () => {
     if (!networkData || !originalNetworkData) return;
-  
+
 
     if (!communityMap || Object.keys(communityMap).length === 0) {
       setMessage("Community data not found. Detecting communities...");
-      detectAndApplyCommunityData(); 
-      return; 
+      detectAndApplyCommunityData();
+      return;
     }
 
     const newState = !showOnlyIntraCommunityLinks;
     setShowOnlyIntraCommunityLinks(newState);
-  
+
     if (newState) {
       const filteredLinks = networkData.links.filter((link) => {
         const sourceId = typeof link.source === "object" ? link.source.id : link.source;
         const targetId = typeof link.target === "object" ? link.target.id : link.target;
-  
+
         const sourceCommunity = communityMap[sourceId?.toString().trim()];
         const targetCommunity = communityMap[targetId?.toString().trim()];
-  
+
         if (sourceCommunity === undefined || targetCommunity === undefined) {
           return false;
         }
-  
+
         return sourceCommunity === targetCommunity;
       });
-  
+
       const connectedNodeIds = new Set();
       filteredLinks.forEach((link) => {
         const sourceId = typeof link.source === "object" ? link.source.id : link.source;
@@ -1449,11 +1447,11 @@ const Home = () => {
         connectedNodeIds.add(sourceId);
         connectedNodeIds.add(targetId);
       });
-  
+
       const communities = [...new Set(Object.values(communityMap))];
       const radius = 500;
       const angleStep = (2 * Math.PI) / communities.length;
-  
+
       const communityCenters = {};
       communities.forEach((community, index) => {
         const angle = index * angleStep;
@@ -1462,22 +1460,22 @@ const Home = () => {
           y: radius * Math.sin(angle),
         };
       });
-  
+
       const communityColors = [
         "#313659", "#5f6289", "#324b4a", "#158582", "#9092bc", "#c4c6f1",
         "#ff9800", "#4caf50", "#2196f3", "#e91e63", "#9c27b0", "#795548"
       ];
-  
+
       const updatedNodes = networkData.nodes
         .filter((node) => connectedNodeIds.has(node.id))
         .map((node) => {
           const community = communityMap[node.id?.toString().trim()];
           const center = communityCenters[community];
           const jitter = 30;
-  
+
           return {
             ...node,
-            community, 
+            community,
             originalX: node.x,
             originalY: node.y,
             x: center.x + (Math.random() * jitter * 2 - jitter),
@@ -1485,15 +1483,15 @@ const Home = () => {
             color: communityColors[Number(community) % communityColors.length],
           };
         });
-  
+
       console.log("Updated nodes:", updatedNodes);
       console.log("Filtered links:", filteredLinks);
-  
+
       setNetworkData({
         nodes: updatedNodes,
         links: filteredLinks,
       });
-  
+
       setMessage(
         `Showing only intra-community links and hiding isolated nodes. Removed ${networkData.links.length - filteredLinks.length} cross-community links.`
       );
@@ -1509,15 +1507,15 @@ const Home = () => {
         }
         return node;
       });
-  
+
       setNetworkData({
         nodes: restoredNodes,
         links: originalNetworkData.links,
       });
-  
+
       setMessage("Showing all links in the network.");
     }
-  
+
     if (forceGraphRef.current) {
       setTimeout(() => {
         forceGraphRef.current.d3ReheatSimulation();
@@ -1525,7 +1523,7 @@ const Home = () => {
       }, 100);
     }
   };
-  
+
 
   return (
     <Container fluid className="upload-section">
@@ -1572,10 +1570,14 @@ const Home = () => {
                 />
               </Form.Group>
               <div>
-                <AnonymizationToggle
-                  isAnonymized={isAnonymized}
-                  setIsAnonymized={setIsAnonymized}
-                />
+                <div className="custom-switch">
+                  <label>Enable Anonymization</label>
+                  <input
+                    type="checkbox"
+                    checked={isAnonymized}
+                    onChange={() => setIsAnonymized((prev) => !prev)}
+                  />
+                </div>
               </div>
             </Col>
             <Col
@@ -1874,9 +1876,8 @@ const Home = () => {
               <Col
                 lg={3}
                 md={12}
-                className={`mb-3 metrics-panel ${
-                  showMetrics ? "open" : "closed"
-                }`}
+                className={`mb-3 metrics-panel ${showMetrics ? "open" : "closed"
+                  }`}
               >
                 <Card className="metrics-card">
                   <h4 className="fw-bold d-flex justify-content-between align-items-center">
@@ -1898,9 +1899,8 @@ const Home = () => {
                       {graphMetrics.map((metric) => (
                         <Button
                           key={metric}
-                          className={`metrics-item ${
-                            selectedMetric === metric ? "active" : ""
-                          }`}
+                          className={`metrics-item ${selectedMetric === metric ? "active" : ""
+                            }`}
                           onClick={() => {
                             handleToggleMetric(metric);
                             if (metric === "Density") handleDensityMetric();
@@ -1912,9 +1912,8 @@ const Home = () => {
                       ))}
 
                       <Button
-                        className={`metrics-item ${
-                          strongConnectionsActive ? "active" : ""
-                        }`}
+                        className={`metrics-item ${strongConnectionsActive ? "active" : ""
+                          }`}
                         onClick={handleStrongConnections}
                       >
                         {strongConnectionsActive
@@ -1922,25 +1921,22 @@ const Home = () => {
                           : "Strongest Connections"}
                       </Button>
                       <Button
-                        className={`metrics-item ${
-                          highlightCentralNodes ? "active" : ""
-                        }`}
+                        className={`metrics-item ${highlightCentralNodes ? "active" : ""
+                          }`}
                         onClick={handleHighlightCentralNodes}
                       >
                         Highlight Central Nodes
                       </Button>
                       <Button
-                        className={`metrics-item ${
-                          networkWasRestored ? "active" : ""
-                        }`}
+                        className={`metrics-item ${networkWasRestored ? "active" : ""
+                          }`}
                         onClick={handleRestoreNetwork}
                       >
                         Restore Original Network
                       </Button>
                       <Button
-                        className={`metrics-item ${
-                          activityFilterEnabled === true ? "active" : ""
-                        }`}
+                        className={`metrics-item ${activityFilterEnabled === true ? "active" : ""
+                          }`}
                         onClick={handleActivityFilter}
                       >
                         {activityFilterEnabled
@@ -1949,9 +1945,8 @@ const Home = () => {
                       </Button>
 
                       <Button
-                        className={`metrics-item ${
-                          showOnlyIntraCommunityLinks ? "active" : ""
-                        }`}
+                        className={`metrics-item ${showOnlyIntraCommunityLinks ? "active" : ""
+                          }`}
                         onClick={handleToggleCommunitiesFilter}
                       >
                         {showOnlyIntraCommunityLinks
@@ -2054,49 +2049,49 @@ const Home = () => {
                               : filteredNodes,
                             links: customizedNetworkData
                               ? customizedNetworkData.links.map((link) => {
-                                  const sourceNode =
-                                    customizedNetworkData.nodes.find(
-                                      (node) =>
-                                        (typeof link.source === "object" &&
-                                          node.id === link.source.id) ||
-                                        node.id === link.source
-                                    );
-
-                                  const targetNode =
-                                    customizedNetworkData.nodes.find(
-                                      (node) =>
-                                        (typeof link.target === "object" &&
-                                          node.id === link.target.id) ||
-                                        node.id === link.target
-                                    );
-
-                                  return {
-                                    source: sourceNode || link.source,
-                                    target: targetNode || link.target,
-                                    weight: link.weight || 1,
-                                  };
-                                })
-                              : filteredLinks.map((link) => {
-                                  const sourceNode = filteredNodes.find(
+                                const sourceNode =
+                                  customizedNetworkData.nodes.find(
                                     (node) =>
                                       (typeof link.source === "object" &&
                                         node.id === link.source.id) ||
                                       node.id === link.source
                                   );
 
-                                  const targetNode = filteredNodes.find(
+                                const targetNode =
+                                  customizedNetworkData.nodes.find(
                                     (node) =>
                                       (typeof link.target === "object" &&
                                         node.id === link.target.id) ||
                                       node.id === link.target
                                   );
 
-                                  return {
-                                    source: sourceNode || link.source,
-                                    target: targetNode || link.target,
-                                    weight: link.weight || 1,
-                                  };
-                                }),
+                                return {
+                                  source: sourceNode || link.source,
+                                  target: targetNode || link.target,
+                                  weight: link.weight || 1,
+                                };
+                              })
+                              : filteredLinks.map((link) => {
+                                const sourceNode = filteredNodes.find(
+                                  (node) =>
+                                    (typeof link.source === "object" &&
+                                      node.id === link.source.id) ||
+                                    node.id === link.source
+                                );
+
+                                const targetNode = filteredNodes.find(
+                                  (node) =>
+                                    (typeof link.target === "object" &&
+                                      node.id === link.target.id) ||
+                                    node.id === link.target
+                                );
+
+                                return {
+                                  source: sourceNode || link.source,
+                                  target: targetNode || link.target,
+                                  weight: link.weight || 1,
+                                };
+                              }),
                           }}
                           width={showMetrics ? 1200 : 1500}
                           height={500}
@@ -2140,14 +2135,14 @@ const Home = () => {
                               (selectedMetric === "PageRank Centrality"
                                 ? Math.max(10, node.pagerank * 500)
                                 : selectedMetric === "Eigenvector Centrality"
-                                ? Math.max(10, node.eigenvector * 60)
-                                : selectedMetric === "Closeness Centrality"
-                                ? Math.max(10, node.closeness * 50)
-                                : selectedMetric === "Betweenness Centrality"
-                                ? Math.max(10, node.betweenness * 80)
-                                : selectedMetric === "Degree Centrality"
-                                ? Math.max(10, node.degree * 80)
-                                : 20);
+                                  ? Math.max(10, node.eigenvector * 60)
+                                  : selectedMetric === "Closeness Centrality"
+                                    ? Math.max(10, node.closeness * 50)
+                                    : selectedMetric === "Betweenness Centrality"
+                                      ? Math.max(10, node.betweenness * 80)
+                                      : selectedMetric === "Degree Centrality"
+                                        ? Math.max(10, node.degree * 80)
+                                        : 20);
 
                             ctx.save();
                             ctx.beginPath();
@@ -2166,17 +2161,17 @@ const Home = () => {
                             const nodeColor = isHighlighted
                               ? "#ff9900"
                               : node.color ||
-                                (selectedMetric === "PageRank Centrality"
-                                  ? "orange"
-                                  : selectedMetric === "Eigenvector Centrality"
+                              (selectedMetric === "PageRank Centrality"
+                                ? "orange"
+                                : selectedMetric === "Eigenvector Centrality"
                                   ? "purple"
                                   : selectedMetric === "Closeness Centrality"
-                                  ? "green"
-                                  : selectedMetric === "Betweenness Centrality"
-                                  ? "red"
-                                  : selectedMetric === "Degree Centrality"
-                                  ? "#231d81"
-                                  : "blue");
+                                    ? "green"
+                                    : selectedMetric === "Betweenness Centrality"
+                                      ? "red"
+                                      : selectedMetric === "Degree Centrality"
+                                        ? "#231d81"
+                                        : "blue");
 
                             ctx.fillStyle = nodeColor;
                             ctx.fill();
@@ -2385,9 +2380,8 @@ const Home = () => {
                         {graphMetrics.slice(0, 5).map((metric) => (
                           <button
                             key={metric}
-                            className={`toolbar-button ${
-                              comparisonMetrics.includes(metric) ? "active" : ""
-                            }`}
+                            className={`toolbar-button ${comparisonMetrics.includes(metric) ? "active" : ""
+                              }`}
                             onClick={() => toggleComparisonMetric(metric)}
                             title={metric}
                           >
@@ -2395,9 +2389,8 @@ const Home = () => {
                           </button>
                         ))}
                         <button
-                          className={`toolbar-button ${
-                            highlightCommonNodes ? "active" : ""
-                          }`}
+                          className={`toolbar-button ${highlightCommonNodes ? "active" : ""
+                            }`}
                           onClick={() =>
                             setHighlightCommonNodes(!highlightCommonNodes)
                           }
@@ -2467,13 +2460,13 @@ const Home = () => {
                                 filteredComparisonData[index]
                                 ? filteredComparisonData[index]
                                 : {
-                                    nodes: [
-                                      ...comparisonNetworkData[index].nodes,
-                                    ],
-                                    links: [
-                                      ...comparisonNetworkData[index].links,
-                                    ],
-                                  },
+                                  nodes: [
+                                    ...comparisonNetworkData[index].nodes,
+                                  ],
+                                  links: [
+                                    ...comparisonNetworkData[index].links,
+                                  ],
+                                },
                               activeComparisonIndices.length > 2 ? 600 : 600,
                               500,
                               true

@@ -28,12 +28,12 @@ const History = () => {
           Authorization: `Bearer ${user?.token}`,
         },
       });
-      if (response.ok) {
-        toast.success('Research deleted successfully');
-        setUserHistory(userHistory.filter((research) => research.id !== researchId));
-      } else {
+      if (!response.ok) {
         toast.error('Failed to delete research');
       }
+      toast.success('Research deleted successfully');
+      setUserHistory(userHistory.filter((research) => research.id !== researchId));
+
     } catch (error) {
       console.error('Error deleting research:', error);
       toast.error('Error deleting research');
@@ -59,6 +59,13 @@ const History = () => {
             Authorization: `Bearer ${user?.token}`,
           },
         });
+        if (!history.ok) {
+          const { detail } = await history.json();
+          console.error('Error response:', detail);
+          toast.error('Error fetching user history');
+          return;
+        }
+        
         const data = await history.json();
         if (!data.history.length) {
           toast.error("Don't find history. Please create research");
@@ -91,7 +98,7 @@ const History = () => {
           {research.button === 'compare' && <ComparisonHistory research={research} />}
         </Modal>
       )}
-      <Card className="history-table mt-4">
+      <Card className={`history-table mt-4 ${loading ? 'h-75' : ''}`}>
         <Card.Header className="d-flex justify-content-between align-items-center">
           <h4 className="m-0 fw-bold">History Area</h4>
           {userHistory.length ? (

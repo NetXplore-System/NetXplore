@@ -1,8 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Container, Row, Col, Button, Card } from "react-bootstrap";
 import {
-  ChevronDown,
-  ChevronUp,
   ChevronLeft,
   ChevronRight,
   FileBarGraph,
@@ -28,12 +26,9 @@ import DiscussionSectionPicker from "../components/filters/DiscussionSectionPick
 import {
   uploadFile,
   deleteFile,
-  saveFormToDB,
-  analyzeNetwork,
   detectCommunities,
-  compareNetworks,
   analyzeWikipediaNetwork,
-} from "../components/utils/ApiService.jsx";
+} from "../components/utils/ApiService.js";
 import { useDispatch, useSelector } from "react-redux";
 // import { GraphButton } from "../components/utils/StyledComponents-El.js";
 import { addToMain, clearImages } from "../redux/images/imagesSlice.js";

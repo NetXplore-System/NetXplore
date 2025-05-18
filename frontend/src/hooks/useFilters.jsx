@@ -18,6 +18,8 @@ const useFilters = () => {
   const [activeUsers, setActiveUsers] = useState("");
   const [selectedUsers, setSelectedUsers] = useState("");
   const [isAnonymized, setIsAnonymized] = useState(false);
+  const [weightCalculationDepth, setWeightCalculationDepth] = useState(3);
+
 
   const [showFilters, setShowFilters] = useState(true);
   const [filter, setFilter] = useState("");
@@ -42,6 +44,7 @@ const useFilters = () => {
     if (startTime) params.append("start_time", formatTime(startTime));
     if (endTime) params.append("end_time", formatTime(endTime));
     if (limitType) params.append("limit_type", limitType);
+    if (weightCalculationDepth) params.append("n_prev", weightCalculationDepth);
     params.append("anonymize", isAnonymized ? "true" : "false");
 
     return params;
@@ -63,6 +66,7 @@ const useFilters = () => {
     setActiveUsers("");
     setSelectedUsers("");
     setFilter("");
+    setWeightCalculationDepth(3)
   };
 
   const handleInputChange = (setter) => (e) => {
@@ -85,6 +89,7 @@ const useFilters = () => {
     activeUsers,
     selectedUsers,
     isAnonymized,
+    weightCalculationDepth,
     showFilters,
     filter,
 
@@ -103,6 +108,7 @@ const useFilters = () => {
     setActiveUsers,
     setSelectedUsers,
     setIsAnonymized,
+    setWeightCalculationDepth,
     setShowFilters,
     setFilter,
 

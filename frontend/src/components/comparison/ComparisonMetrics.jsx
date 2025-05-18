@@ -4,6 +4,8 @@ import ComparisonGraph from "./ComparisonGraph";
 import { useDispatch } from "react-redux";
 import { clearTableData, setTableData } from "../../redux/table/tableSlice";
 import { addToComparison } from "../../redux/images/imagesSlice";
+import { FaCamera } from "react-icons/fa";
+
 
 const ComparisonMetrics = ({
   originalNetworkData,
@@ -252,7 +254,12 @@ const ComparisonMetrics = ({
                       height={500}
                       comparisonMetrics={comparisonMetrics}
                       buttonElement={
-                        <button className="graph-button" onClick={(e) => handleScreenshot(e, true, activeComparisonIndices.length)}>Take Screenshot</button>
+                        <button
+                          className="graph-button"
+                          data-tooltip-id="my-tooltip"
+                          data-tooltip-content="Add screenshot to report"
+                          data-tooltip-place="top"
+                          onClick={(e) => handleScreenshot(e, true, activeComparisonIndices.length)}><FaCamera /></button>
                       }
                     />
                   </Col>
@@ -276,7 +283,12 @@ const ComparisonMetrics = ({
                         isComparisonGraph={true}
                         comparisonMetrics={comparisonMetrics}
                         buttonElement={
-                          <button className="graph-button" onClick={(e) => handleScreenshot(e, false, index, i)}>Take Screenshot</button>
+                          <button
+                            className="graph-button"
+                            data-tooltip-id="my-tooltip"
+                            data-tooltip-content="Add screenshot to report"
+                            data-tooltip-place="top"
+                            onClick={(e) => handleScreenshot(e, false, index, i)}><FaCamera /></button>
                         }
                       />
                     </Col>
