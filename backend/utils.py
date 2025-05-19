@@ -248,8 +248,7 @@ async def extract_data(
     else:
         if limit:
             if limit_type == "last":
-                all_messages = all_messages[::-1]
-                selected_messages = all_messages[-limit:]
+                selected_messages = all_messages[-limit:][::-1]  # Get last N, then reverse for newest first
             else:
                 selected_messages = all_messages[:limit]
         else:
