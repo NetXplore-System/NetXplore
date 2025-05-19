@@ -22,7 +22,6 @@ import useComparison from "../hooks/useComparison.jsx";
 import useFilters from "../hooks/useFilters.jsx";
 import FilterForm from "../components/filters/FilterForm.jsx";
 import NetworkGraph from "../components/network/NetworkGraph.jsx";
-import { saveToDB } from "../components/utils/save.js";
 import MetricsPanel from "../components/network/MetricsPanel.jsx";
 
 import {
@@ -33,6 +32,7 @@ import {
   detectCommunities,
   compareNetworks,
   analyzeDecayingNetwork,
+  saveToDB
 } from "../components/utils/ApiService.js";
 import { useDispatch, useSelector } from "react-redux";
 import { addToMain, clearImages } from "../redux/images/imagesSlice.js";
