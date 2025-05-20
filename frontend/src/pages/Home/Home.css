@@ -1,0 +1,381 @@
+.upload-section {
+  padding: 2rem;
+  min-height: 100vh;
+  background-color: #f8f9fa;
+}
+
+.research-card {
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  background-color: #ffffff;
+  border: none;
+}
+
+.research-label {
+  font-weight: bold;
+  color: #6c757d;
+}
+
+.research-input {
+  background-color: #f8f9fa;
+  border: none;
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.upload-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #050d2d;
+  border: none;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 20px;
+  transition: background 0.3s ease-in-out;
+}
+
+.upload-btn:hover {
+  background-color: #050d2d;
+}
+
+.action-btn {
+  align-items: center;
+  gap: 10px;
+  background-color: #f8f9fa;
+  border: none;
+  color: #050d2d;
+  padding: 10px 20px;
+  border-radius: 20px;
+}
+
+.action-btn:hover {
+  background-color: #050d2d;
+}
+
+.filter-btn {
+  align-items: center;
+  gap: 10px;
+  background-color: #050d2d;
+  border: none;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 20px;
+  transition: background 0.3s ease-in-out;
+}
+
+.toggle-btn {
+  right: 5px;
+  top: 10px;
+  background: none;
+  border: none;
+  color: #6c757d;
+}
+.graph-container {
+  display: flex;
+  align-items: flex-start;
+}
+.metrics-panel {
+  transition: width 0.3s ease-in-out;
+  overflow: hidden;
+}
+.metrics-card {
+  padding: 1rem;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  background-color: #ffffff;
+  border: none;
+  position: relative;
+}
+
+.metrics-panel.closed {
+  width: 100px;
+}
+
+.metrics-toggle {
+  right: 5px;
+  top: 10px;
+  background: none;
+  border: none;
+  color: #6c757d;
+}
+
+.metrics-item {
+  width: 100%;
+  text-align: start;
+  color: #6c757d;
+  padding: 10px 20px;
+  border: none;
+  background: none;
+}
+.metrics-item:hover {
+  background-color: #050d2d;
+  color: white;
+}
+.metrics-item.active {
+  background-color: #050d2d1c !important;
+  color: #050d2d !important;
+}
+.graph-area {
+  flex-grow: 1;
+  transition: width 0.3s ease-in-out;
+}
+
+.metrics-panel.closed + .graph-area {
+  width: calc(100% - 100px); 
+}
+.graph-card {
+  width: 100%;
+  padding: 1rem;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  background-color: #ffffff;
+  border: none;
+  position: relative;
+}
+
+.graph-placeholder {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 700px;
+  border-radius: 8px;
+  color: #6c757d;
+}
+.comparison-card {
+  padding: 1rem;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  background-color: #ffffff;
+  border: none;
+  position: relative;
+}
+
+.comparison-card .card-header {
+  background-color: #f8f9fa;
+  font-weight: bold;
+}
+
+.comparison-btn {
+  background-color: #6c757d;
+  border: none;
+  color: white;
+  margin-right: 10px;
+  transition: all 0.3s;
+}
+
+.comparison-btn:hover {
+  background-color: #5a6268;
+  transform: translateY(-2px);
+}
+
+.comparison-btn.active {
+  background-color: #28a745;
+}
+
+.comparison-view {
+  margin-top: 20px;
+  padding: 15px;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+}
+
+.comparison-graph-container {
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  overflow: hidden;
+  height: 500px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.comparison-tag {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: #6c757d;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  z-index: 10;
+}
+
+.comparison-card.active {
+  border: 2px solid #28a745;
+}
+
+
+.comparison-card {
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.comparison-graph-container {
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  overflow: hidden;
+  height: 500px;
+}
+
+
+.comparison-stats-card {
+  background-color: #f8f9fa;
+  border-left: 4px solid #17a2b8;
+  margin-bottom: 1rem;
+}
+
+.comparison-table th {
+  background-color: #f8f9fa;
+  color: #495057;
+  font-weight: 600;
+}
+
+.comparison-table td {
+  vertical-align: middle;
+}
+
+.positive-change {
+  color: #28a745;
+  font-weight: bold;
+}
+
+.negative-change {
+  color: #dc3545;
+  font-weight: bold;
+}
+
+.neutral-change {
+  color: #6c757d;
+}
+
+.comparison-node {
+  fill: purple;
+}
+
+.original-node {
+  fill: blue;
+}
+
+@media (max-width: 768px) {
+  .comparison-card {
+    padding: 15px;
+  }
+  
+  .action-btn {
+    margin-bottom: 10px;
+    width: 100%;
+  }
+}
+
+.comparison-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 8px 16px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  margin-bottom: 15px;
+  gap: 12px;
+}
+
+.toolbar-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 8px;
+}
+
+.toolbar-label {
+  font-weight: 600;
+  color: #495057;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.toolbar-input {
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+  width: auto;
+  min-width: 120px;
+}
+
+.toolbar-buttons {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.toolbar-button {
+  background-color: #e9ecef;
+  border: none;
+  color: #495057;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toolbar-button:hover {
+  background-color: #dee2e6;
+}
+
+.toolbar-button.active {
+  background-color: #050d2d;
+  color: white;
+}
+
+.toolbar-action-btn {
+  background-color: #050d2d;
+  border: none;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toolbar-action-btn:hover {
+  background-color: #16214a;
+}
+
+.toolbar-action-btn.outline {
+  background-color: transparent;
+  border: 1px solid #050d2d;
+  color: #050d2d;
+}
+
+.toolbar-action-btn.outline:hover {
+  background-color: rgba(0, 123, 255, 0.1);
+}
+
+.metrics-toggles {
+  flex-grow: 1;
+}
+
+@media (max-width: 768px) {
+  .comparison-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .toolbar-section {
+    margin-bottom: 8px;
+  }
+  
+  .toolbar-input {
+    flex-grow: 1;
+  }
+}

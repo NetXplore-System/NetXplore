@@ -1,0 +1,216 @@
+.network-data-table {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  border: none;
+  margin-bottom: 1.5rem;
+  transition: all 0.2s ease-in-out;
+  background-color: white;
+}
+
+.network-data-table:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.09);
+}
+
+.network-data-table .card-header {
+  background-color: #050d2d;
+  color: white;
+  border-radius: 12px 12px 0 0;
+  padding: 1rem 1.5rem;
+  border-bottom: none;
+}
+
+.network-data-table .card-body {
+  padding: 1.25rem 1.5rem;
+}
+
+.network-data-table th {
+  background-color: #fcfcfd;
+  font-weight: 500;
+  color: #050d2d;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid #eef0f5;
+  border-top: none;
+}
+
+.network-data-table th:hover {
+  background-color: #f7f8fc;
+}
+
+.network-data-table td {
+  padding: 0.8rem 1rem;
+  border-color: #f7f8fa;
+  color: #050d2d;
+}
+
+.network-data-table tbody tr {
+  border-bottom: 1px solid #f7f8fa;
+}
+
+.network-data-table tbody tr:hover {
+  background-color: #f9faff !important;
+}
+
+.table-responsive {
+  max-height: 500px;
+  overflow-y: auto;
+  border-radius: 0 0 8px 8px;
+}
+
+.network-data-table .table {
+  width: 100%;
+  margin-bottom: 0;
+  color: inherit;
+  border-collapse: collapse;
+}
+.network-data-table .table td,
+.network-data-table .table th {
+  border: none;
+}
+.network-data-table .table thead th {
+  font-weight: 500;
+  color: #9aa0ac;
+  padding: 1rem 1.5rem;
+  background-color: white;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #edf2f9;
+}
+
+.network-data-table .table tbody td {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #edf2f9;
+  color: #050d2d;
+  font-weight: 400;
+  vertical-align: middle;
+}
+
+.network-data-table .table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.network-data-table .table tbody tr {
+  transition: all 0.15s ease;
+}
+
+.network-data-table .table tbody tr:hover {
+  background-color: #f8fafd;
+}
+
+.table-responsive {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.badge-info,
+.bg-info,
+.badge.bg-info,
+[class*="badge bg-info"] {
+  background-color: #050d2d !important;
+  color: white !important;
+}
+
+.community-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #050d2d !important;
+  color: white !important;
+  border-radius: 20px;
+  padding: 0.35em 0.9em;
+}
+
+.stats-card {
+  background-color: #fcfcfd;
+  border-radius: 10px;
+  margin-bottom: 1.25rem;
+  box-shadow: none;
+}
+
+.stat-item {
+  padding: 0.75rem 0.5rem;
+}
+
+.stat-item h5 {
+  color: #6c757d;
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-bottom: 0.3rem;
+}
+
+.stat-item h2 {
+  color: #050d2d;
+  font-weight: 600;
+  font-size: 1.4rem;
+  margin-bottom: 0;
+}
+
+.search-input {
+  border-radius: 20px;
+  border: 1px solid #eaecef;
+  background-color: #fcfcfd;
+  padding: 0.375rem 1rem;
+}
+
+.search-input:focus {
+  border-color: #050d2d;
+  box-shadow: 0 0 0 0.15rem rgba(5, 13, 45, 0.15);
+}
+
+.network-data-table .btn {
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.network-data-table .btn-primary {
+  background-color: #050d2d;
+  border-color: #050d2d;
+}
+
+.network-data-table .btn-primary:hover {
+  background-color: #0a1640;
+  border-color: #0a1640;
+}
+
+.network-data-table .btn-outline-primary {
+  color: #050d2d;
+  border-color: #050d2d;
+}
+
+.network-data-table .btn-outline-primary:hover {
+  background-color: #050d2d;
+  color: white;
+}
+
+.network-data-table .btn-outline-light {
+  color: white;
+  border-color: transparent;
+}
+
+.network-data-table .btn-outline-light:hover {
+  background-color: transparent;
+  border-color: transparent;
+}
+
+.network-data-table .btn-outline-success {
+  border-radius: 20px;
+  padding: 0.375rem 0.75rem;
+  color: #050d2d;
+  border-color: #050d2d;
+}
+
+.network-data-table .btn-outline-success:hover {
+  background-color: #050d2d;
+  color: white;
+}
+
+@media (max-width: 768px) {
+  .network-data-table .card-body {
+    padding: 1rem;
+  }
+
+  .network-data-table th,
+  .network-data-table td {
+    padding: 0.6rem 0.8rem;
+  }
+}
