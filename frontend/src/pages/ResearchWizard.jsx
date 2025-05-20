@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Container, Row, Col, Button } from "react-bootstrap";
+import { Container, Row, Col, Button, Modal } from "react-bootstrap";
 import { ChevronLeft, ChevronRight } from "react-bootstrap-icons";
 import { toast } from "react-hot-toast";
 import { useDispatch, useSelector } from "react-redux";
@@ -44,6 +44,8 @@ const ResearchWizard = () => {
   const [message, setMessage] = useState("");
   const [shouldShowUserFilters, setShouldShowUserFilters] = useState(true);
   const [lastAnalysisParams, setLastAnalysisParams] = useState(null);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showLoginInvite, setShowLoginInvite] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -349,6 +351,7 @@ const ResearchWizard = () => {
   };
 
   const getVisibleTotalSteps = () => {
+    // Adjust total steps count based on both includeMessageContent and User Filters visibility
     let steps = totalSteps;
 
     if (!formData.includeMessageContent) {
@@ -377,9 +380,9 @@ const ResearchWizard = () => {
     if (currentStep < getVisibleTotalSteps()) {
       if (currentStep === 3 && !formData.includeMessageContent) {
         if (!shouldShowUserFilters) {
-          setCurrentStep(5); 
+          setCurrentStep(5);
         } else {
-          setCurrentStep(4); 
+          setCurrentStep(4);
         }
       } else if (
         currentStep === 4 &&
@@ -406,9 +409,9 @@ const ResearchWizard = () => {
         if (!formData.includeMessageContent && !shouldShowUserFilters) {
           setCurrentStep(3);
         } else if (!formData.includeMessageContent) {
-          setCurrentStep(4); 
+          setCurrentStep(4);
         } else if (!shouldShowUserFilters) {
-          setCurrentStep(4); 
+          setCurrentStep(4);
         } else {
           setCurrentStep(currentStep - 1);
         }
@@ -416,11 +419,6 @@ const ResearchWizard = () => {
         setCurrentStep(currentStep - 1);
       }
     }
-  };
-
-  const handleSubmit = () => {
-    handleSaveResearch();
-    toast.success("Research completed and saved successfully!");
   };
 
   const renderCurrentStep = () => {
@@ -548,7 +546,14 @@ const ResearchWizard = () => {
         return <p>Step {currentStep} coming soon...</p>;
     }
   };
-
+  
+  const handleSubmit = () => {
+    if (currentUser?.id) {
+      setShowSaveModal(true);
+    } else {
+      setShowLoginInvite(true);
+    }
+  };
   return (
     <Container fluid className="research-wizard-container">
       <Row className="justify-content-center">
@@ -565,14 +570,14 @@ const ResearchWizard = () => {
               let stepNumber = index + 1;
 
               if (!formData.includeMessageContent && index >= 3) {
-                stepNumber += 1; 
+                stepNumber += 1;
               }
 
               if (!shouldShowUserFilters) {
                 if (formData.includeMessageContent && index >= 4) {
-                  stepNumber += 1; 
+                  stepNumber += 1;
                 } else if (!formData.includeMessageContent && index >= 3) {
-                  stepNumber += 1; 
+                  stepNumber += 1;
                 }
               }
 
@@ -652,6 +657,67 @@ const ResearchWizard = () => {
           </div>
         </Col>
       </Row>
+      <Modal
+        show={showSaveModal}
+        onHide={() => setShowSaveModal(false)}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Save Research</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Would you like to save your research to your account?
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setShowSaveModal(false);
+              toast("Research completed but was not saved.");
+            }}
+          >
+            No, thanks
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => {
+              setShowSaveModal(false);
+              handleSaveResearch();
+              toast.success("Research completed and saved successfully!");
+            }}
+          >
+            Yes, save it
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal
+        show={showLoginInvite}
+        onHide={() => setShowLoginInvite(false)}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Sign Up to Save</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          You completed your research! To save it and manage your research
+          history, please sign up or log in.
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowLoginInvite(false)}>
+            Not now
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => {
+              setShowLoginInvite(false);
+              navigate("/login");
+            }}
+          >
+            Sign Up / Log In
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </Container>
   );
 };
