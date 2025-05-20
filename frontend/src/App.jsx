@@ -1,15 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { Routes, Route, useLocation, HashRouter } from "react-router-dom";
-import "./App.css";
 
 // Pages
 import ResearchWizard from "./pages/ResearchWizard.jsx";
-import Home from "./pages/Home.jsx";
+// import Home from "./pages/Home.jsx";
 import SignIn from "./pages/SignIn.jsx";
 import SignUp from "./pages/SignUp.jsx";
 import Profile from "./pages/Profile.jsx";
 import EditProfile from "./pages/EditProfile.jsx";
-import HomeW from "./pages/HomeW.jsx";
+// import HomeW from "./pages/HomeW.jsx";
 import History from "./pages/History.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import ChoosePlatform from "./pages/ChoosePlatform.jsx";
@@ -51,8 +50,11 @@ function AppContent() {
 
   if (!isAppReady) return null;
 
+  const isWelcomePage = location.pathname === "/" && !currentUser;
   const isAuthPage =
-    location.pathname === "/signin" || location.pathname === "/register";
+    location.pathname === "/signin" ||
+    location.pathname === "/register" ||
+    isWelcomePage;
 
   return (
     <>
@@ -93,9 +95,9 @@ function AppContent() {
           <Route path="/signin" element={<SignIn />} />
           <Route path="/register" element={<SignUp />} />
           <Route path="/choose-platform" element={<ChoosePlatform />} />
-          <Route path="/explore" element={<Home />} />
+          {/* <Route path="/explore" element={<Home />} /> */}
           <Route path="/newresearch" element={<ResearchWizard />} />
-          <Route path="/home_wikipedia" element={<HomeW />} />
+          {/* <Route path="/home_wikipedia" element={<HomeW />} /> */}
 
           <Route path="/" element={currentUser ? <Dashboard /> : <Welcome />} />
 

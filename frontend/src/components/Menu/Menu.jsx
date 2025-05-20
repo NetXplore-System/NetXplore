@@ -21,7 +21,6 @@ const Menu = ({ isOpen, setIsOpen }) => {
   const [activeRoute, setActiveRoute] = useState("/dashboard");
 
   useEffect(() => {
-    // Update active route based on current location
     const path = location.pathname;
     setActiveRoute(path);
   }, [location]);
@@ -37,14 +36,13 @@ const Menu = ({ isOpen, setIsOpen }) => {
     navigate("/signin");
   };
 
-  // Helper function to check if a route is active
   const isActive = (route) => {
     return activeRoute === route;
   };
 
   const menuItems = [
-    { path: "/dashboard", icon: <House size={20} />, label: "Dashboard" },
-    { path: "/reports", icon: <FileText size={20} />, label: "Reports" },
+    { path: "/", icon: <House size={20} />, label: "Dashboard" },
+    { path: "/choose-platform", icon: <FileText size={20} />, label: "New Research" },
     { path: "/history", icon: <Clock size={20} />, label: "History" },
     { path: "/profile", icon: <Person size={20} />, label: "Profile" },
   ];
@@ -58,7 +56,6 @@ const Menu = ({ isOpen, setIsOpen }) => {
             alt="Logo"
             className="logo-image"
           />
-          {/* Removed toggle button */}
         </div>
 
         <div className="menu-section">

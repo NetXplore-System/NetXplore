@@ -23,7 +23,7 @@ import {
 } from "react-icons/fa";
 import NetworkAnimation from "../components/NetworkAnimation";
 import NetworkMockupVisualization from "../components/NetworkMockupVisualization";
-import "./Welcome.css";
+import "../styles/Welcome.css";
 
 const sections = [
   {
