@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from "react";
 import { ForceGraph2D } from "react-force-graph";
 import PropTypes from "prop-types";
-import "./TriadCensusVisualization.css";
+import "../../styles/TriadCensusVisualization.css";
 import { triadDescriptions } from "../../constants/triadDescriptions";
 
 const TriadCensusVisualization = ({ triadCensusData }) => {

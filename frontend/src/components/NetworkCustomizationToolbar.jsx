@@ -17,7 +17,7 @@ import {
   CheckSquare,
   XSquare,
 } from "react-bootstrap-icons";
-import "./NetworkCustomizationToolbar.css";
+import "../styles/NetworkCustomizationToolbar.css";
 
 const NetworkCustomizationToolbar = ({
   networkData,

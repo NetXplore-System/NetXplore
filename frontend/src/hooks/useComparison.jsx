@@ -14,6 +14,8 @@ const useComparison = (originalNetworkData, uploadedFile) => {
   const [comparisonMetrics, setComparisonMetrics] = useState([]);
   const [highlightCommonNodes, setHighlightCommonNodes] = useState(false);
 
+  const [comparisonFilterSettings, setComparisonFilterSettings] = useState([]);
+
   useEffect(() => {
     if (!uploadedFile) {
       setComparisonNetworkData([]);
@@ -23,11 +25,53 @@ const useComparison = (originalNetworkData, uploadedFile) => {
       setActiveComparisonIndices([]);
       setFilteredOriginalData(null);
       setFilteredComparisonData({});
+      setComparisonFilterSettings([]);
     }
   }, [uploadedFile]);
 
+  const getDefaultFilterSettings = () => ({
+    timeFrame: {
+      startDate: "",
+      endDate: "",
+      startTime: "",
+      endTime: "",
+    },
+    limit: {
+      enabled: false,
+      count: 50,
+      fromEnd: false,
+      type: "messages",
+    },
+    messageCriteria: {
+      minLength: 1,
+      maxLength: "",
+      keywords: "",
+      contentFilter: "",
+    },
+    userFilters: {
+      minMessages: 1,
+      maxMessages: "",
+      usernameFilter: "",
+    },
+  });
+
   const addComparison = () => {
     setComparisonCount((prevCount) => prevCount + 1);
+    setComparisonFilterSettings((prev) => [
+      ...prev,
+      getDefaultFilterSettings(),
+    ]);
+  };
+
+  const updateComparisonFilterSettings = (index, newSettings) => {
+    setComparisonFilterSettings((prev) => {
+      const updated = [...prev];
+      updated[index] = {
+        ...(updated[index] || getDefaultFilterSettings()),
+        ...newSettings,
+      };
+      return updated;
+    });
   };
 
   const handleComparisonFileChange = async (event, index) => {
@@ -37,6 +81,10 @@ const useComparison = (originalNetworkData, uploadedFile) => {
     const updatedFiles = [...comparisonFiles];
     updatedFiles[index] = selectedFile;
     setComparisonFiles(updatedFiles);
+
+    if (!comparisonFilterSettings[index]) {
+      updateComparisonFilterSettings(index, getDefaultFilterSettings());
+    }
 
     const formData = new FormData();
     formData.append("file", selectedFile);
@@ -83,7 +131,36 @@ const useComparison = (originalNetworkData, uploadedFile) => {
     });
   };
 
-  const analyzeComparisonNetwork = async (index, filterParams) => {
+  const buildFilterParamsFromSettings = (filterSettings) => {
+    const params = new URLSearchParams();
+
+    if (filterSettings.timeFrame) {
+      if (filterSettings.timeFrame.startDate)
+        params.append("start_date", filterSettings.timeFrame.startDate);
+      if (filterSettings.timeFrame.endDate)
+        params.append("end_date", filterSettings.timeFrame.endDate);
+      if (filterSettings.timeFrame.startTime)
+        params.append("start_time", filterSettings.timeFrame.startTime);
+      if (filterSettings.timeFrame.endTime)
+        params.append("end_time", filterSettings.timeFrame.endTime);
+    }
+
+    if (filterSettings.limit && filterSettings.limit.enabled) {
+      params.append("limit", filterSettings.limit.count.toString());
+      params.append(
+        "limit_type",
+        filterSettings.limit.fromEnd ? "last" : "first"
+      );
+    }
+
+    return params;
+  };
+
+  const analyzeComparisonNetwork = async (
+    index,
+    globalFilterParams,
+    customFilters = null
+  ) => {
     const comparisonFile = comparisonData[index];
     if (!comparisonFile || !comparisonFile.filename) {
       return {
@@ -92,8 +169,27 @@ const useComparison = (originalNetworkData, uploadedFile) => {
       };
     }
 
-    const url = `${BASE_URL}/analyze/network/${comparisonFile.filename
-      }?${filterParams.toString()}`;
+    let params = new URLSearchParams(globalFilterParams?.toString() || "");
+
+    if (customFilters) {
+      updateComparisonFilterSettings(index, customFilters);
+      const customParams = buildFilterParamsFromSettings(customFilters);
+
+      for (const [key, value] of customParams.entries()) {
+        params.set(key, value); 
+      }
+    } else if (comparisonFilterSettings[index]) {
+      const savedParams = buildFilterParamsFromSettings(
+        comparisonFilterSettings[index]
+      );
+      for (const [key, value] of savedParams.entries()) {
+        params.set(key, value);
+      }
+    }
+
+    const url = `${BASE_URL}/analyze/network/${
+      comparisonFile.filename
+    }?${params.toString()}`;
 
     try {
       const response = await fetch(url);
@@ -204,8 +300,10 @@ const useComparison = (originalNetworkData, uploadedFile) => {
 
     const params = new URLSearchParams();
 
-    if (filters.comparisonFilter) params.append("node_filter", filters.comparisonFilter);
-    if (filters.minComparisonWeight) params.append("min_weight", filters.minComparisonWeight);
+    if (filters.comparisonFilter)
+      params.append("node_filter", filters.comparisonFilter);
+    if (filters.minComparisonWeight)
+      params.append("min_weight", filters.minComparisonWeight);
     params.append("highlight_common", filters.highlightCommonNodes.toString());
     params.append("original_filename", uploadedFile);
 
@@ -228,6 +326,16 @@ const useComparison = (originalNetworkData, uploadedFile) => {
           "comparison_filename",
           comparisonData[index].filename
         );
+
+        if (comparisonFilterSettings[index]) {
+          const fileSpecificParams = buildFilterParamsFromSettings(
+            comparisonFilterSettings[index]
+          );
+          for (const [key, value] of fileSpecificParams.entries()) {
+            comparisonParams.set(key, value);
+          }
+        }
+
         return fetch(
           `${BASE_URL}/analyze/compare-networks?${comparisonParams.toString()}`
         ).then((response) => response.json());
@@ -288,6 +396,16 @@ const useComparison = (originalNetworkData, uploadedFile) => {
     setHighlightCommonNodes(false);
   };
 
+  const resetItemFilters = (index) => {
+    if (index !== undefined) {
+      updateComparisonFilterSettings(index, getDefaultFilterSettings());
+    } else {
+      setComparisonFilterSettings((prevSettings) =>
+        prevSettings.map(() => getDefaultFilterSettings())
+      );
+    }
+  };
+
   const calculateComparisonStats = (originalData, comparisonNetworkItem) => {
     if (!originalData || !comparisonNetworkItem) {
       return null;
@@ -303,15 +421,15 @@ const useComparison = (originalNetworkData, uploadedFile) => {
 
     const nodeChangePercent = originalNodeCount
       ? (
-        ((comparisonNodeCount - originalNodeCount) / originalNodeCount) *
-        100
-      ).toFixed(2)
+          ((comparisonNodeCount - originalNodeCount) / originalNodeCount) *
+          100
+        ).toFixed(2)
       : 0;
     const linkChangePercent = originalLinkCount
       ? (
-        ((comparisonLinkCount - originalLinkCount) / originalLinkCount) *
-        100
-      ).toFixed(2)
+          ((comparisonLinkCount - originalLinkCount) / originalLinkCount) *
+          100
+        ).toFixed(2)
       : 0;
 
     const originalNodeIds = new Set(originalData.nodes.map((node) => node.id));
@@ -349,12 +467,15 @@ const useComparison = (originalNetworkData, uploadedFile) => {
     minComparisonWeight,
     comparisonMetrics,
     highlightCommonNodes,
+    comparisonFilterSettings,
     addComparison,
     handleComparisonFileChange,
     toggleComparisonActive,
     analyzeComparisonNetwork,
     applyComparisonFilters,
     resetComparisonFilters,
+    resetItemFilters,
+    updateComparisonFilterSettings,
     calculateComparisonStats,
   };
 };

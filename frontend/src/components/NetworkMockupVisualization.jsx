@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { FaFilter, FaUsers, FaRocket } from "react-icons/fa";
-import "./NetworkMockupVisualization.css"; 
+import "../styles/NetworkMockupVisualization.css"; 
 
 const NetworkMockupVisualization = () => {
   return (
