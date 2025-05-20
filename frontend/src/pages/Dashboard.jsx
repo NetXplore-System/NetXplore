@@ -16,41 +16,54 @@ import {
   FaArrowRight,
 } from "react-icons/fa";
 import { motion } from "framer-motion";
-import "./Dashboard.css";
-
-const fetchDashboardData = async (token) => {
-  const response = await fetch(`${import.meta.env.VITE_API_URL}/dashboard`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-  const data = await response.json();
-  return data.researches;
-};
+import { toast } from "react-hot-toast";
+import "../styles/Dashboard.css";
 
 const Dashboard = () => {
-  const { currentUser } = useSelector((state) => state.user);
+  const user = useSelector((state) => state.user);
   const navigate = useNavigate();
   const [researches, setResearches] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loadUserData = async () => {
-      if (currentUser?.token) {
-        try {
-          setIsLoading(true);
-          const data = await fetchDashboardData(currentUser.token);
-          setResearches(data);
-        } catch (error) {
-          console.error("Error loading dashboard data:", error);
-        } finally {
-          setIsLoading(false);
+    async function fetchDashboardData() {
+      try {
+        setIsLoading(true);
+        const userId = user?.currentUser?.id;
+        if (!userId) {
+          toast.error("User ID is missing");
+          return;
         }
-      }
-    };
 
-    loadUserData();
-  }, [currentUser]);
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/dashboard/${userId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${user?.token}`,
+            },
+          }
+        );
+
+        const data = await response.json();
+
+        if (!data.researches) {
+          toast.error("No research data returned");
+          return;
+        }
+
+        setResearches(data.researches || []);
+      } catch (error) {
+        console.error("Error loading dashboard data:", error);
+        toast.error("Failed to load dashboard data");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    if (user?.token && user?.currentUser?.id) {
+      fetchDashboardData();
+    }
+  }, [user?.token, user?.currentUser?.id]);
 
   const cardVariants = {
     initial: { opacity: 0, y: 20 },
@@ -65,10 +78,6 @@ const Dashboard = () => {
     (r) => r.type === "wikipedia"
   ).length;
   const totalNodes = researches.reduce((sum, item) => sum + item.nodes, 0);
-  const totalCommunities = researches.reduce(
-    (sum, item) => sum + item.communities,
-    0
-  );
 
   const ResearchTypeIcon = ({ type }) => {
     return type === "whatsapp" ? (
@@ -94,77 +103,75 @@ const Dashboard = () => {
 
   return (
     <Container fluid className="dashboard-container">
-      <Row className="mb-4">
-        <Col>
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <h1 className="dashboard-welcome">
-              Hello, {currentUser?.name || currentUser?.username || "User"}
-            </h1>
-            <p className="dashboard-subtitle">
-              Welcome to your network research dashboard
-            </p>
-          </motion.div>
-        </Col>
-      </Row>
-
-      <Row className="mb-4">
-        {[
-          {
-            icon: <FaNetworkWired />,
-            count: totalResearches,
-            label: "Total Researches",
-            delay: 0.1,
-          },
-          {
-            icon: <FaWikipediaW />,
-            count: wikipediaResearches,
-            label: "Wikipedia Studies",
-            delay: 0.2,
-          },
-          {
-            icon: <FaWhatsapp />,
-            count: whatsappResearches,
-            label: "WhatsApp Studies",
-            delay: 0.3,
-          },
-          {
-            icon: <FaLayerGroup />,
-            count: totalNodes,
-            label: "Total Nodes",
-            delay: 0.4,
-          },
-        ].map(({ icon, count, label, delay }, index) => (
-          <Col key={index} lg={3} md={6} sm={12} className="mb-4">
+      <div className="dashboard-div">
+        <Row className="mb-4">
+          <Col>
             <motion.div
-              variants={cardVariants}
-              initial="initial"
-              animate="animate"
-              transition={{ duration: 0.3, delay }}
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
             >
-              <Card className="dashboard-stat-card">
-                <Card.Body>
-                  <div className="stat-icon">{icon}</div>
-                  <h3>{count}</h3>
-                  <p>{label}</p>
-                </Card.Body>
-              </Card>
+              <h1 className="dashboard-welcome">
+                Hello,{" "}
+                {user?.currentUser?.name ||
+                  user?.currentUser?.username ||
+                  "User"}
+              </h1>
+              <p className="dashboard-subtitle">
+                Welcome to your network research dashboard
+              </p>
             </motion.div>
           </Col>
-        ))}
-      </Row>
+        </Row>
 
-      <Row className="mb-4">
-        <Col lg={8} md={12} className="mb-4">
-          <motion.div
-            variants={cardVariants}
-            initial="initial"
-            animate="animate"
-            transition={{ duration: 0.3, delay: 0.5 }}
-          >
+        <Row className="mb-4">
+          {[
+            {
+              icon: <FaNetworkWired />,
+              count: totalResearches,
+              label: "Total Researches",
+              delay: 0.1,
+            },
+            {
+              icon: <FaWikipediaW />,
+              count: wikipediaResearches,
+              label: "Wikipedia Studies",
+              delay: 0.2,
+            },
+            {
+              icon: <FaWhatsapp />,
+              count: whatsappResearches,
+              label: "WhatsApp Studies",
+              delay: 0.3,
+            },
+            {
+              icon: <FaLayerGroup />,
+              count: totalNodes,
+              label: "Total Nodes",
+              delay: 0.4,
+            },
+          ].map(({ icon, count, label, delay }, index) => (
+            <Col key={index} lg={3} md={6} sm={12} className="mb-4">
+              <motion.div
+                variants={cardVariants}
+                initial="initial"
+                animate="animate"
+                transition={{ duration: 0.3, delay }}
+              >
+                <Card className="dashboard-stat-card">
+                  <Card.Body>
+                    <div className="stat-icon">{icon}</div>
+                    <h3>{count}</h3>
+                    <p>{label}</p>
+                  </Card.Body>
+                </Card>
+              </motion.div>
+            </Col>
+          ))}
+        </Row>
+
+        <Row>
+          <Col>
             <Card className="dashboard-card">
               <Card.Header className="d-flex justify-content-between align-items-center">
                 <h2 className="mb-0">
@@ -173,7 +180,7 @@ const Dashboard = () => {
                 <Button
                   variant="primary"
                   className="dashboard-action-button"
-                  onClick={() => navigate("/newresearch")}
+                  onClick={() => navigate("/choose-platform")}
                 >
                   <FaPlus className="me-2" /> New Research
                 </Button>
@@ -218,7 +225,7 @@ const Dashboard = () => {
                             variant="outline-secondary"
                             size="sm"
                             onClick={() =>
-                              navigate(`/newresearch?edit=${research.id}`)
+                              navigate(`/choose-platform?edit=${research.id}`)
                             }
                           >
                             Edit Research
@@ -238,129 +245,18 @@ const Dashboard = () => {
                     <Button
                       variant="primary"
                       className="dashboard-action-button"
-                      onClick={() => navigate("/newresearch")}
+                      onClick={() => navigate("/choose-platform")}
                     >
-                      <FaPlus className="me-2" /> Start New Research
+                      {" "}
+                      <FaPlus className="me-2" /> Start New Research{" "}
                     </Button>
                   </div>
                 )}
               </Card.Body>
-              {researches.length > 0 && (
-                <Card.Footer>
-                  <Button
-                    variant="link"
-                    className="view-all-link"
-                    onClick={() => navigate("/history")}
-                  >
-                    View All Researches <FaArrowRight className="ms-2" />
-                  </Button>
-                </Card.Footer>
-              )}
             </Card>
-          </motion.div>
-        </Col>
-
-        <Col lg={4} md={12}>
-          <Row>
-            <Col className="mb-4">
-              <motion.div
-                variants={cardVariants}
-                initial="initial"
-                animate="animate"
-                transition={{ duration: 0.3, delay: 0.6 }}
-              >
-                <Card className="dashboard-card">
-                  <Card.Header>
-                    <h2 className="mb-0">
-                      <FaHistory className="header-icon" /> Recent Activity
-                    </h2>
-                  </Card.Header>
-                  <Card.Body>
-                    {isLoading ? (
-                      <div className="text-center p-4">Loading activity...</div>
-                    ) : activities.length > 0 ? (
-                      <div className="activity-list">
-                        {activities.map((activity) => (
-                          <div key={activity.id} className="activity-item">
-                            <div className="activity-date">{activity.date}</div>
-                            <div className="activity-content">
-                              <Badge bg="success">{activity.action}</Badge>
-                              <div className="activity-details">
-                                {activity.details}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="empty-state">
-                        <FaHistory size={50} />
-                        <h3>No recent activity</h3>
-                        <p>Your activity will appear here</p>
-                      </div>
-                    )}
-                  </Card.Body>
-                </Card>
-              </motion.div>
-            </Col>
-          </Row>
-
-          <Row>
-            <Col>
-              <motion.div
-                variants={cardVariants}
-                initial="initial"
-                animate="animate"
-                transition={{ duration: 0.3, delay: 0.7 }}
-              >
-                <Card className="dashboard-card">
-                  <Card.Header>
-                    <h2 className="mb-0">
-                      <FaSearch className="header-icon" /> Quick Actions
-                    </h2>
-                  </Card.Header>
-                  <Card.Body>
-                    <div className="quick-actions">
-                      <Button
-                        variant="outline-primary"
-                        className="quick-action-btn"
-                        onClick={() => navigate("/newresearch")}
-                      >
-                        <FaPlus className="action-icon" />
-                        <span>New Research</span>
-                      </Button>
-                      <Button
-                        variant="outline-info"
-                        className="quick-action-btn"
-                        onClick={() => navigate("/explore")}
-                      >
-                        <FaSearch className="action-icon" />
-                        <span>Explore Data</span>
-                      </Button>
-                      <Button
-                        variant="outline-secondary"
-                        className="quick-action-btn"
-                        onClick={() => navigate("/history")}
-                      >
-                        <FaHistory className="action-icon" />
-                        <span>History</span>
-                      </Button>
-                      <Button
-                        variant="outline-dark"
-                        className="quick-action-btn"
-                        onClick={() => navigate("/profile")}
-                      >
-                        <FaUser className="action-icon" />
-                        <span>Profile</span>
-                      </Button>
-                    </div>
-                  </Card.Body>
-                </Card>
-              </motion.div>
-            </Col>
-          </Row>
-        </Col>
-      </Row>
+          </Col>
+        </Row>
+      </div>
     </Container>
   );
 };
