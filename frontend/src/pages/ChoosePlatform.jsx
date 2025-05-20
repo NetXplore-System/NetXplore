@@ -1,9 +1,8 @@
-// ChoosePlatform.jsx
 import React from "react";
 import { Container, Row, Col, Card } from "react-bootstrap";
 import { Whatsapp, Globe } from "react-bootstrap-icons";
 import { useNavigate } from "react-router-dom";
-import "./ChoosePlatform.css";
+import "../styles/ChoosePlatform.css";
 
 const ChoosePlatform = () => {
   const navigate = useNavigate();
@@ -15,7 +14,9 @@ const ChoosePlatform = () => {
         <Col md={6} lg={4} className="text-center mb-4">
           <Card
             className="option-card"
-            onClick={() => navigate("/newresearch")}
+            onClick={() =>
+              navigate("/newresearch", { state: { platform: "whatsapp" } })
+            }
           >
             <div className="card-inner">
               <div className="icon-cont whatsapp">
@@ -33,7 +34,9 @@ const ChoosePlatform = () => {
         <Col md={6} lg={4} className="text-center mb-4">
           <Card
             className="option-card"
-            onClick={() => navigate("/home_wikipedia")}
+            onClick={() =>
+              navigate("/newresearch", { state: { platform: "wikipedia" } })
+            }
           >
             <div className="card-inner">
               <div className="icon-cont wikipedia">
