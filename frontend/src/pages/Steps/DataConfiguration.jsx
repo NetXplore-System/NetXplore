@@ -13,31 +13,6 @@ const DataConfiguration = ({ formData, handleInputChange }) => {
     <Card className="research-card">
       <Card.Body>
         <h3 className="step-title">Data Configuration</h3>
-
-        <Form.Group className="mb-4">
-          <div className="d-flex justify-content-between align-items-center">
-            <div>
-              <Form.Label className="form-label mb-0">
-                Anonymize User Data
-                <InfoTooltip text="Replace real usernames with anonymous identifiers to protect privacy" />
-              </Form.Label>
-            </div>
-            <Form.Check
-              type="switch"
-              id="anonymize-switch"
-              name="isAnonymized"
-              checked={formData.isAnonymized}
-              onChange={handleInputChange}
-              className="config-switch"
-            />
-          </div>
-          <Form.Text className="text-muted">
-            User identities will be{" "}
-            {formData.isAnonymized ? "anonymized" : "preserved"} in the network
-            visualization
-          </Form.Text>
-        </Form.Group>
-
         <Form.Group className="mb-4">
           <div className="d-flex justify-content-between align-items-center">
             <div>
@@ -59,6 +34,30 @@ const DataConfiguration = ({ formData, handleInputChange }) => {
             {formData.includeMessageContent
               ? "Message content will be analyzed (enables content-based filters)"
               : "Only communication patterns will be analyzed (no content analysis)"}
+          </Form.Text>
+        </Form.Group>
+        
+        <Form.Group className="mb-4">
+          <div className="d-flex justify-content-between align-items-center">
+            <div>
+              <Form.Label className="form-label mb-0">
+                Anonymize User Data
+                <InfoTooltip text="Replace real usernames with anonymous identifiers to protect privacy" />
+              </Form.Label>
+            </div>
+            <Form.Check
+              type="switch"
+              id="anonymize-switch"
+              name="isAnonymized"
+              checked={formData.isAnonymized}
+              onChange={handleInputChange}
+              className="config-switch"
+            />
+          </div>
+          <Form.Text className="text-muted">
+            User identities will be{" "}
+            {formData.isAnonymized ? "anonymized" : "preserved"} in the network
+            visualization
           </Form.Text>
         </Form.Group>
 

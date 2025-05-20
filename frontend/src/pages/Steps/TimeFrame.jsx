@@ -76,7 +76,7 @@ const TimeFrame = ({ formData, handleInputChange }) => {
             </Form.Label>
           </div>
           <Form.Text className="text-muted mb-3">
-            Restrict analysis to a specific number of messages or time period
+            Restrict analysis to a specific number of messages
           </Form.Text>
 
           {formData.limit.enabled && (
@@ -95,36 +95,44 @@ const TimeFrame = ({ formData, handleInputChange }) => {
                 </Form.Group>
               </Col>
               <Col md={6}>
-                <Form.Label className="form-label">Direction</Form.Label>
-                <div>
-                  <Form.Check
-                    type="radio"
-                    id="from-end"
-                    name="limit.fromEnd"
-                    label="From End"
-                    checked={formData.limit.fromEnd}
-                    onChange={() =>
-                      setFormData({
-                        ...formData,
-                        limit: { ...formData.limit, fromEnd: true },
-                      })
-                    }
-                    className="mb-2"
-                  />
-                  <Form.Check
-                    type="radio"
-                    id="from-start"
-                    name="limit.fromEnd"
-                    label="From Start"
-                    checked={!formData.limit.fromEnd}
-                    onChange={() =>
-                      setFormData({
-                        ...formData,
-                        limit: { ...formData.limit, fromEnd: false },
-                      })
-                    }
-                  />
-                </div>
+                <Form.Group>
+                  <Form.Label className="form-label">Direction</Form.Label>
+                  <div>
+                    <Form.Check
+                      type="radio"
+                      id="from-start"
+                      name="limit.fromEnd"
+                      label="From Start"
+                      checked={!formData.limit.fromEnd}
+                      onChange={() =>
+                        handleInputChange({
+                          target: {
+                            name: "limit.fromEnd",
+                            value: false,
+                            type: "radio",
+                          },
+                        })
+                      }
+                    />
+                    <Form.Check
+                      type="radio"
+                      id="from-end"
+                      name="limit.fromEnd"
+                      label="From End"
+                      checked={formData.limit.fromEnd}
+                      onChange={() =>
+                        handleInputChange({
+                          target: {
+                            name: "limit.fromEnd",
+                            value: true,
+                            type: "radio",
+                          },
+                        })
+                      }
+                      className="mb-2"
+                    />
+                  </div>
+                </Form.Group>
               </Col>
             </Row>
           )}

@@ -12,6 +12,7 @@ import {
   OverlayTrigger,
   Tooltip,
   Container,
+  Modal,
 } from "react-bootstrap";
 import {
   FileBarGraph,
@@ -35,7 +36,7 @@ import {
   Download,
   ZoomIn,
   Link as LinkIcon,
-  ExclamationTriangle,
+  InfoCircleFill,
   Save,
   Eye,
   EyeSlash,
@@ -44,23 +45,18 @@ import { toast } from "react-hot-toast";
 import { useDispatch } from "react-redux";
 import { addToMain } from "../../redux/images/imagesSlice";
 
-// Components
 import NetworkCustomizationToolbar from "../../components/NetworkCustomizationToolbar";
 import NetworkGraph from "../../components/network/NetworkGraph";
 import NetworkDataTable from "../../components/NetworkDataTable";
 import TriadCensusVisualization from "../../components/network/TriadCensusVisualization";
-import ActivitySlider from "../../components/common/ActivitySlider";
-import MetricsButton from "../../components/common/MetricsButton";
 import { graphMetrics } from "../../constants/graphMetrics";
 
-// API
 import {
   analyzeTriadCensus,
   detectCommunities,
 } from "../../components/utils/ApiService";
 
-// Custom Styles
-import "./NetworkVisualization.css";
+import "../../styles/NetworkVisualization.css";
 
 const NetworkVisualization = ({
   networkData,
@@ -74,18 +70,20 @@ const NetworkVisualization = ({
   uploadedFileName,
   filters,
   setShouldFetchCommunities,
+  selectedMetric,
+  setSelectedMetric,
+  message,
+  setMessage,
+  shouldShowUserFilters = true,
 }) => {
   const dispatch = useDispatch();
   const forceGraphRef = useRef(null);
 
-  // State for layout
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeSection, setActiveSection] = useState("statistics");
   const [activeTab, setActiveTab] = useState("visualization");
   const [showHelp, setShowHelp] = useState(false);
 
-  // State for visualization
-  const [selectedMetric, setSelectedMetric] = useState(null);
   const [showDensity, setShowDensity] = useState(false);
   const [densityValue, setDensityValue] = useState(0);
   const [showDiameter, setShowDiameter] = useState(false);
@@ -99,7 +97,6 @@ const NetworkVisualization = ({
   const [showDataTable, setShowDataTable] = useState(false);
   const [showOnlyIntraCommunityLinks, setShowOnlyIntraCommunityLinks] =
     useState(false);
-  const [nodesFixed, setNodesFixed] = useState(false);
   const [isDirectedGraph, setIsDirectedGraph] = useState(
     formData.isDirectedGraph
   );
@@ -110,7 +107,6 @@ const NetworkVisualization = ({
   const [selectedNode, setSelectedNode] = useState(null);
   const [activityFilterEnabled, setActivityFilterEnabled] = useState(false);
   const [activityThreshold, setActivityThreshold] = useState(2);
-  const [message, setMessage] = useState("");
   const [showCustomizationToolbar, setShowCustomizationToolbar] =
     useState(false);
 
@@ -142,6 +138,12 @@ const NetworkVisualization = ({
     showImportantNodes: false,
     importantNodesThreshold: 0.5,
   });
+
+  useEffect(() => {
+    if (!networkData && uploadedFileName) {
+      handleNetworkAnalysis();
+    }
+  }, []);
 
   useEffect(() => {
     setIsDirectedGraph(formData.isDirectedGraph);
@@ -271,7 +273,6 @@ const NetworkVisualization = ({
       distances[targetId][sourceId] = 1;
     });
 
-    // Floyd-Warshall
     nodes.forEach((k) => {
       nodes.forEach((i) => {
         nodes.forEach((j) => {
@@ -890,40 +891,11 @@ const NetworkVisualization = ({
 
       toast.success("Showing all links in the network.");
     }
-
     if (forceGraphRef.current) {
       setTimeout(() => {
         forceGraphRef.current.d3ReheatSimulation();
         forceGraphRef.current.zoomToFit(400);
       }, 100);
-    }
-  };
-
-  const unfixAllNodes = () => {
-    if (networkData && networkData.nodes) {
-      const hasFixedNodes = networkData.nodes.some(
-        (node) => node.fx !== null || node.fy !== null
-      );
-
-      if (hasFixedNodes) {
-        const updatedNodes = networkData.nodes.map((node) => ({
-          ...node,
-          fx: null,
-          fy: null,
-        }));
-
-        setNetworkData({
-          ...networkData,
-          nodes: updatedNodes,
-        });
-
-        if (forceGraphRef.current) {
-          forceGraphRef.current.d3ReheatSimulation();
-        }
-
-        setNodesFixed(false);
-        toast.success("All nodes released from fixed positions");
-      }
     }
   };
 
@@ -1082,43 +1054,45 @@ const NetworkVisualization = ({
                 </Button>
               </div>
 
-              <div className="filter-group mb-3">
-                <div className="filter-label mb-2">Activity Level</div>
-                <Button
-                  variant="light"
-                  className={`btn-block mb-2 ${
-                    activityFilterEnabled ? "active" : ""
-                  }`}
-                  onClick={handleActivityFilter}
-                >
-                  <Activity className="me-2" />
-                  {activityFilterEnabled
-                    ? "Show All Nodes"
-                    : "Filter By Activity"}
-                </Button>
+              {shouldShowUserFilters && (
+                <div className="filter-group mb-3">
+                  <div className="filter-label mb-2">Activity Level</div>
+                  <Button
+                    variant="light"
+                    className={`btn-block mb-2 ${
+                      activityFilterEnabled ? "active" : ""
+                    }`}
+                    onClick={handleActivityFilter}
+                  >
+                    <Activity className="me-2" />
+                    {activityFilterEnabled
+                      ? "Show All Nodes"
+                      : "Filter By Activity"}
+                  </Button>
 
-                {activityFilterEnabled && (
-                  <div className="mt-2">
-                    <label htmlFor="activitySlider" className="form-label">
-                      Min. Connections: {activityThreshold}
-                    </label>
-                    <input
-                      type="range"
-                      className="form-range"
-                      id="activitySlider"
-                      min="1"
-                      max="10"
-                      step="1"
-                      value={activityThreshold}
-                      onChange={(e) => {
-                        const value = parseInt(e.target.value);
-                        setActivityThreshold(value);
-                        applyActivityFilter(value);
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
+                  {activityFilterEnabled && (
+                    <div className="mt-2">
+                      <label htmlFor="activitySlider" className="form-label">
+                        Min. Connections: {activityThreshold}
+                      </label>
+                      <input
+                        type="range"
+                        className="form-range"
+                        id="activitySlider"
+                        min="1"
+                        max="10"
+                        step="1"
+                        value={activityThreshold}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value);
+                          setActivityThreshold(value);
+                          applyActivityFilter(value);
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="filter-group">
                 <div className="filter-label mb-2">Community Structure</div>
@@ -1152,48 +1126,22 @@ const NetworkVisualization = ({
         return (
           <div className="section-content">
             <div className="section-title">Graph Tools</div>
-
-            <div className="settings-group mb-3">
-              <div className="settings-label mb-2">Graph Type</div>
-              <div className="btn-group w-100 mb-3">
-                <Button
-                  variant={isDirectedGraph ? "primary" : "outline-primary"}
-                  onClick={() => setIsDirectedGraph(true)}
-                >
-                  Directed
-                </Button>
-                <Button
-                  variant={!isDirectedGraph ? "primary" : "outline-primary"}
-                  onClick={() => setIsDirectedGraph(false)}
-                >
-                  Undirected
-                </Button>
-              </div>
-            </div>
-
-            <div className="settings-group mb-3">
-              <div className="settings-label mb-2">Node Positions</div>
-              <Button
-                variant="outline-primary"
-                className="w-100 mb-2"
-                onClick={unfixAllNodes}
-                disabled={!nodesFixed}
-              >
-                <ArrowsExpand className="me-2" />
-                Release Fixed Nodes
-              </Button>
-            </div>
-
             <div className="settings-group">
               <div className="settings-label mb-2">Analysis</div>
-              <Button
-                variant="light"
-                className={`btn-block mb-2 ${showTriadCensus ? "active" : ""}`}
-                onClick={handleTriadCensusAnalysis}
-              >
-                <Grid3x3 className="me-2" />
-                {showTriadCensus ? "Hide Triad Census" : "Analyze Triad Census"}
-              </Button>
+              {formData.isDirectedGraph && formData.useTriads && (
+                <Button
+                  variant="light"
+                  className={`btn-block mb-2 ${
+                    showTriadCensus ? "active" : ""
+                  }`}
+                  onClick={handleTriadCensusAnalysis}
+                >
+                  <Grid3x3 className="me-2" />
+                  {showTriadCensus
+                    ? "Hide Triad Census"
+                    : "Analyze Triad Census"}
+                </Button>
+              )}
 
               <Button
                 variant="light"
@@ -1293,18 +1241,12 @@ const NetworkVisualization = ({
           <div className="text-center p-5">
             <h3 className="mb-4">Network Visualization</h3>
             <p className="text-muted mb-4">
-              Click the button below to analyze the data and display the network
-              graph. Analysis may take a few moments depending on file size.
+              Loading network graph... This may take a few moments depending on
+              file size.
             </p>
-            <Button
-              variant="primary"
-              size="lg"
-              onClick={handleNetworkAnalysis}
-              className="analyze-btn"
-            >
-              <FileBarGraph className="me-2" />
-              Analyze Network
-            </Button>
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
           </div>
         ) : (
           <div className="network-visualization-container">
@@ -1368,7 +1310,6 @@ const NetworkVisualization = ({
                       <Filter />
                     </Button>
 
-
                     <Button
                       variant={
                         activeSection === "settings" ? "primary" : "light"
@@ -1392,7 +1333,7 @@ const NetworkVisualization = ({
                       }}
                       title="Help"
                     >
-                      <ExclamationTriangle />
+                      <InfoCircleFill />
                     </Button>
                   </div>
                 ) : (
@@ -1442,7 +1383,7 @@ const NetworkVisualization = ({
                       >
                         <Filter className="me-1" /> Filters
                       </Button>
-                    
+
                       <Button
                         variant={
                           activeSection === "settings"
@@ -1463,7 +1404,7 @@ const NetworkVisualization = ({
                         className="me-1 mb-1"
                         onClick={() => setActiveSection("help")}
                       >
-                        <ExclamationTriangle className="me-1" /> Help
+                        <InfoCircleFill className="me-1" /> Help
                       </Button>
                     </div>
 
@@ -1571,12 +1512,12 @@ const NetworkVisualization = ({
                     </div>
                   </div>
                   {showCustomizationToolbar && (
-                      <NetworkCustomizationToolbar
-                        networkData={networkData}
-                        communities={communities}
-                        onApplyCustomization={handleNetworkCustomization}
-                        initialSettings={visualizationSettings}
-                      />
+                    <NetworkCustomizationToolbar
+                      networkData={networkData}
+                      communities={communities}
+                      onApplyCustomization={handleNetworkCustomization}
+                      initialSettings={visualizationSettings}
+                    />
                   )}
                   <NetworkGraph
                     networkData={networkData}
@@ -1602,28 +1543,26 @@ const NetworkVisualization = ({
                   </div>
                 )}
 
-                {!showTriadCensus && (
-                  <div className="text-center p-5">
-                    <p className="text-muted mb-4">
-                      Analyze triad census to see patterns of connections
-                      between triplets of nodes.
-                    </p>
-                    <Button
-                      variant="primary"
-                      onClick={handleTriadCensusAnalysis}
-                    >
-                      <Grid3x3 className="me-2" /> Analyze Triad Census
-                    </Button>
-                  </div>
-                )}
-
                 {showDataTable && networkData && (
-                  <div className="mt-3 px-2">
-                    <NetworkDataTable
-                      networkData={networkData}
-                      onClose={() => setShowDataTable(false)}
-                    />
-                  </div>
+                  <Modal
+                    show={showDataTable}
+                    onHide={() => setShowDataTable(false)}
+                    size="xl"
+                    centered
+                    scrollable
+                  >
+                    <Modal.Header closeButton>
+                      <Modal.Title>Network Data Table</Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body
+                      style={{ maxHeight: "80vh", overflowY: "auto" }}
+                    >
+                      <NetworkDataTable
+                        networkData={networkData}
+                        onClose={() => setShowDataTable(false)}
+                      />
+                    </Modal.Body>
+                  </Modal>
                 )}
               </Col>
             </Row>

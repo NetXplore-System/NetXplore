@@ -3,6 +3,7 @@ import { Container, Row, Col, Button } from "react-bootstrap";
 import { ChevronLeft, ChevronRight } from "react-bootstrap-icons";
 import { toast } from "react-hot-toast";
 import { useDispatch, useSelector } from "react-redux";
+import { useLocation } from "react-router-dom";
 import useFilters from "../hooks/useFilters";
 import useComparison from "../hooks/useComparison";
 import { clearImages } from "../redux/images/imagesSlice";
@@ -24,17 +25,16 @@ import {
 } from "../components/utils/ApiService";
 import { saveToDB } from "../components/utils/save";
 
-import "./ResearchWizard.css";
+import "../styles/ResearchWizard.css";
 
 const ResearchWizard = () => {
+  const location = useLocation();
+  const selectedPlatform = location.state?.platform || "whatsapp";
   const dispatch = useDispatch();
   const fileInputRef = useRef(null);
-  const filters = useFilters();
   const { currentUser } = useSelector((state) => state.user) || { id: 1 };
-
   const [currentStep, setCurrentStep] = useState(1);
   const [totalSteps] = useState(8);
-
   const [networkData, setNetworkData] = useState(null);
   const [originalNetworkData, setOriginalNetworkData] = useState(null);
   const [shouldFetchCommunities, setShouldFetchCommunities] = useState(false);
@@ -42,6 +42,8 @@ const ResearchWizard = () => {
   const [communityMap, setCommunityMap] = useState({});
   const [selectedMetric, setSelectedMetric] = useState(null);
   const [message, setMessage] = useState("");
+  const [shouldShowUserFilters, setShouldShowUserFilters] = useState(true);
+  const [lastAnalysisParams, setLastAnalysisParams] = useState(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -49,9 +51,11 @@ const ResearchWizard = () => {
     file: null,
     fileName: "",
     uploadedFileName: "",
-    isAnonymized: true,
+    platform: selectedPlatform,
+    wikipediaUrl: "",
+    isAnonymized: false,
     includeMessageContent: true,
-    isDirectedGraph: true,
+    isDirectedGraph: false,
     useTriads: false,
     useHistoryAlgorithm: false,
     isNormalized: false,
@@ -62,9 +66,9 @@ const ResearchWizard = () => {
       endTime: "",
     },
     limit: {
-      enabled: false,
+      enabled: true,
       count: 50,
-      fromEnd: true,
+      fromEnd: false,
       type: "messages",
     },
     messageCriteria: {
@@ -93,6 +97,21 @@ const ResearchWizard = () => {
     comparisonUploadedFileName: "",
   });
 
+  const updateDocumentTitle = (step) => {
+    const titles = [
+      "New Research - Setup",
+      "New Research - Data Configuration",
+      "New Research - Time Frame",
+      "New Research - Message Content",
+      "New Research - User Filters",
+      "New Research - New Visualization",
+      "New Research - Comparative Analysis",
+      "New Research - Research Report",
+    ];
+    document.title = titles[step - 1] || "New Research";
+  };
+  const filters = useFilters(formData);
+
   const comparison = useComparison(
     originalNetworkData,
     formData.uploadedFileName
@@ -109,19 +128,58 @@ const ResearchWizard = () => {
     }
   }, [networkData, shouldFetchCommunities]);
 
-  const updateDocumentTitle = (step) => {
-    const titles = [
-      "New Research - Setup",
-      "New Research - Data Configuration",
-      "New Research - Time Frame",
-      "New Research - Message Content",
-      "New Research - User Filters",
-      "New Research - New Visualization",
-      "New Research - Comparative Analysis",
-      "New Research - Research Report",
-    ];
-    document.title = titles[step - 1] || "New Research";
-  };
+  useEffect(() => {
+    const isNetworkVisualizationStep =
+      currentStep === 6 ||
+      (currentStep === 5 &&
+        (!shouldShowUserFilters || !formData.includeMessageContent));
+
+    if (isNetworkVisualizationStep && formData.uploadedFileName) {
+      const currentParams = filters.buildNetworkFilterParams().toString();
+
+      if (
+        !networkData ||
+        !lastAnalysisParams ||
+        currentParams !== lastAnalysisParams
+      ) {
+        handleNetworkAnalysis();
+      }
+    }
+  }, [
+    currentStep,
+    formData.uploadedFileName,
+    shouldShowUserFilters,
+    formData.includeMessageContent,
+    networkData,
+    lastAnalysisParams,
+    formData.limit.enabled,
+    formData.limit.count,
+    formData.limit.fromEnd,
+    formData.timeFrame.startDate,
+    formData.timeFrame.endDate,
+    formData.timeFrame.startTime,
+    formData.timeFrame.endTime,
+    formData.messageCriteria.minLength,
+    formData.messageCriteria.maxLength,
+    formData.messageCriteria.keywords,
+    formData.messageCriteria.contentFilter,
+    formData.userFilters.minMessages,
+    formData.userFilters.maxMessages,
+    formData.userFilters.activeUsers,
+    formData.userFilters.usernameFilter,
+    formData.isDirectedGraph,
+    formData.useTriads,
+    formData.useHistoryAlgorithm,
+    formData.isNormalized,
+  ]);
+
+  useEffect(() => {
+    if (formData.isDirectedGraph && formData.useHistoryAlgorithm) {
+      setShouldShowUserFilters(false);
+    } else {
+      setShouldShowUserFilters(true);
+    }
+  }, [formData.isDirectedGraph, formData.useHistoryAlgorithm]);
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -160,6 +218,9 @@ const ResearchWizard = () => {
       return;
     }
     const params = filters.buildNetworkFilterParams();
+
+    setLastAnalysisParams(params.toString());
+
     toast.promise(analyzeNetwork(formData.uploadedFileName, params), {
       loading: "Analyzing network...",
       success: (data) => {
@@ -222,18 +283,21 @@ const ResearchWizard = () => {
     const { name, value, type, checked } = e.target;
     if (name.includes(".")) {
       const [parent, child] = name.split(".");
+      let newValue;
+      if (type === "checkbox") {
+        newValue = checked;
+      } else if (type === "radio") {
+        newValue = value === "true" ? true : value === "false" ? false : value;
+      } else if (type === "number") {
+        newValue = value === "" ? "" : Number(value);
+      } else {
+        newValue = value;
+      }
       setFormData({
         ...formData,
         [parent]: {
           ...formData[parent],
-          [child]:
-            type === "checkbox"
-              ? checked
-              : type === "number"
-              ? value === ""
-                ? ""
-                : Number(value)
-              : value,
+          [child]: newValue,
         },
       });
     } else {
@@ -241,6 +305,7 @@ const ResearchWizard = () => {
         ...formData,
         [name]: type === "checkbox" ? checked : value,
       });
+
       if (name === "includeMessageContent" && !checked && currentStep === 4) {
         setCurrentStep(5);
       }
@@ -284,7 +349,17 @@ const ResearchWizard = () => {
   };
 
   const getVisibleTotalSteps = () => {
-    return formData.includeMessageContent ? totalSteps : totalSteps - 1;
+    let steps = totalSteps;
+
+    if (!formData.includeMessageContent) {
+      steps -= 1;
+    }
+
+    if (!shouldShowUserFilters) {
+      steps -= 1;
+    }
+
+    return steps;
   };
 
   const goToNextStep = () => {
@@ -298,18 +373,48 @@ const ResearchWizard = () => {
         return;
       }
     }
-    if (currentStep === 3 && !formData.includeMessageContent) {
-      setCurrentStep(5);
-    } else if (currentStep < getVisibleTotalSteps()) {
-      setCurrentStep(currentStep + 1);
+
+    if (currentStep < getVisibleTotalSteps()) {
+      if (currentStep === 3 && !formData.includeMessageContent) {
+        if (!shouldShowUserFilters) {
+          setCurrentStep(5); 
+        } else {
+          setCurrentStep(4); 
+        }
+      } else if (
+        currentStep === 4 &&
+        !shouldShowUserFilters &&
+        formData.includeMessageContent
+      ) {
+        setCurrentStep(5);
+      } else {
+        setCurrentStep(currentStep + 1);
+      }
     }
   };
 
   const goToPreviousStep = () => {
-    if (currentStep === 5 && !formData.includeMessageContent) {
-      setCurrentStep(3);
-    } else if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
+    if (currentStep > 1) {
+      if (
+        currentStep === 6 ||
+        (currentStep === 5 &&
+          (!shouldShowUserFilters || !formData.includeMessageContent))
+      ) {
+        setLastAnalysisParams(null);
+      }
+      if (currentStep === 5) {
+        if (!formData.includeMessageContent && !shouldShowUserFilters) {
+          setCurrentStep(3);
+        } else if (!formData.includeMessageContent) {
+          setCurrentStep(4); 
+        } else if (!shouldShowUserFilters) {
+          setCurrentStep(4); 
+        } else {
+          setCurrentStep(currentStep - 1);
+        }
+      } else {
+        setCurrentStep(currentStep - 1);
+      }
     }
   };
 
@@ -327,6 +432,14 @@ const ResearchWizard = () => {
             handleInputChange={handleInputChange}
             fileInputRef={fileInputRef}
             handleFileChange={handleFileChange}
+            platform={formData.platform}
+            setNetworkData={setNetworkData}
+            setOriginalNetworkData={setOriginalNetworkData}
+            setWikiUrl={(url) =>
+              handleInputChange({
+                target: { name: "wikipediaUrl", value: url, type: "text" },
+              })
+            }
           />
         );
       case 2:
@@ -360,12 +473,35 @@ const ResearchWizard = () => {
           );
         }
       case 5:
-        return (
-          <UserFilters
-            formData={formData}
-            handleInputChange={handleInputChange}
-          />
-        );
+        if (shouldShowUserFilters && formData.includeMessageContent) {
+          return (
+            <UserFilters
+              formData={formData}
+              handleInputChange={handleInputChange}
+            />
+          );
+        } else {
+          return (
+            <NetworkVisualization
+              networkData={networkData}
+              originalNetworkData={originalNetworkData}
+              communities={communities}
+              communityMap={communityMap}
+              handleNetworkAnalysis={handleNetworkAnalysis}
+              formData={formData}
+              setNetworkData={setNetworkData}
+              setOriginalNetworkData={setOriginalNetworkData}
+              uploadedFileName={formData.uploadedFileName}
+              filters={filters}
+              setShouldFetchCommunities={setShouldFetchCommunities}
+              selectedMetric={selectedMetric}
+              setSelectedMetric={setSelectedMetric}
+              message={message}
+              setMessage={setMessage}
+              shouldShowUserFilters={shouldShowUserFilters}
+            />
+          );
+        }
       case 6:
         return (
           <NetworkVisualization
@@ -384,6 +520,7 @@ const ResearchWizard = () => {
             setSelectedMetric={setSelectedMetric}
             message={message}
             setMessage={setMessage}
+            shouldShowUserFilters={shouldShowUserFilters}
           />
         );
       case 7:
@@ -425,12 +562,22 @@ const ResearchWizard = () => {
 
           <div className="wizard-progress-line">
             {[...Array(getVisibleTotalSteps())].map((_, index) => {
-              const stepNumber =
-                !formData.includeMessageContent && index >= 3
-                  ? index + 2
-                  : index + 1;
-              const isCompleted = currentStep > stepNumber;
-              const isActive = currentStep === stepNumber;
+              let stepNumber = index + 1;
+
+              if (!formData.includeMessageContent && index >= 3) {
+                stepNumber += 1; 
+              }
+
+              if (!shouldShowUserFilters) {
+                if (formData.includeMessageContent && index >= 4) {
+                  stepNumber += 1; 
+                } else if (!formData.includeMessageContent && index >= 3) {
+                  stepNumber += 1; 
+                }
+              }
+
+              const isCompleted = currentStep > index + 1;
+              const isActive = currentStep === index + 1;
 
               const stepLabels = [
                 "Setup",
@@ -443,9 +590,20 @@ const ResearchWizard = () => {
                 "Report",
               ];
 
-              const labelIndex =
-                index +
-                (formData.includeMessageContent ? 0 : index >= 3 ? 1 : 0);
+              let labelIndex = index;
+
+              if (!formData.includeMessageContent && index >= 3) {
+                labelIndex += 1;
+              }
+
+              if (!shouldShowUserFilters) {
+                if (formData.includeMessageContent && index >= 4) {
+                  labelIndex += 1;
+                } else if (!formData.includeMessageContent && index >= 3) {
+                  labelIndex += 1;
+                }
+              }
+
               const stepLabel = stepLabels[labelIndex];
 
               return (
@@ -455,7 +613,7 @@ const ResearchWizard = () => {
                     isActive ? "active" : ""
                   }`}
                 >
-                  <div className="step-circle">{stepNumber}</div>
+                  <div className="step-circle">{index + 1}</div>
                   <div className="step-line"></div>
                   <div className="step-label">{stepLabel}</div>
                 </div>
