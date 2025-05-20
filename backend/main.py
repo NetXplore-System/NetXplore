@@ -1639,14 +1639,17 @@ async def analyze_triad_census(
         traceback.print_exc()
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
-
-@app.get("/dashboard")
+@app.get("/dashboard/{user_id}")
 async def get_dashboard_data(
+    user_id: str,
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(database.get_db)
 ):
     try:
-        user_uuid = uuid.UUID(current_user["user_id"])
+        user_uuid = uuid.UUID(user_id)
+        if user_id != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Not authorized")
+
         query = select(Research).where(Research.user_id == user_uuid)
         result = await db.execute(query)
         researches = result.scalars().all()
@@ -1654,7 +1657,9 @@ async def get_dashboard_data(
         dashboard_data = []
 
         for research in researches:
-            analysis_query = select(NetworkAnalysis).where(NetworkAnalysis.research_id == research.research_id)
+            analysis_query = select(NetworkAnalysis).where(
+                NetworkAnalysis.research_id == research.research_id
+            )
             analysis_result = await db.execute(analysis_query)
             analysis = analysis_result.scalars().first()
 
@@ -1665,13 +1670,12 @@ async def get_dashboard_data(
                 "date": research.created_at.strftime("%Y-%m-%d") if research.created_at else "",
                 "type": research.platform,
                 "nodes": len(analysis.nodes) if analysis and analysis.nodes else 0,
-                "communities": len(set(n.get("community") for n in analysis.nodes if n.get("community") is not None)) if analysis and analysis.nodes else 0
+                "communities": len(set(
+                    n.get("community") for n in analysis.nodes if n.get("community") is not None
+                )) if analysis and analysis.nodes else 0,
             })
 
-        return JSONResponse(
-            content={"status": "success", "researches": dashboard_data},
-            status_code=200
-        )
+        return {"status": "success", "researches": dashboard_data}
 
     except Exception as e:
         logger.error(f"Dashboard fetch failed: {e}")
