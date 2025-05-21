@@ -12,6 +12,7 @@ const ResearchSetup = ({
   setNetworkData,
   setOriginalNetworkData,
   setWikiUrl,
+  setFormData,
 }) => {
   return (
     <Card className="research-card">
@@ -54,6 +55,7 @@ const ResearchSetup = ({
           <WikipediaDataFetcher
             setNetworkData={setNetworkData}
             setWikiUrl={setWikiUrl}
+            setFormData={setFormData}
           />
         ) : (
           <Form.Group className="mb-4">

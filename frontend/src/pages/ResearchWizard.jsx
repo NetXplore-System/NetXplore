@@ -3,12 +3,13 @@ import { Container, Row, Col, Button, Modal } from "react-bootstrap";
 import { ChevronLeft, ChevronRight } from "react-bootstrap-icons";
 import { toast } from "react-hot-toast";
 import { useDispatch, useSelector } from "react-redux";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import useFilters from "../hooks/useFilters";
 import useComparison from "../hooks/useComparison";
 import { clearImages } from "../redux/images/imagesSlice";
 
 import ResearchSetup from "./Steps/ResearchSetup";
+import WikipediaStep from "./Steps/WikipediaStep";
 import DataConfiguration from "./Steps/DataConfiguration";
 import TimeFrame from "./Steps/TimeFrame";
 import MessageContent from "./Steps/MessageContent";
@@ -21,7 +22,6 @@ import {
   uploadFile,
   analyzeNetwork,
   detectCommunities,
-  saveFormToDB,
 } from "../components/utils/ApiService";
 import { saveToDB } from "../components/utils/save";
 
@@ -29,12 +29,49 @@ import "../styles/ResearchWizard.css";
 
 const ResearchWizard = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const selectedPlatform = location.state?.platform || "whatsapp";
   const dispatch = useDispatch();
   const fileInputRef = useRef(null);
   const { currentUser } = useSelector((state) => state.user) || { id: 1 };
   const [currentStep, setCurrentStep] = useState(1);
-  const [totalSteps] = useState(8);
+
+  const ALL_STEPS = {
+    SETUP: "Setup",
+    WIKIPEDIA: "Discussion",
+    DATA_CONFIG: "DataConfiguration",
+    TIME_FRAME: "TimeFrame",
+    MESSAGE_CONTENT: "MessageContent",
+    USER_FILTERS: "UserFilters",
+    NETWORK_VISUALIZATION: "NetworkVisualization",
+    COMPARATIVE_ANALYSIS: "ComparativeAnalysis",
+    RESEARCH_REPORT: "ResearchReport",
+  };
+
+  const STEP_LABELS = {
+    [ALL_STEPS.SETUP]: "Setup",
+    [ALL_STEPS.WIKIPEDIA]: "Discussion",
+    [ALL_STEPS.DATA_CONFIG]: "Config",
+    [ALL_STEPS.TIME_FRAME]: "Time",
+    [ALL_STEPS.MESSAGE_CONTENT]: "Content",
+    [ALL_STEPS.USER_FILTERS]: "Users",
+    [ALL_STEPS.NETWORK_VISUALIZATION]: "Network",
+    [ALL_STEPS.COMPARATIVE_ANALYSIS]: "Compare",
+    [ALL_STEPS.RESEARCH_REPORT]: "Report",
+  };
+
+  const STEP_TITLES = {
+    [ALL_STEPS.SETUP]: "New Research - Setup",
+    [ALL_STEPS.WIKIPEDIA]: "New Research - Discussion",
+    [ALL_STEPS.DATA_CONFIG]: "New Research - Data Configuration",
+    [ALL_STEPS.TIME_FRAME]: "New Research - Time Frame",
+    [ALL_STEPS.MESSAGE_CONTENT]: "New Research - Message Content",
+    [ALL_STEPS.USER_FILTERS]: "New Research - User Filters",
+    [ALL_STEPS.NETWORK_VISUALIZATION]: "New Research - Network Visualization",
+    [ALL_STEPS.COMPARATIVE_ANALYSIS]: "New Research - Comparative Analysis",
+    [ALL_STEPS.RESEARCH_REPORT]: "New Research - Research Report",
+  };
+
   const [networkData, setNetworkData] = useState(null);
   const [originalNetworkData, setOriginalNetworkData] = useState(null);
   const [shouldFetchCommunities, setShouldFetchCommunities] = useState(false);
@@ -43,6 +80,8 @@ const ResearchWizard = () => {
   const [selectedMetric, setSelectedMetric] = useState(null);
   const [message, setMessage] = useState("");
   const [shouldShowUserFilters, setShouldShowUserFilters] = useState(true);
+  const [shouldShowMessageContent, setShouldShowMessageContent] =
+    useState(true);
   const [lastAnalysisParams, setLastAnalysisParams] = useState(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showLoginInvite, setShowLoginInvite] = useState(false);
@@ -99,19 +138,6 @@ const ResearchWizard = () => {
     comparisonUploadedFileName: "",
   });
 
-  const updateDocumentTitle = (step) => {
-    const titles = [
-      "New Research - Setup",
-      "New Research - Data Configuration",
-      "New Research - Time Frame",
-      "New Research - Message Content",
-      "New Research - User Filters",
-      "New Research - New Visualization",
-      "New Research - Comparative Analysis",
-      "New Research - Research Report",
-    ];
-    document.title = titles[step - 1] || "New Research";
-  };
   const filters = useFilters(formData);
 
   const comparison = useComparison(
@@ -119,8 +145,42 @@ const ResearchWizard = () => {
     formData.uploadedFileName
   );
 
+  const getVisibleSteps = () => {
+    const steps = [];
+    steps.push(ALL_STEPS.SETUP);
+
+    if (selectedPlatform === "wikipedia") {
+      steps.push(ALL_STEPS.WIKIPEDIA);
+    }
+
+    steps.push(ALL_STEPS.DATA_CONFIG);
+    steps.push(ALL_STEPS.TIME_FRAME);
+    if (shouldShowMessageContent) {
+      steps.push(ALL_STEPS.MESSAGE_CONTENT);
+    }
+
+    if (shouldShowUserFilters) {
+      steps.push(ALL_STEPS.USER_FILTERS);
+    }
+    steps.push(ALL_STEPS.NETWORK_VISUALIZATION);
+    steps.push(ALL_STEPS.COMPARATIVE_ANALYSIS);
+    steps.push(ALL_STEPS.RESEARCH_REPORT);
+
+    return steps;
+  };
+
+  const getCurrentStepContent = () => {
+    const visibleSteps = getVisibleSteps();
+    return visibleSteps[currentStep - 1] || ALL_STEPS.SETUP;
+  };
+
+  const getVisibleTotalSteps = () => {
+    return getVisibleSteps().length;
+  };
+
   useEffect(() => {
-    updateDocumentTitle(currentStep);
+    const currentStepContent = getCurrentStepContent();
+    document.title = STEP_TITLES[currentStepContent] || "New Research";
   }, [currentStep]);
 
   useEffect(() => {
@@ -131,10 +191,23 @@ const ResearchWizard = () => {
   }, [networkData, shouldFetchCommunities]);
 
   useEffect(() => {
+    if (formData.isDirectedGraph && formData.useHistoryAlgorithm) {
+      setShouldShowUserFilters(false);
+      setShouldShowMessageContent(false);
+    } else {
+      setShouldShowUserFilters(true);
+      setShouldShowMessageContent(formData.includeMessageContent);
+    }
+  }, [
+    formData.isDirectedGraph,
+    formData.useHistoryAlgorithm,
+    formData.includeMessageContent,
+  ]);
+
+  useEffect(() => {
+    const currentStepContent = getCurrentStepContent();
     const isNetworkVisualizationStep =
-      currentStep === 6 ||
-      (currentStep === 5 &&
-        (!shouldShowUserFilters || !formData.includeMessageContent));
+      currentStepContent === ALL_STEPS.NETWORK_VISUALIZATION;
 
     if (isNetworkVisualizationStep && formData.uploadedFileName) {
       const currentParams = filters.buildNetworkFilterParams().toString();
@@ -174,14 +247,6 @@ const ResearchWizard = () => {
     formData.useHistoryAlgorithm,
     formData.isNormalized,
   ]);
-
-  useEffect(() => {
-    if (formData.isDirectedGraph && formData.useHistoryAlgorithm) {
-      setShouldShowUserFilters(false);
-    } else {
-      setShouldShowUserFilters(true);
-    }
-  }, [formData.isDirectedGraph, formData.useHistoryAlgorithm]);
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -283,6 +348,7 @@ const ResearchWizard = () => {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
+
     if (name.includes(".")) {
       const [parent, child] = name.split(".");
       let newValue;
@@ -307,9 +373,29 @@ const ResearchWizard = () => {
         ...formData,
         [name]: type === "checkbox" ? checked : value,
       });
+    }
 
-      if (name === "includeMessageContent" && !checked && currentStep === 4) {
-        setCurrentStep(5);
+    if (name === "isDirectedGraph" || name === "useHistoryAlgorithm") {
+      const currentStepContent = getCurrentStepContent();
+
+      if (
+        (checked &&
+          name === "useHistoryAlgorithm" &&
+          formData.isDirectedGraph) ||
+        (checked && name === "isDirectedGraph" && formData.useHistoryAlgorithm)
+      ) {
+        if (
+          currentStepContent === ALL_STEPS.MESSAGE_CONTENT ||
+          currentStepContent === ALL_STEPS.USER_FILTERS
+        ) {
+          const visibleSteps = getVisibleSteps();
+          const networkVisIndex = visibleSteps.indexOf(
+            ALL_STEPS.NETWORK_VISUALIZATION
+          );
+          if (networkVisIndex !== -1) {
+            setCurrentStep(networkVisIndex + 1);
+          }
+        }
       }
     }
   };
@@ -350,21 +436,6 @@ const ResearchWizard = () => {
     );
   };
 
-  const getVisibleTotalSteps = () => {
-    // Adjust total steps count based on both includeMessageContent and User Filters visibility
-    let steps = totalSteps;
-
-    if (!formData.includeMessageContent) {
-      steps -= 1;
-    }
-
-    if (!shouldShowUserFilters) {
-      steps -= 1;
-    }
-
-    return steps;
-  };
-
   const goToNextStep = () => {
     if (currentStep === 1) {
       if (!formData.name.trim()) {
@@ -378,52 +449,25 @@ const ResearchWizard = () => {
     }
 
     if (currentStep < getVisibleTotalSteps()) {
-      if (currentStep === 3 && !formData.includeMessageContent) {
-        if (!shouldShowUserFilters) {
-          setCurrentStep(5);
-        } else {
-          setCurrentStep(4);
-        }
-      } else if (
-        currentStep === 4 &&
-        !shouldShowUserFilters &&
-        formData.includeMessageContent
-      ) {
-        setCurrentStep(5);
-      } else {
-        setCurrentStep(currentStep + 1);
-      }
+      setCurrentStep(currentStep + 1);
     }
   };
 
   const goToPreviousStep = () => {
     if (currentStep > 1) {
-      if (
-        currentStep === 6 ||
-        (currentStep === 5 &&
-          (!shouldShowUserFilters || !formData.includeMessageContent))
-      ) {
+      const currentStepContent = getCurrentStepContent();
+      if (currentStepContent === ALL_STEPS.NETWORK_VISUALIZATION) {
         setLastAnalysisParams(null);
       }
-      if (currentStep === 5) {
-        if (!formData.includeMessageContent && !shouldShowUserFilters) {
-          setCurrentStep(3);
-        } else if (!formData.includeMessageContent) {
-          setCurrentStep(4);
-        } else if (!shouldShowUserFilters) {
-          setCurrentStep(4);
-        } else {
-          setCurrentStep(currentStep - 1);
-        }
-      } else {
-        setCurrentStep(currentStep - 1);
-      }
+      setCurrentStep(currentStep - 1);
     }
   };
 
   const renderCurrentStep = () => {
-    switch (currentStep) {
-      case 1:
+    const currentStepContent = getCurrentStepContent();
+
+    switch (currentStepContent) {
+      case ALL_STEPS.SETUP:
         return (
           <ResearchSetup
             formData={formData}
@@ -440,67 +484,37 @@ const ResearchWizard = () => {
             }
           />
         );
-      case 2:
+      case ALL_STEPS.WIKIPEDIA:
+        return <WikipediaStep formData={formData} />;
+      case ALL_STEPS.DATA_CONFIG:
         return (
           <DataConfiguration
             formData={formData}
             handleInputChange={handleInputChange}
           />
         );
-      case 3:
+      case ALL_STEPS.TIME_FRAME:
         return (
           <TimeFrame
             formData={formData}
             handleInputChange={handleInputChange}
           />
         );
-      case 4:
-        if (formData.includeMessageContent) {
-          return (
-            <MessageContent
-              formData={formData}
-              handleInputChange={handleInputChange}
-            />
-          );
-        } else {
-          return (
-            <UserFilters
-              formData={formData}
-              handleInputChange={handleInputChange}
-            />
-          );
-        }
-      case 5:
-        if (shouldShowUserFilters && formData.includeMessageContent) {
-          return (
-            <UserFilters
-              formData={formData}
-              handleInputChange={handleInputChange}
-            />
-          );
-        } else {
-          return (
-            <NetworkVisualization
-              networkData={networkData}
-              originalNetworkData={originalNetworkData}
-              communities={communities}
-              communityMap={communityMap}
-              handleNetworkAnalysis={handleNetworkAnalysis}
-              formData={formData}
-              setNetworkData={setNetworkData}
-              setOriginalNetworkData={setOriginalNetworkData}
-              uploadedFileName={formData.uploadedFileName}
-              filters={filters}
-              setShouldFetchCommunities={setShouldFetchCommunities}
-              selectedMetric={selectedMetric}
-              setSelectedMetric={setSelectedMetric}
-              message={message}
-              setMessage={setMessage}
-              shouldShowUserFilters={shouldShowUserFilters}
-            />
-          );
-        }
-      case 6:
+      case ALL_STEPS.MESSAGE_CONTENT:
+        return (
+          <MessageContent
+            formData={formData}
+            handleInputChange={handleInputChange}
+          />
+        );
+      case ALL_STEPS.USER_FILTERS:
+        return (
+          <UserFilters
+            formData={formData}
+            handleInputChange={handleInputChange}
+          />
+        );
+      case ALL_STEPS.NETWORK_VISUALIZATION:
         return (
           <NetworkVisualization
             networkData={networkData}
@@ -521,7 +535,7 @@ const ResearchWizard = () => {
             shouldShowUserFilters={shouldShowUserFilters}
           />
         );
-      case 7:
+      case ALL_STEPS.COMPARATIVE_ANALYSIS:
         return (
           <ComparativeAnalysis
             originalNetworkData={originalNetworkData}
@@ -530,7 +544,7 @@ const ResearchWizard = () => {
             uploadedFileName={formData.uploadedFileName}
           />
         );
-      case 8:
+      case ALL_STEPS.RESEARCH_REPORT:
         return (
           <ResearchReport
             formData={formData}
@@ -554,6 +568,7 @@ const ResearchWizard = () => {
       setShowLoginInvite(true);
     }
   };
+
   return (
     <Container fluid className="research-wizard-container">
       <Row className="justify-content-center">
@@ -566,50 +581,10 @@ const ResearchWizard = () => {
           </div>
 
           <div className="wizard-progress-line">
-            {[...Array(getVisibleTotalSteps())].map((_, index) => {
-              let stepNumber = index + 1;
-
-              if (!formData.includeMessageContent && index >= 3) {
-                stepNumber += 1;
-              }
-
-              if (!shouldShowUserFilters) {
-                if (formData.includeMessageContent && index >= 4) {
-                  stepNumber += 1;
-                } else if (!formData.includeMessageContent && index >= 3) {
-                  stepNumber += 1;
-                }
-              }
-
+            {getVisibleSteps().map((stepContent, index) => {
               const isCompleted = currentStep > index + 1;
               const isActive = currentStep === index + 1;
-
-              const stepLabels = [
-                "Setup",
-                "Config",
-                "Time",
-                "Content",
-                "Users",
-                "Network",
-                "Compare",
-                "Report",
-              ];
-
-              let labelIndex = index;
-
-              if (!formData.includeMessageContent && index >= 3) {
-                labelIndex += 1;
-              }
-
-              if (!shouldShowUserFilters) {
-                if (formData.includeMessageContent && index >= 4) {
-                  labelIndex += 1;
-                } else if (!formData.includeMessageContent && index >= 3) {
-                  labelIndex += 1;
-                }
-              }
-
-              const stepLabel = stepLabels[labelIndex];
+              const stepLabel = STEP_LABELS[stepContent];
 
               return (
                 <div
