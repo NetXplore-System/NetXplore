@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { FaFilter, FaUsers, FaRocket } from "react-icons/fa";
-import "../styles/NetworkMockupVisualization.css"; 
+import "../styles//NetworkMockupVisualization.css"; 
 
 const NetworkMockupVisualization = () => {
   return (
@@ -397,14 +397,14 @@ const NetworkMockupVisualization = () => {
         <div className="mockup-footer">
           <div className="mockup-footer-left">
             <div className="mockup-button mockup-button-blue">
-              <FaFilter size={8} className="btn-icon" /> Filter
+              <FaFilter size={8} className="btn-ic" /> Filter
             </div>
             <div className="mockup-button mockup-button-teal">
-              <FaUsers size={8} className="btn-icon" /> Communities
+              <FaUsers size={8} className="btn-ic" /> Communities
             </div>
           </div>
           <div className="mockup-button mockup-button-orange">
-            <FaRocket size={8} className="btn-icon" /> Run Analysis
+            <FaRocket size={8} className="btn-ic" /> Run Analysis
           </div>
         </div>
       </div>
