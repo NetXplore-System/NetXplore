@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Card, Row, Col, Button } from "react-bootstrap";
 import { FileBarGraph, Download } from "react-bootstrap-icons";
-import { toast } from "react-hot-toast";
 import { useDispatch, useSelector } from "react-redux";
 import { addToMain } from "../../redux/images/imagesSlice";
-import MadeReport from "../../components/utils/MadeReport"; 
+import MadeReport from "../../components/utils/MadeReport";
 
 const ResearchReport = ({
   formData,
@@ -72,82 +71,88 @@ const ResearchReport = ({
   };
 
   const handleGenerateReport = () => {
-    handleSaveResearch();
     setShowDownload(true);
   };
 
   return (
-    <Card className="research-card">
-      <Card.Body>
-        <h3 className="step-title">Research Report</h3>
+    <Card className="research-card shadow-sm border-0">
+      <Card.Body className="p-4">
+        <h3 className="step-title fw-bold mb-3">Research Report</h3>
 
         <p className="text-muted mb-4">
           Review your research findings and generate a final report. Click
           "Generate Report" to customize and download your report.
         </p>
 
-        <div className="research-summary mb-4 p-3 border rounded bg-light">
-          <h4>Research Summary</h4>
+        <div className="research-summary mb-4 p-4 border rounded bg-light shadow-sm">
+          <h4 className="fw-bold mb-3">Research Summary</h4>
 
-          <Row className="mb-3">
+          <Row className="mb-3 g-3">
             <Col md={6}>
-              <p>
-                <strong>Research Name:</strong> {formData.name}
-              </p>
-              <p>
-                <strong>Data File:</strong>{" "}
+              <div className="mb-2">
+                <strong className="me-2">Research Name:</strong> {formData.name}
+              </div>
+              <div className="mb-2">
+                <strong className="me-2">Data File:</strong>{" "}
                 {formData.fileName || formData.uploadedFileName}
-              </p>
-              <p>
-                <strong>Anonymized:</strong>{" "}
+              </div>
+              <div className="mb-2">
+                <strong className="me-2">Anonymized:</strong>{" "}
                 {formData.isAnonymized ? "Yes" : "No"}
-              </p>
+              </div>
             </Col>
 
             <Col md={6}>
-              <p>
-                <strong>Date Range:</strong>{" "}
+              <div className="mb-2">
+                <strong className="me-2">Date Range:</strong>{" "}
                 {formData.timeFrame.startDate
                   ? `${formData.timeFrame.startDate} to ${
                       formData.timeFrame.endDate || "Present"
                     }`
                   : "All dates"}
-              </p>
-              <p>
-                <strong>Message Content Analysis:</strong>{" "}
+              </div>
+              <div className="mb-2">
+                <strong className="me-2">Message Content Analysis:</strong>{" "}
                 {formData.includeMessageContent ? "Enabled" : "Disabled"}
-              </p>
-              <p>
-                <strong>Selected Metric:</strong> {selectedMetric || "None"}
-              </p>
+              </div>
+              <div className="mb-2">
+                <strong className="me-2">Selected Metric:</strong>{" "}
+                {selectedMetric || "None"}
+              </div>
             </Col>
           </Row>
 
           {networkData && (
-            <div className="metrics-summary p-3 border-top">
-              <h5>Network Metrics</h5>
-              <Row>
-                <Col md={3}>
-                  <p>
-                    <strong>Nodes:</strong> {networkData.nodes.length}
-                  </p>
+            <div className="metrics-summary p-3 border-top mt-3">
+              <h5 className="fw-bold mb-3">Network Metrics</h5>
+              <Row className="g-3">
+                <Col md={3} sm={6}>
+                  <div className="metric-card p-2 text-center rounded bg-white shadow-sm">
+                    <div className="fw-bold text-primary">Nodes</div>
+                    <div className="fs-4">{networkData.nodes.length}</div>
+                  </div>
                 </Col>
-                <Col md={3}>
-                  <p>
-                    <strong>Links:</strong> {networkData.links.length}
-                  </p>
+                <Col md={3} sm={6}>
+                  <div className="metric-card p-2 text-center rounded bg-white shadow-sm">
+                    <div className="fw-bold text-primary">Links</div>
+                    <div className="fs-4">{networkData.links.length}</div>
+                  </div>
                 </Col>
-                <Col md={3}>
-                  <p>
-                    <strong>Communities:</strong>{" "}
-                    {communities ? communities.length : 0}
-                  </p>
+                <Col md={3} sm={6}>
+                  <div className="metric-card p-2 text-center rounded bg-white shadow-sm">
+                    <div className="fw-bold text-primary">Communities</div>
+                    <div className="fs-4">
+                      {communities ? communities.length : 0}
+                    </div>
+                  </div>
                 </Col>
-                <Col md={3}>
-                  <p>
-                    <strong>Comparisons:</strong>{" "}
-                    {comparison.comparisonData.length}
-                  </p>
+                <Col md={3} sm={6}>
+                  <div className="metric-card p-2 text-center rounded bg-white shadow-sm">
+                    <div className="fw-bold text-primary">Comparisons</div>
+                    <div className="fs-4">
+                      {comparison.comparisonData.length}
+                    </div>
+                  </div>
                 </Col>
               </Row>
             </div>
@@ -160,7 +165,7 @@ const ResearchReport = ({
             size="lg"
             onClick={handleGenerateReport}
             disabled={!networkData}
-            className="px-4"
+            className="px-4 py-2 shadow-sm fw-bold"
           >
             <FileBarGraph className="me-2" />
             Generate Report
@@ -168,7 +173,7 @@ const ResearchReport = ({
         </div>
 
         {!networkData && (
-          <div className="alert alert-info mt-4">
+          <div className="alert alert-info mt-4 shadow-sm">
             <p className="mb-0">
               Please analyze a network in the Network Visualization step before
               generating a report.
