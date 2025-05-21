@@ -169,7 +169,7 @@ const ComparisonItem = ({
           </Col>
           <Col md={5} className="d-flex justify-content-end align-items-center">
             <Button
-              variant="outline-primary"
+              variant="light"
               className="me-2"
               onClick={() =>
                 document.getElementById(`compFile${index}`).click()

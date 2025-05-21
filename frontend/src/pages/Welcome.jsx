@@ -30,7 +30,7 @@ const sections = [
     title: "Upload & Analyze Any Conversation",
     text: "Instantly transform your WhatsApp chats or Wikipedia data into interactive network visualizations. Upload your data with a simple click and watch as connections form before your eyes, revealing the hidden patterns within your conversations.",
     backgroundColor: "linear-gradient(135deg, #050d2d 0%, #0a1b3d 100%)",
-    icon: <FaFileUpload size={60} />,
+    icon: <FaFileUpload size={40} />,
     imageSrc: "/images/data-upload.webp",
     features: [
       "WhatsApp chat export compatibility",
@@ -43,7 +43,7 @@ const sections = [
     title: "Discover Hidden Network Patterns",
     text: "Uncover the invisible structures within conversations using our powerful network analysis tools. Filter by dates, keywords, users, or message length to identify communication patterns and key influencers within any discourse.",
     backgroundColor: "linear-gradient(135deg, #0a1b3d 0%, #1c1c2e 100%)",
-    icon: <FaSearch size={60} />,
+    icon: <FaSearch size={40} />,
     imageSrc: "/images/pattern-discovery.webp",
     features: [
       "Advanced message filtering",
@@ -56,7 +56,7 @@ const sections = [
     title: "Identify Communities & Key Influencers",
     text: "Advanced algorithms automatically detect communities within your network and highlight the most influential participants. Calculate PageRank, closeness, and betweenness centrality metrics to understand who drives the conversation.",
     backgroundColor: "linear-gradient(135deg, #1c1c2e 0%, #0c3944 100%)",
-    icon: <FaUsers size={60} />,
+    icon: <FaUsers size={40} />,
     imageSrc: "/images/community-detection.webp",
     features: [
       "Community detection algorithms",
@@ -69,7 +69,7 @@ const sections = [
     title: "Compare Networks & Test Scenarios",
     text: "Compare different conversation networks, simulate the removal of users, or hide inter-community links to understand resilience and information flow. Analyze network density, diameter, and run Triad Census analysis to understand local structures.",
     backgroundColor: "linear-gradient(135deg, #0c3944 0%, #11224d 100%)",
-    icon: <FaChartLine size={60} />,
+    icon: <FaChartLine size={40} />,
     imageSrc: "/images/network-comparison.webp",
     features: [
       "Network comparison tools",
