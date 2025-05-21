@@ -546,7 +546,7 @@ const ResearchWizard = () => {
         return <p>Step {currentStep} coming soon...</p>;
     }
   };
-  
+
   const handleSubmit = () => {
     if (currentUser?.id) {
       setShowSaveModal(true);
