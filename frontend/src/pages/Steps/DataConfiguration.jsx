@@ -36,7 +36,7 @@ const DataConfiguration = ({ formData, handleInputChange }) => {
               : "Only communication patterns will be analyzed (no content analysis)"}
           </Form.Text>
         </Form.Group>
-        
+
         <Form.Group className="mb-4">
           <div className="d-flex justify-content-between align-items-center">
             <div>
@@ -109,6 +109,51 @@ const DataConfiguration = ({ formData, handleInputChange }) => {
               </Form.Text>
             </Form.Group>
 
+            {formData.useHistoryAlgorithm && (
+              <>
+                <Form.Group className="mb-4 ms-5">
+                  <Form.Label className="form-label mb-0">
+                    Message History Length
+                    <InfoTooltip text="Select how many messages back the algorithm should consider in the analysis." />
+                  </Form.Label>
+                  <Form.Select
+                    name="historyLength"
+                    value={formData.historyLength || 3}
+                    onChange={handleInputChange}
+                    className="research-input mt-2"
+                  >
+                    <option value={2}>2 messages</option>
+                    <option value={3}>3 messages</option>
+                  </Form.Select>
+                  <Form.Text className="text-muted">
+                    Number of previous messages to include in the analysis
+                  </Form.Text>
+                </Form.Group>
+
+                <Form.Group className="mb-4 ms-5">
+                  <div className="d-flex justify-content-between align-items-center">
+                    <div>
+                      <Form.Label className="form-label mb-0">
+                        Normalized Algorithm
+                        <InfoTooltip text="Normalize values to account for different activity levels between users, creating a more balanced representation." />
+                      </Form.Label>
+                    </div>
+                    <Form.Check
+                      type="switch"
+                      id="normalized-switch"
+                      name="isNormalized"
+                      checked={formData.isNormalized}
+                      onChange={handleInputChange}
+                      className="config-switch"
+                    />
+                  </div>
+                  <Form.Text className="text-muted">
+                    Adjust for differences in user activity levels
+                  </Form.Text>
+                </Form.Group>
+              </>
+            )}
+
             <Form.Group className="mb-4 ms-4">
               <div className="d-flex justify-content-between align-items-center">
                 <div>
@@ -130,30 +175,6 @@ const DataConfiguration = ({ formData, handleInputChange }) => {
                 Analyze patterns between groups of three users
               </Form.Text>
             </Form.Group>
-
-            {formData.useHistoryAlgorithm && (
-              <Form.Group className="mb-4 ms-5">
-                <div className="d-flex justify-content-between align-items-center">
-                  <div>
-                    <Form.Label className="form-label mb-0">
-                      Normalized Algorithm
-                      <InfoTooltip text="Normalize values to account for different activity levels between users, creating a more balanced representation." />
-                    </Form.Label>
-                  </div>
-                  <Form.Check
-                    type="switch"
-                    id="normalized-switch"
-                    name="isNormalized"
-                    checked={formData.isNormalized}
-                    onChange={handleInputChange}
-                    className="config-switch"
-                  />
-                </div>
-                <Form.Text className="text-muted">
-                  Adjust for differences in user activity levels
-                </Form.Text>
-              </Form.Group>
-            )}
           </div>
         )}
       </Card.Body>
