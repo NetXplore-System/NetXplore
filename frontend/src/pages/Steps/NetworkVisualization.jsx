@@ -21,16 +21,16 @@ import {
   BarChartFill,
   GearFill,
   NodePlus,
-  BrushFill,
+  PaletteFill,
   ArrowsCollapse,
   ArrowsExpand,
-  ArrowClockwise,
+  NodeMinus,
   People,
   Activity,
   ImageFill,
   Table,
   Search,
-  Filter,
+  Diagram3Fill,
   GraphUp,
   Grid3x3,
   Download,
@@ -39,7 +39,7 @@ import {
   InfoCircleFill,
   Save,
   Eye,
-  EyeSlash,
+  Share,
 } from "react-bootstrap-icons";
 import { toast } from "react-hot-toast";
 import { useDispatch } from "react-redux";
@@ -1021,7 +1021,7 @@ const NetworkVisualization = ({
       case "filters":
         return (
           <div className="section-content">
-            <div className="section-title">Network Filters</div>
+            <div className="section-title">Network Refinement</div>
             <div className="filters-list">
               <div className="filter-group mb-3">
                 <div className="filter-label mb-2">Connection Strength</div>
@@ -1047,7 +1047,7 @@ const NetworkVisualization = ({
                   }`}
                   onClick={handleRestoreNetwork}
                 >
-                  <ArrowClockwise className="me-2" />
+                  <NodeMinus className="me-2" />
                   {networkWasRestored
                     ? "Restore Removed Node"
                     : "Remove Selected Node"}
@@ -1114,7 +1114,7 @@ const NetworkVisualization = ({
                   className="btn-block mb-2"
                   onClick={fetchCommunityData}
                 >
-                  <GraphUp className="me-2" />
+                  <Share className="me-2" />
                   Detect Communities
                 </Button>
               </div>
@@ -1207,7 +1207,7 @@ const NetworkVisualization = ({
                   </Accordion.Body>
                 </Accordion.Item>
                 <Accordion.Item eventKey="2">
-                  <Accordion.Header>Filters & Analysis</Accordion.Header>
+                  <Accordion.Header>Refinement & Analysis</Accordion.Header>
                   <Accordion.Body>
                     <ul className="help-list">
                       <li>
@@ -1232,6 +1232,58 @@ const NetworkVisualization = ({
       default:
         return null;
     }
+  };
+
+  const handleResetAll = () => {
+    if (!originalNetworkData) return;
+
+    setNetworkData(JSON.parse(JSON.stringify(originalNetworkData)));
+    setCustomizedNetworkData(null);
+    setSelectedMetric(null);
+    setShowDensity(false);
+    setDensityValue(0);
+    setShowDiameter(false);
+    setDiameterValue(0);
+    setStrongConnectionsActive(false);
+    setHighlightCentralNodes(false);
+    setFilteredNodes([]);
+    setFilteredLinks([]);
+    setShowOnlyIntraCommunityLinks(false);
+    setShowTriadCensus(false);
+    setTriadCensusData(null);
+    setActivityFilterEnabled(false);
+    setActivityThreshold(2);
+    setNetworkWasRestored(false);
+    setVisualizationSettings({
+      colorBy: "default",
+      sizeBy: "default",
+      highlightUsers: [],
+      highlightCommunities: [],
+      communityNames: {},
+      communityColors: {},
+      customColors: {
+        defaultNodeColor: "#050d2d",
+        highlightNodeColor: "#00c6c2",
+        communityColors: [
+          "#313659",
+          "#5f6289",
+          "#324b4a",
+          "#158582",
+          "#9092bc",
+          "#c4c6f1",
+        ],
+        edgeColor: "rgba(128, 128, 128, 0.6)",
+      },
+      nodeSizes: {
+        min: 15,
+        max: 40,
+      },
+      colorScheme: "default",
+      showImportantNodes: false,
+      importantNodesThreshold: 0.5,
+    });
+
+    toast.success("Network reset to original state.");
   };
 
   return (
@@ -1305,9 +1357,9 @@ const NetworkVisualization = ({
                         setActiveSection("filters");
                         setSidebarCollapsed(false);
                       }}
-                      title="Filters"
+                      title="Refinement"
                     >
-                      <Filter />
+                      <Diagram3Fill />
                     </Button>
 
                     <Button
@@ -1381,7 +1433,7 @@ const NetworkVisualization = ({
                         className="me-1 mb-1"
                         onClick={() => setActiveSection("filters")}
                       >
-                        <Filter className="me-1" /> Filters
+                        <Diagram3Fill className="me-1" /> Refinement
                       </Button>
 
                       <Button
@@ -1438,7 +1490,7 @@ const NetworkVisualization = ({
                             )
                           }
                         >
-                          <BrushFill />
+                          <PaletteFill />
                         </Button>
                       </OverlayTrigger>
 
@@ -1507,6 +1559,21 @@ const NetworkVisualization = ({
                           onClick={() => forceGraphRef.current?.zoomToFit(400)}
                         >
                           <ZoomIn className="me-1" /> Fit
+                        </Button>
+                      </OverlayTrigger>
+
+                      <OverlayTrigger
+                        placement="bottom"
+                        overlay={
+                          <Tooltip id="fit-tooltip">Reset Network</Tooltip>
+                        }
+                      >
+                        <Button
+                          variant="outline-secondary"
+                          className="btn-fit"
+                          onClick={handleResetAll}
+                        >
+                          Reset
                         </Button>
                       </OverlayTrigger>
                     </div>
