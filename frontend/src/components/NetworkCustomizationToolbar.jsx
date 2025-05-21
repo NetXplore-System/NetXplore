@@ -13,7 +13,7 @@ import {
   CircleFill,
   PeopleFill,
   PersonBadge,
-  PencilSquare,
+  PencilFill,
   CheckSquare,
   XSquare,
 } from "react-bootstrap-icons";
@@ -478,7 +478,7 @@ const NetworkCustomizationToolbar = ({
                   <h6 className="d-flex align-items-center">
                     <PeopleFill size={16} className="me-2" />
                     Community Customization:
-                    <span className="badge bg-primary ms-2">
+                    <span className="badge ms-2">
                       {communities.length} communities
                     </span>
                   </h6>
@@ -538,7 +538,7 @@ const NetworkCustomizationToolbar = ({
                                       handleEditCommunityName(community.id)
                                     }
                                   >
-                                    <PencilSquare size={14} />
+                                    <PencilFill size={12} />
                                   </Button>
                                 </div>
                               )}
