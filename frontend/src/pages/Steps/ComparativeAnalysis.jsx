@@ -22,7 +22,12 @@ import ComparisonItem from "../../components/comparison/ComparisonItem";
 import ComparisonMetrics from "../../components/comparison/ComparisonMetrics";
 import "../../styles/ComparativeAnalysis.css";
 
-const ComparativeAnalysis = ({ originalNetworkData, comparison, filters }) => {
+const ComparativeAnalysis = ({
+  originalNetworkData,
+  comparison,
+  filters,
+  uploadedFileName,
+}) => {
   const dispatch = useDispatch();
   const [message, setMessage] = useState("");
   const [expandedView, setExpandedView] = useState(false);
@@ -46,6 +51,8 @@ const ComparativeAnalysis = ({ originalNetworkData, comparison, filters }) => {
     applyComparisonFilters,
     resetComparisonFilters,
     updateComparisonFilterSettings,
+    setComparisonData,
+    setComparisonFiles,
   } = comparison;
 
   const graphMetrics = [
@@ -78,27 +85,6 @@ const ComparativeAnalysis = ({ originalNetworkData, comparison, filters }) => {
       setLocalFilterSettings(newFilterSettings);
     }
   }, [comparisonCount]);
-
-  const buildFilterParamsFromSettings = (filterSettings) => {
-    const params = new URLSearchParams();
-    if (filterSettings.timeFrame) {
-      if (filterSettings.timeFrame.startDate)
-        params.append("startDate", filterSettings.timeFrame.startDate);
-      if (filterSettings.timeFrame.endDate)
-        params.append("endDate", filterSettings.timeFrame.endDate);
-      if (filterSettings.timeFrame.startTime)
-        params.append("startTime", filterSettings.timeFrame.startTime);
-      if (filterSettings.timeFrame.endTime)
-        params.append("endTime", filterSettings.timeFrame.endTime);
-    }
-    if (filterSettings.limit && filterSettings.limit.enabled) {
-      params.append("limitMessages", "true");
-      params.append("messageCount", filterSettings.limit.count.toString());
-      params.append("fromEnd", filterSettings.limit.fromEnd.toString());
-      params.append("limitType", filterSettings.limit.type);
-    }
-    return params;
-  };
 
   const handleFilterChange = (index, newFilters) => {
     const updatedFilterSettings = [...localFilterSettings];
@@ -155,7 +141,6 @@ const ComparativeAnalysis = ({ originalNetworkData, comparison, filters }) => {
     );
   };
 
-
   const handleResetVisualizationFilters = () => {
     setComparisonMetrics([]);
     if (resetComparisonFilters) {
@@ -180,6 +165,36 @@ const ComparativeAnalysis = ({ originalNetworkData, comparison, filters }) => {
     setExpandedView(!expandedView);
   };
 
+  const useOriginalFile = (index) => {
+    const updatedData = {
+      name: uploadedFileName,
+      filename: uploadedFileName,
+      isOriginalFile: true,
+      isAnalyzed: false,
+    };
+
+    comparisonData[index] = updatedData;
+    comparisonFiles[index] = uploadedFileName;
+
+    updateComparisonFilterSettings(index, {
+      timeFrame: {
+        startDate: "",
+        endDate: "",
+        startTime: "",
+        endTime: "",
+      },
+      limit: {
+        enabled: true,
+        count: 50,
+        fromEnd: false,
+        type: "messages",
+      },
+    });
+
+    setComparisonData([...comparisonData]);
+    setComparisonFiles([...comparisonFiles]);
+  };
+
   return (
     <Card className="research-card">
       <Card.Body>
@@ -196,9 +211,9 @@ const ComparativeAnalysis = ({ originalNetworkData, comparison, filters }) => {
         <Alert variant="info" className="d-flex align-items-start mb-4">
           <InfoCircle size={20} className="me-2 mt-1" />
           <div>
-            <strong>Pro tip:</strong> For time-series analysis, upload the same
-            dataset multiple times with different time filters to compare
-            network evolution over time.
+            <strong>Pro tip:</strong> For time-series analysis, reuse the
+            original dataset with different time filters to compare how the
+            network evolves over time.
           </div>
         </Alert>
 
@@ -249,6 +264,8 @@ const ComparativeAnalysis = ({ originalNetworkData, comparison, filters }) => {
                   isAnalyzing={isAnalyzing}
                   activeFilterCount={getActiveFilterCount(index)}
                   hasActiveFilters={activeFilters[index]}
+                  originalFileName={uploadedFileName}
+                  useOriginalFile={useOriginalFile}
                 />
               ))}
             </div>
