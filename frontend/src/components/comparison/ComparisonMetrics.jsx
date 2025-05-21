@@ -31,6 +31,7 @@ const ComparisonMetrics = ({
   filteredOriginalData,
   filteredComparisonData,
   onResetComparisonFilters,
+  onApplyComparisonFilters,
 }) => {
   const dispatch = useDispatch();
   const [comparisonMetric, setComparisonMetric] = useState(null);
@@ -313,6 +314,7 @@ const ComparisonMetrics = ({
                               comparisonMetrics={
                                 comparisonMetric ? [comparisonMetric] : []
                               }
+                              graphIndex={index}
                             />
                           </div>
                         </Card.Body>

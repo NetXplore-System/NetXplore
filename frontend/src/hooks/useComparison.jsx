@@ -477,6 +477,8 @@ const useComparison = (originalNetworkData, uploadedFile) => {
     resetItemFilters,
     updateComparisonFilterSettings,
     calculateComparisonStats,
+    setComparisonData,
+    setComparisonFiles,
   };
 };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Button,
   Card,
@@ -9,6 +9,7 @@ import {
   Badge,
   Accordion,
   Spinner,
+  Dropdown,
 } from "react-bootstrap";
 import {
   Upload,
@@ -19,6 +20,7 @@ import {
   ArrowClockwise,
   Lightning,
   InfoCircle,
+  FileEarmark,
 } from "react-bootstrap-icons";
 
 const ComparisonItem = ({
@@ -34,6 +36,8 @@ const ComparisonItem = ({
   isAnalyzing,
   activeFilterCount,
   hasActiveFilters,
+  originalFileName,
+  useOriginalFile,
 }) => {
   const [showFilters, setShowFilters] = useState(false);
   const [localFilterSettings, setLocalFilterSettings] = useState({
@@ -50,6 +54,8 @@ const ComparisonItem = ({
       type: "messages",
     },
   });
+
+  const accordionRef = useRef(null);
 
   useEffect(() => {
     if (filterSettings) {
@@ -103,7 +109,11 @@ const ComparisonItem = ({
   };
 
   const applyFilters = () => {
-    if (comparisonData?.filename || comparisonFile) {
+    if (
+      comparisonData?.filename ||
+      comparisonFile ||
+      comparisonData?.isOriginalFile
+    ) {
       onAnalyzeNetwork(index, localFilterSettings);
     }
   };
@@ -142,6 +152,25 @@ const ComparisonItem = ({
     }
   };
 
+  const handleUseOriginalFile = () => {
+    useOriginalFile(index);
+
+    setTimeout(() => {
+      if (accordionRef.current) {
+        const accordionButton =
+          accordionRef.current.querySelector(".accordion-button");
+        if (
+          accordionButton &&
+          !accordionButton.classList.contains("collapsed")
+        ) {
+          accordionButton.click();
+        }
+      }
+
+      setShowFilters(true);
+    }, 100);
+  };
+
   return (
     <Card
       className={`comparison-file-card mb-3 ${isActive ? "active-card" : ""}`}
@@ -162,21 +191,40 @@ const ComparisonItem = ({
                   Analyzed
                 </Badge>
               )}
+              {comparisonData?.isOriginalFile && (
+                <Badge bg="info" className="ms-2">
+                  Original File
+                </Badge>
+              )}
             </div>
             <p className="text-muted mb-0 mt-1">
               {comparisonData?.name || "No file selected"}
             </p>
           </Col>
           <Col md={5} className="d-flex justify-content-end align-items-center">
-            <Button
-              variant="light"
-              className="me-2"
-              onClick={() =>
-                document.getElementById(`compFile${index}`).click()
-              }
-            >
-              <Upload size={16} className="me-1" /> Upload
-            </Button>
+            <Dropdown className="me-2">
+              <Dropdown.Toggle variant="light" id={`file-dropdown-${index}`}>
+                <FileEarmark size={16} className="me-1" /> Select File
+              </Dropdown.Toggle>
+
+              <Dropdown.Menu>
+                <Dropdown.Item
+                  onClick={() =>
+                    document.getElementById(`compFile${index}`).click()
+                  }
+                >
+                  <Upload size={14} className="me-1" /> Upload New File
+                </Dropdown.Item>
+
+                {originalFileName && (
+                  <Dropdown.Item onClick={handleUseOriginalFile}>
+                    <FileEarmark size={14} className="me-1" /> Use Original
+                    File: {originalFileName}
+                  </Dropdown.Item>
+                )}
+              </Dropdown.Menu>
+            </Dropdown>
+
             <input
               type="file"
               id={`compFile${index}`}
@@ -185,7 +233,9 @@ const ComparisonItem = ({
               onChange={(e) => onFileUpload(e, index)}
             />
 
-            {(comparisonData?.filename || comparisonFile) && (
+            {(comparisonData?.filename ||
+              comparisonFile ||
+              comparisonData?.isOriginalFile) && (
               <>
                 <Button
                   variant="primary"
@@ -228,13 +278,19 @@ const ComparisonItem = ({
           </Col>
         </Row>
 
-        {(comparisonData?.filename || comparisonFile) && (
-          <Accordion className="mt-3">
+        {(comparisonData?.filename ||
+          comparisonFile ||
+          comparisonData?.isOriginalFile) && (
+          <Accordion
+            className="mt-3"
+            defaultActiveKey={comparisonData?.isOriginalFile ? "0" : ""}
+            ref={accordionRef}
+          >
             <Accordion.Item eventKey="0">
               <Accordion.Header>
                 <Funnel className="me-2" /> Filter Settings
                 {activeFilterCount > 0 && (
-                  <Badge bg="primary" className="ms-2">
+                  <Badge bg="info" className="ms-2">
                     {activeFilterCount}
                   </Badge>
                 )}
@@ -374,6 +430,14 @@ const ComparisonItem = ({
                     </Form.Group>
                   </Col>
                 </Row>
+
+                {comparisonData?.isOriginalFile && (
+                  <div className="alert alert-info mt-3">
+                    <InfoCircle size={16} className="me-2" />
+                    You're using the original file. Apply different filters and
+                    click "Analyze" to create a comparison.
+                  </div>
+                )}
               </Accordion.Body>
             </Accordion.Item>
           </Accordion>
