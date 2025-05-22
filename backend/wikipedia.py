@@ -95,7 +95,6 @@ async def fetch_wikipedia_data(request: Request):
         logger.error(f"Error fetching Wikipedia data: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     
-# @router.get("/analyze/network/{filename}")
 @router.get("/analyze/wikipedia/{filename}")
 async def analyze_network(filename: str, 
                           limit: int = 50,
@@ -104,31 +103,18 @@ async def analyze_network(filename: str,
                           limit_type: str = "first",
                           anonymize: bool = False):
 
-    file_path = f"{filename}.json"
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail=f"File {file_path} not found.")
+    txt_path = f"uploads/{filename}.txt"
+    if not os.path.exists(txt_path):
+        raise HTTPException(status_code=404, detail=f"TXT file {txt_path} not found.")
 
-    with open(file_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
+    graph_data = build_graph_from_txt(txt_path)
 
-    
-    nodes = data.get("nodes", [])
-    links = data.get("links", [])
-    
-    if not links and "content" in data and len(data["content"]) > 0:
-        if "discussion_graph" in data["content"][0]:
-            links = data["content"][0]["discussion_graph"].get("links", [])
-            if not nodes and "nodes" in data["content"][0]["discussion_graph"]:
-                nodes = data["content"][0]["discussion_graph"].get("nodes", [])
-    
-    logger.info(f"Found {len(nodes)} nodes and {len(links)} links in {filename}")
+    logger.info(f" Built graph from TXT with {len(graph_data['nodes'])} nodes and {len(graph_data['links'])} links")
 
-    result = {
-        "nodes": data.get("nodes", []),
-        "links": data.get("links", [])
+    return {
+        "nodes": graph_data["nodes"],
+        "links": graph_data["links"]
     }
-
-    return result
 
     
 def extract_metadata(soup):

@@ -484,10 +484,10 @@ const home_wikipedia = () => {
         throw new Error(result.detail || "Failed to convert to TXT");
       }
 
-      console.log("✅ TXT file created:", result.path);
+      console.log("TXT file created:", result.path);
       return { nodes: result.nodes, links: result.links };
     } catch (error) {
-      console.error("❌ TXT conversion error:", error);
+      console.error("TXT conversion error:", error);
       throw error;
     }
   };

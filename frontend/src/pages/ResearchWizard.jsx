@@ -23,6 +23,7 @@ import {
   analyzeNetwork,
   detectCommunities,
   fetchWikipediaData,
+  analyzeWikipediaNetwork
 } from "../components/utils/ApiService";
 import { saveToDB } from "../components/utils/save";
 
@@ -318,33 +319,72 @@ const ResearchWizard = () => {
     );
   };
 
-  const handleNetworkAnalysis = () => {
+  const handleNetworkAnalysis = async () => {
     if (!formData.uploadedFileName) {
       toast.error("No file selected for analysis.");
       return;
     }
+  
     const params = filters.buildNetworkFilterParams();
-
     setLastAnalysisParams(params.toString());
-
-    toast.promise(analyzeNetwork(formData.uploadedFileName, params), {
-      loading: "Analyzing network...",
-      success: (data) => {
-        if (data.nodes && data.links) {
-          dispatch(clearImages());
-          setNetworkData(data);
-          setOriginalNetworkData(data);
-          setShouldFetchCommunities(true);
-          return "Analysis completed successfully!";
-        } else {
-          return "No data returned from server.";
-        }
-      },
-      error: (error) => {
-        return error?.message || "Error analyzing network.";
-      },
-    });
+  
+    const isWikipedia = formData.platform === "wikipedia";
+  
+    try {
+      if (isWikipedia) {
+        await fetch(`${import.meta.env.VITE_API_URL}/convert-wikipedia-to-txt`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            filename: formData.uploadedFileName,
+            section_title: selectedSection || "Top", 
+          }),
+        });
+  
+        toast.promise(analyzeWikipediaNetwork("wikipedia_data", params), {
+          loading: "Analyzing Wikipedia discussion...",
+          success: (data) => {
+            if (data.nodes && data.links) {
+              dispatch(clearImages());
+              setNetworkData(data);
+              setOriginalNetworkData(data);
+              setShouldFetchCommunities(true);
+              return "Wikipedia analysis completed successfully!";
+            } else {
+              return "No data returned from Wikipedia analysis.";
+            }
+          },
+          error: (error) => {
+            return error?.message || "Error analyzing Wikipedia discussion.";
+          },
+        });
+      } else {
+        toast.promise(analyzeNetwork(formData.uploadedFileName, params), {
+          loading: "Analyzing WhatsApp network...",
+          success: (data) => {
+            if (data.nodes && data.links) {
+              dispatch(clearImages());
+              setNetworkData(data);
+              setOriginalNetworkData(data);
+              setShouldFetchCommunities(true);
+              return "WhatsApp analysis completed successfully!";
+            } else {
+              return "No data returned from server.";
+            }
+          },
+          error: (error) => {
+            return error?.message || "Error analyzing network.";
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Error during network analysis:", error);
+      toast.error("Failed to analyze network.");
+    }
   };
+  
 
   const fetchCommunityData = () => {
     if (!formData.uploadedFileName || !networkData) return;
