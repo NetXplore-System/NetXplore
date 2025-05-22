@@ -29,7 +29,6 @@ from utils import extract_messages, anonymize_name, clean_filter_value
 import uuid
 from wikipedia import router as wikipedia_router
 
-
 load_dotenv()
 origins = os.getenv("ALLOWED_ORIGINS", "").split(",") 
 
@@ -67,7 +66,6 @@ class UserCreate(BaseModel):
     name: str
     email: EmailStr
     password: str
-
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -273,6 +271,7 @@ async def login_user(user: UserLogin, db: AsyncSession = Depends(database.get_db
             status_code=500,
             detail="Internal server error during login"
         )
+
 
 
 @app.get("/users")

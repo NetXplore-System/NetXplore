@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 
-const DiscussionSectionPicker = ({ content, onSelect, selectedSection }) => {
+const DiscussionSectionPicker = ({ content, onSelect, selectedSection,convertToTxt  }) => {
   const [options, setOptions] = useState([]);
   const [selectedTitle, setSelectedTitle] = useState("");
 
@@ -12,11 +12,22 @@ const DiscussionSectionPicker = ({ content, onSelect, selectedSection }) => {
     }
   }, [content]);
 
-  const handleSelect = (section) => {
+  const handleSelect = async (section) => {
     setSelectedTitle(section.title);
     onSelect(section);
+  
+    try {
+      const result = await convertToTxt(section.title);
+      console.log("TXT file created:", result.path);
+  
+      setUploadedFile("wikipedia_data");
+  
+    } catch (err) {
+      console.error("Error converting JSON to TXT:", err);
+    }
   };
-
+  
+  
   return (
     <div className="shadow-sm p-4 mb-4 rounded bg-white">
       <div className="mb-4">
