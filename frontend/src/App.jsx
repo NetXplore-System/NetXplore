@@ -17,7 +17,7 @@ import Welcome from "./pages/Welcome.jsx";
 // Components
 import Header from "./components/Header/Header.jsx";
 import Menu from "./components/Menu/Menu.jsx";
-// import PrivateRoute from "./components/PrivateRoute.jsx";
+import PrivateRoute from "./components/PrivateRoute.jsx";
 import HomeW from "./pages/HomeWikipedia.jsx";
 
 // State
@@ -26,7 +26,6 @@ import { setUser } from "./redux/user/userSlice";
 
 // UI
 import { Toaster } from "react-hot-toast";
-import { HashRouter } from "react-router-dom";
 import { Tooltip } from 'react-tooltip';
 
 
@@ -103,7 +102,7 @@ function AppContent() {
           <Route path="/choose-platform" element={<ChoosePlatform />} />
           {/* <Route path="/explore" element={<Home />} /> */}
           <Route path="/newresearch" element={<ResearchWizard />} />
-          {/* <Route path="/home_wikipedia" element={<HomeW />} /> */}
+          <Route path="/home_wikipedia" element={<HomeW />} />
 
           <Route path="/" element={currentUser ? <Dashboard /> : <Welcome />} />
 
