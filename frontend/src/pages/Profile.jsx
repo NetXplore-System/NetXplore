@@ -1,10 +1,9 @@
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Button from "react-bootstrap/Button";
-import Container from "react-bootstrap/Container";
+import { Button, Container, Row, Col, Card } from "react-bootstrap";
 import { useDispatch, useSelector } from "react-redux";
 import { logoutUser, deleteUser } from "../redux/user/userSlice";
-
+import { PersonCircle } from "react-bootstrap-icons";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -13,15 +12,15 @@ const Profile = () => {
 
   useEffect(() => {
     if (!currentUser || !token) {
-      console.log("User not authenticated, redirecting to sign-in...");
-      navigate("/sign-in");
+      navigate("/signin");
     }
   }, [currentUser, token, navigate]);
 
   const handleLogout = () => {
     dispatch(logoutUser());
+    localStorage.removeItem("user");
     localStorage.removeItem("token");
-    navigate("/sign-in");
+    navigate("/signin");
   };
 
   const handleEditProfile = () => {
@@ -34,12 +33,15 @@ const Profile = () => {
     }
 
     try {
-      const response = await fetch(`http://localhost:8000/users/${currentUser.id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        `http://localhost:8000/users/${currentUser.id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -48,7 +50,7 @@ const Profile = () => {
 
       dispatch(deleteUser());
       localStorage.removeItem("token");
-      navigate("/sign-in");
+      navigate("/signin");
     } catch (error) {
       alert(error.message);
     }
@@ -58,34 +60,61 @@ const Profile = () => {
     return <p>Loading your profile...</p>;
   }
 
-  const avatarUrl = currentUser.avatar || "";
-
   return (
-    <>
-    <Container className="text-center mt-5">
-      <div className="mb-4">
-        <img
-          src={avatarUrl}
-          alt="Profile"
-          className="rounded-circle img-thumbnail"
-          style={{ width: "150px", height: "150px" }}
-        />
-      </div>
-      <h2>Welcome, {currentUser.name}!</h2>
-      <p>Email: {currentUser.email}</p>
-      <div className="mt-4">
-        <Button variant="primary" className="me-2" onClick={handleEditProfile}>
-          Edit Profile
-        </Button>
-        <Button variant="danger" className="me-2" onClick={handleLogout}>
-          Logout
-        </Button>
-        <Button variant="outline-danger" onClick={handleDeleteAccount}>
-          Delete Account
-        </Button>
-      </div>
+    <Container
+      className="d-flex justify-content-center align-items-center"
+      style={{ minHeight: "80vh" }}
+    >
+      <Card
+        className="p-4 shadow-sm w-100"
+        style={{ maxWidth: "600px", borderRadius: "20px" }}
+      >
+        <div className="text-center mb-4">
+          {currentUser.avatar ? (
+            <img
+              src={currentUser.avatar}
+              alt="Profile"
+              className="rounded-circle border"
+              style={{ width: "120px", height: "120px", objectFit: "cover" }}
+            />
+          ) : (
+            <PersonCircle size={120} color="#6c757d" />
+          )}
+        </div>
+        <h3 className="text-center mb-1">Welcome, {currentUser.name}!</h3>
+        <p className="text-center text-muted mb-4">{currentUser.email}</p>
+
+        <Row className="justify-content-center">
+          <Col xs="auto">
+            <Button
+              variant="dark"
+              onClick={handleEditProfile}
+              className="rounded-pill px-4"
+            >
+              Edit Profile
+            </Button>
+          </Col>
+          <Col xs="auto">
+            <Button
+              variant="danger"
+              onClick={handleLogout}
+              className="rounded-pill px-4"
+            >
+              Logout
+            </Button>
+          </Col>
+          <Col xs="auto">
+            <Button
+              variant="outline-danger"
+              onClick={handleDeleteAccount}
+              className="rounded-pill px-4"
+            >
+              Delete Account
+            </Button>
+          </Col>
+        </Row>
+      </Card>
     </Container>
-    </>
   );
 };
 

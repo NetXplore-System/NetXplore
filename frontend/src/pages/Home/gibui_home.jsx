@@ -21,8 +21,8 @@ import {
 import { ForceGraph2D } from "react-force-graph";
 import "./Home.css";
 import { AlertBox, GraphContainer } from "./Form.style.js";
-import AnonymizationToggle from "../components/AnonymizationToggle.jsx";
-import NetworkCustomizationToolbar from "../components/NetworkCustomizationToolbar.jsx";
+import AnonymizationToggle from "../../components/AnonymizationToggle.jsx";
+import NetworkCustomizationToolbar from "../../components/NetworkCustomizationToolbar.jsx";
 
 const Home = () => {
   const [name, setName] = useState("");

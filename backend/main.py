@@ -1560,3 +1560,117 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+@app.get("/analyze/triad-census/{filename}")
+async def analyze_triad_census(
+        filename: str,
+        start_date: str = Query(None),
+        start_time: str = Query(None),
+        end_date: str = Query(None),
+        end_time: str = Query(None),
+        limit: int = Query(None),
+        limit_type: str = Query("first"),
+        min_length: int = Query(None),
+        max_length: int = Query(None),
+        keywords: str = Query(None),
+        min_messages: int = Query(None),
+        max_messages: int = Query(None),
+        active_users: int = Query(None),
+        selected_users: str = Query(None),
+        username: str = Query(None),
+        anonymize: bool = Query(False)
+):
+    try:
+        network_result = await analyze_network(
+            filename, start_date, start_time, end_date, end_time,
+            limit, limit_type, min_length, max_length, keywords,
+            min_messages, max_messages, active_users, selected_users,
+            username, anonymize
+        )
+
+        if hasattr(network_result, 'body'):
+            network_data = json.loads(network_result.body)
+        else:
+            network_data = network_result
+
+        if "error" in network_data:
+            return JSONResponse(content=network_data, status_code=400)
+
+        DG = nx.DiGraph()
+
+        for node in network_data["nodes"]:
+            DG.add_node(node["id"], **{k: v for k, v in node.items() if k != "id"})
+
+        for link in network_data["links"]:
+            source = link["source"]
+            target = link["target"]
+
+            if isinstance(source, dict) and "id" in source:
+                source = source["id"]
+            if isinstance(target, dict) and "id" in target:
+                target = target["id"]
+
+            DG.add_edge(source, target)
+
+        triad_census = nx.triadic_census(DG)
+
+        triad_census = {str(k): v for k, v in triad_census.items()}
+
+        total_triads = sum(triad_census.values())
+
+        for k in triad_census:
+            triad_census[k] = {
+                "count": triad_census[k],
+                "percentage": round((triad_census[k] / total_triads) * 100, 2) if total_triads > 0 else 0
+            }
+
+        response = {
+            "triad_census": triad_census,
+            "total_triads": total_triads,
+            "original_network": network_data
+        }
+
+        return JSONResponse(content=response, status_code=200)
+
+    except Exception as e:
+        print(f"Error in triad census: {e}")
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+
+@app.get("/dashboard")
+async def get_dashboard_data(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(database.get_db)
+):
+    try:
+        user_uuid = uuid.UUID(current_user["user_id"])
+        query = select(Research).where(Research.user_id == user_uuid)
+        result = await db.execute(query)
+        researches = result.scalars().all()
+
+        dashboard_data = []
+
+        for research in researches:
+            analysis_query = select(NetworkAnalysis).where(NetworkAnalysis.research_id == research.research_id)
+            analysis_result = await db.execute(analysis_query)
+            analysis = analysis_result.scalars().first()
+
+            dashboard_data.append({
+                "id": str(research.research_id),
+                "name": research.research_name,
+                "description": research.description or "",
+                "date": research.created_at.strftime("%Y-%m-%d") if research.created_at else "",
+                "type": research.platform,
+                "nodes": len(analysis.nodes) if analysis and analysis.nodes else 0,
+                "communities": len(set(n.get("community") for n in analysis.nodes if n.get("community") is not None)) if analysis and analysis.nodes else 0
+            })
+
+        return JSONResponse(
+            content={"status": "success", "researches": dashboard_data},
+            status_code=200
+        )
+
+    except Exception as e:
+        logger.error(f"Dashboard fetch failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch dashboard data")

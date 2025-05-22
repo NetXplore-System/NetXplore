@@ -1,5 +1,6 @@
+import { toast } from 'react-hot-toast';
+
 export const BASE_URL = import.meta.env.VITE_API_URL;
-// export const BASE_URL = "http://localhost:8001";
 
 
 export const uploadFile = async (file) => {
@@ -120,21 +121,5 @@ export const compareNetworks = async (params) => {
   } catch (error) {
     console.error("Error during network comparisons:", error);
     throw new Error("An error occurred during network comparisons");
-  }
-};
-
-export const analyzeWikipediaNetwork = async (filename, params) => {
-  try {
-    const url = `${BASE_URL}/analyze/wikipedia/${filename}?${params.toString()}`;
-    const response = await fetch(url);
-    if (!response.ok) {
-      const { detail } = await response.json();
-      console.error("Error response:", detail);
-      throw new Error(detail || "An error occurred during Wikipedia network analysis.");
-    }
-    return await response.json();
-  } catch (error) {
-    console.error("Error during Wikipedia network analysis:", error);
-    throw new Error("An error occurred during Wikipedia network analysis.");
   }
 };

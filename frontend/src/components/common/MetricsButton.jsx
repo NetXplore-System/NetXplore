@@ -1,13 +1,7 @@
 import React from "react";
 import { Button } from "react-bootstrap";
 
-const MetricsButton = ({
-  graphMetrics,
-  selectedMetric,
-  onToggleMetric,
-  onDensity,
-  onDiameter,
-}) => {
+const MetricsButton = ({ graphMetrics, selectedMetric, onToggleMetric }) => {
   return (
     <div className="mt-2">
       {graphMetrics.map((metric) => (
@@ -16,11 +10,7 @@ const MetricsButton = ({
           className={`metrics-item ${
             selectedMetric === metric ? "active" : ""
           }`}
-          onClick={() => {
-            onToggleMetric(metric);
-            if (metric === "Density") onDensity();
-            if (metric === "Diameter") onDiameter();
-          }}
+          onClick={() => onToggleMetric(metric)}
         >
           {metric}
         </Button>

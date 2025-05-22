@@ -33,6 +33,7 @@ import {
   compareNetworks,
 } from "../components/utils/ApiService.jsx";
 import { useDispatch, useSelector } from "react-redux";
+// import { GraphButton } from "../components/utils/StyledComponents-El.js";
 import { addToMain, clearImages } from "../redux/images/imagesSlice.js";
 
 
@@ -272,16 +273,12 @@ const Home = () => {
   const handleFileChange = (event) => {
     const selectedFile = event.target.files[0];
     if (!selectedFile) return;
-
-    const newFileName = `${selectedFile.name.split(".")[0]}-${Date.now()}.${selectedFile.name.split(".")[1]}`;
-    const renamedFile = new File([selectedFile], newFileName, { type: selectedFile.type });
-
-    setFile(renamedFile);
+    setFile(selectedFile);
     setUploadedFile("");
     setChartData(null);
     setNetworkData(null);
     setMessage("");
-    handleSubmit(renamedFile);
+    handleSubmit(selectedFile);
   };
 
   const handleUploadClick = () => {
@@ -290,6 +287,7 @@ const Home = () => {
 
   const handleSubmit = (selectedFile) => {
     if (!selectedFile) {
+      // setMessage("Please select a file before uploading.");
       toast.error("Please select a file before uploading.");
       return;
     }
@@ -305,52 +303,52 @@ const Home = () => {
           return data.message || "File uploaded successfully!";
         },
         error: (error) => {
-          return error || "Error uploading file.";
+          return error?.message || "Error uploading file.";
         },
       }
     );
+
+    // uploadFile(selectedFile)
+    //   .then((data) => {
+    //     if (data.message) {
+    //       setMessage(data.message);
+    //       setUploadedFile(data.filename);
+    //     }
+    //   })
+    //   .catch((error) => setMessage(error.message));
   };
 
   const handleDelete = async () => {
     if (!uploadedFile) {
-      toast.error("No file selected to delete.");
+      setMessage("No file selected to delete.");
       return;
     }
 
-    toast.promise(
-      deleteFile(uploadedFile),
-      {
-        loading: "Deleting...",
-        success: (data) => {
-          if (data.success) {
-            setMessage(data.message || "File deleted successfully!");
-            setUploadedFile("");
-            setFile(null);
-            setChartData(null);
-            setNetworkData(null);
-            filters.setFilter("");
-            filters.setStartDate("");
-            filters.setEndDate("");
-            filters.setMessageLimit(50);
-            filters.setKeywords("");
-            setInputKey(Date.now());
-          } else {
-            toast.error("Error: Could not delete the file.");
-          }
-          return data.message || "File deleted successfully!";
-        },
-        error: (error) => {
-          console.error("Error deleting file:", error);
-          return error?.message || "Error deleting file.";
-        },
+    try {
+      const data = await deleteFile(uploadedFile);
+      if (data.success) {
+        setMessage(data.message || "File deleted successfully!");
+        setUploadedFile("");
+        setFile(null);
+        setChartData(null);
+        setNetworkData(null);
+        filters.setFilter("");
+        filters.setStartDate("");
+        filters.setEndDate("");
+        filters.setMessageLimit(50);
+        filters.setKeywords("");
+        setInputKey(Date.now());
+      } else {
+        setMessage("Error: Could not delete the file.");
       }
-    );
-
+    } catch (error) {
+      setMessage(error.message);
+    }
   };
 
   const handleNetworkAnalysis = () => {
     if (!uploadedFile) {
-      toast.error("No file selected for analysis.");
+      setMessage("No file selected for analysis.");
       return;
     }
 
@@ -370,28 +368,38 @@ const Home = () => {
             setShouldFetchCommunities(true);
             return "Analysis completed successfully!";
           } else {
+            // setMessage("No data returned from server.");
             return "No data returned from server.";
           }
         },
         error: (error) => {
+          // setMessage(error.message);
           return error?.message || "Error analyzing network.";
         },
       }
     )
+    // analyzeNetwork(uploadedFile, params)
+    //   .then((data) => {
+    //     console.log("Data returned from server:", data);
+    //     if (data.nodes && data.links) {
+    //       dispatch(clearImages());
+    //       setNetworkData(data);
+    //       setOriginalNetworkData(data);
+    //       setShouldFetchCommunities(true);
+    //     } else {
+    //       setMessage("No data returned from server.");
+    //     }
+    //   })
+    //   .catch((error) => {
+    //     setMessage(error.message);
+    //   });
   };
 
   const handleSaveToDB = () => {
     const params = filters.buildNetworkFilterParams();
     const id = currentUser?.id;
     if (!name || !description || !uploadedFile || !params || !id) {
-      let msg = "Please fill in all required fields.(";
-      if (!name) msg += " Name is required.";
-      if (!description) msg += " Description is required.";
-      if (!uploadedFile) msg += " File is required.";
-      if (!params) msg += " Filters are required.";
-      if (!id) msg += " Login is required.";
-      msg += ")";
-      toast.error(msg);
+      toast.error("Please fill in all required fields.");
       return;
     }
     toast.promise(
@@ -612,137 +620,128 @@ const Home = () => {
 
   const fetchCommunityData = () => {
     if (!uploadedFile) {
-      toast.error("No file selected for community detection.");
+      setMessage("No file selected for community detection.");
       return;
     }
 
     const params = filters.buildNetworkFilterParams();
+    detectCommunities(uploadedFile, params)
+      .then((data) => {
+        console.log("Community data returned from server:", data);
 
+        if (data.communities && data.nodes) {
+          setCommunities(data.communities);
 
-    toast.promise(
-      detectCommunities(uploadedFile, params),
-      {
-        loading: "Detecting communities...",
-        success: (data) => {
+          const newCommunityMap = {};
 
-          if (data.communities && data.nodes) {
-            setCommunities(data.communities);
+          data.nodes.forEach((node) => {
+            if (node.community !== undefined) {
+              newCommunityMap[node.id.toString().trim()] = node.community;
+            }
+          });
 
-            const newCommunityMap = {};
+          console.log("CommunityMap:", newCommunityMap);
+          setCommunityMap(newCommunityMap);
 
-            data.nodes.forEach((node) => {
-              if (node.community !== undefined) {
-                newCommunityMap[node.id.toString().trim()] = node.community;
+          if (networkData && networkData.nodes) {
+            const updatedNodes = networkData.nodes.map((node) => {
+              const normalizedId = node.id.toString().trim();
+              const community = newCommunityMap[normalizedId];
+
+              if (community !== undefined) {
+                console.log(
+                  `Assigning node ${node.id} to community ${community}`
+                );
+                return { ...node, community };
               }
+
+              return node;
             });
 
-            setCommunityMap(newCommunityMap);
+            setNetworkData({
+              nodes: updatedNodes,
+              links: networkData.links,
+            });
 
-            if (networkData && networkData.nodes) {
-              const updatedNodes = networkData.nodes.map((node) => {
-                const normalizedId = node.id.toString().trim();
-                const community = newCommunityMap[normalizedId];
+            setOriginalNetworkData({
+              nodes: updatedNodes,
+              links: networkData.links,
+            });
 
-                if (community !== undefined) {
-                  console.log(
-                    `Assigning node ${node.id} to community ${community}`
-                  );
-                  return { ...node, community };
-                }
-
-                return node;
-              });
-
-              setNetworkData({
-                nodes: updatedNodes,
-                links: networkData.links,
-              });
-
-              setOriginalNetworkData({
-                nodes: updatedNodes,
-                links: networkData.links,
-              });
-
-              toast.success(
-                `Detected ${data.communities.length} communities in the network.`
-              );
-            }
-          } else {
-            toast.error("No community data returned from server.");
+            setMessage(
+              `Detected ${data.communities.length} communities in the network.`
+            );
           }
-        },
-        error: (error) => {
-          return error?.message || "Error detecting communities.";
-        },
-      }
-    )
+        } else {
+          setMessage("No community data returned from server.");
+        }
+      })
+      .catch((error) => {
+        setMessage(error.message);
+      });
   };
 
   const detectAndApplyCommunityData = () => {
     if (!uploadedFile) {
-      toast.error("No file selected for community detection.");
+      setMessage("No file selected for community detection.");
       return;
     }
 
     const params = filters.buildNetworkFilterParams();
+    detectCommunities(uploadedFile, params)
+      .then((data) => {
+        console.log("Community data returned from server:", data);
 
-    toast.promise(
-      detectCommunities(uploadedFile, params),
-      {
-        loading: "Detecting communities...",
-        success: (data) => {
-          if (data.communities && data.nodes) {
-            setCommunities(data.communities);
+        if (data.communities && data.nodes) {
+          setCommunities(data.communities);
 
-            const newCommunityMap = {};
+          const newCommunityMap = {};
 
-            data.nodes.forEach((node) => {
-              if (node.community !== undefined) {
-                newCommunityMap[node.id.toString().trim()] = node.community;
+          data.nodes.forEach((node) => {
+            if (node.community !== undefined) {
+              newCommunityMap[node.id.toString().trim()] = node.community;
+            }
+          });
+
+          console.log("CommunityMap:", newCommunityMap);
+          setCommunityMap(newCommunityMap);
+
+          if (networkData && networkData.nodes) {
+            const updatedNodes = networkData.nodes.map((node) => {
+              const normalizedId = node.id.toString().trim();
+              const community = newCommunityMap[normalizedId];
+
+              if (community !== undefined) {
+                console.log(
+                  `Assigning node ${node.id} to community ${community}`
+                );
+                return { ...node, community };
               }
+
+              return node;
             });
 
-            console.log("CommunityMap:", newCommunityMap);
-            setCommunityMap(newCommunityMap);
+            setNetworkData({
+              nodes: updatedNodes,
+              links: networkData.links,
+            });
 
-            if (networkData && networkData.nodes) {
-              const updatedNodes = networkData.nodes.map((node) => {
-                const normalizedId = node.id.toString().trim();
-                const community = newCommunityMap[normalizedId];
+            setOriginalNetworkData({
+              nodes: updatedNodes,
+              links: networkData.links,
+            });
 
-                if (community !== undefined) {
-                  console.log(
-                    `Assigning node ${node.id} to community ${community}`
-                  );
-                  return { ...node, community };
-                }
-
-                return node;
-              });
-
-              setNetworkData({
-                nodes: updatedNodes,
-                links: networkData.links,
-              });
-
-              setOriginalNetworkData({
-                nodes: updatedNodes,
-                links: networkData.links,
-              });
-
-              toast.success(
-                `Detected ${data.communities.length} communities in the network.`
-              );
-            }
-          } else {
-            toast.error("No community data returned from server.");
+            setMessage(
+              `Detected ${data.communities.length} communities in the network.`
+            );
           }
-        },
-        error: (error) => {
-          return error?.message || "Error detecting communities.";
-        },
-      }
-    );
+        } else {
+          setMessage("No community data returned from server.");
+        }
+      })
+      .catch((error) => {
+        setMessage(error.message);
+      });
   };
 
   const handleNetworkCustomization = (settings) => {
@@ -1300,9 +1299,7 @@ const Home = () => {
     if (!networkData || !originalNetworkData) return;
 
     if (!communityMap || Object.keys(communityMap).length === 0) {
-      toast.error(
-        "Community data not found. Detecting communities..."
-      );
+      setMessage("Community data not found. Detecting communities...");
       detectAndApplyCommunityData();
       return;
     }
@@ -1680,7 +1677,7 @@ const Home = () => {
                   buildNetworkFilterParams()
                 ).then((result) => {
                   if (result.message) {
-                    toast.success(result.message);
+                    setMessage(result.message);
                   }
                 });
               }}
@@ -1694,7 +1691,7 @@ const Home = () => {
                 applyComparisonFilters(filtersWithNetworkParams).then(
                   (result) => {
                     if (result.message) {
-                      toast.success(result.message);
+                      setMessage(result.message);
                     }
                   }
                 );

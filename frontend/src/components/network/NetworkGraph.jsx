@@ -3,18 +3,20 @@ import { ForceGraph2D } from "react-force-graph";
 import PropTypes from "prop-types";
 
 const NetworkGraph = ({
-  networkData,
-  filteredNodes,
-  filteredLinks,
-  customizedNetworkData,
-  selectedMetric,
-  highlightCentralNodes,
-  showMetrics,
-  visualizationSettings,
-  handleNodeClick,
-  networkWasRestored,
-  forceGraphRef,
-  isDirectedGraph,
+  networkData = null,
+  filteredNodes = [],
+  filteredLinks = [],
+  customizedNetworkData = null,
+  selectedMetric = null,
+  highlightCentralNodes = false,
+  showMetrics = true,
+  visualizationSettings = {},
+  handleNodeClick = () => {},
+  networkWasRestored = false,
+  forceGraphRef = null,
+  isDirectedGraph = false,
+  triadCensusMode = false,
+  triadCensusData = null,
 }) => {
   useEffect(() => {
     if (forceGraphRef.current) {
@@ -80,7 +82,7 @@ const NetworkGraph = ({
       }}
       directed={isDirectedGraph}
       width={showMetrics ? 1200 : 1500}
-      height={500}
+      height={700}
       fitView
       fitViewPadding={20}
       nodeAutoColorBy={customizedNetworkData ? null : "id"}
@@ -282,16 +284,7 @@ NetworkGraph.propTypes = {
   networkWasRestored: PropTypes.bool,
   forceGraphRef: PropTypes.object,
   isDirectedGraph: PropTypes.bool,
+  triadCensusMode: PropTypes.bool,
+  triadCensusData: PropTypes.object,
 };
-
-NetworkGraph.defaultProps = {
-  filteredNodes: [],
-  filteredLinks: [],
-  highlightCentralNodes: false,
-  showMetrics: true,
-  visualizationSettings: {},
-  networkWasRestored: false,
-  isDirectedGraph: false,
-};
-
 export default NetworkGraph;

@@ -1,8 +1,6 @@
-
 .customization-toolbar {
   margin-bottom: 1.5rem;
   border-radius: 12px;
-  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
   background-color: #ffffff;
   border: none;
 }
@@ -146,12 +144,17 @@
   .customization-toolbar .card-body {
     padding: 0.75rem;
   }
-  
+
   .community-colors-container {
     max-height: 300px;
   }
-  
+
   .highlighted-items-container {
     max-height: 200px;
   }
+}
+
+.badge {
+  background-color: #050d2d;
+  color: #fff;
 }

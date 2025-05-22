@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-const useFilters = () => {
+const useFilters = (formData = null) => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [startTime, setStartTime] = useState("");
@@ -8,7 +8,7 @@ const useFilters = () => {
 
   const [messageLimit, setMessageLimit] = useState(50);
   const [limitType, setLimitType] = useState("first");
-  const [minMessageLength, setMinMessageLength] = useState(10);
+  const [minMessageLength, setMinMessageLength] = useState(1);
   const [maxMessageLength, setMaxMessageLength] = useState(100);
   const [keywords, setKeywords] = useState("");
 
@@ -28,21 +28,75 @@ const useFilters = () => {
 
   const buildNetworkFilterParams = () => {
     const params = new URLSearchParams();
-    if (startDate) params.append("start_date", startDate);
-    if (endDate) params.append("end_date", endDate);
-    if (messageLimit) params.append("limit", messageLimit);
-    if (minMessageLength) params.append("min_length", minMessageLength);
-    if (maxMessageLength) params.append("max_length", maxMessageLength);
-    if (keywords) params.append("keywords", keywords);
-    if (usernameFilter) params.append("username", usernameFilter);
-    if (minMessages) params.append("min_messages", minMessages);
-    if (maxMessages) params.append("max_messages", maxMessages);
-    if (activeUsers) params.append("active_users", activeUsers);
-    if (selectedUsers) params.append("selected_users", selectedUsers);
-    if (startTime) params.append("start_time", formatTime(startTime));
-    if (endTime) params.append("end_time", formatTime(endTime));
-    if (limitType) params.append("limit_type", limitType);
-    params.append("anonymize", isAnonymized ? "true" : "false");
+
+    const get = (fallback, path) => {
+      if (!formData) return fallback;
+      return path?.reduce(
+        (obj, key) => (obj && obj[key] !== undefined ? obj[key] : null),
+        formData
+      );
+    };
+
+    const getValue = (fallback, path) => get(fallback, path) || fallback;
+
+    const hasFormData = formData !== null;
+
+    const limitEnabled = hasFormData ? get(false, ["limit", "enabled"]) : true;
+
+    const start = getValue(startDate, ["timeFrame", "startDate"]);
+    const end = getValue(endDate, ["timeFrame", "endDate"]);
+    const startT = formatTime(getValue(startTime, ["timeFrame", "startTime"]));
+    const endT = formatTime(getValue(endTime, ["timeFrame", "endTime"]));
+
+    const limit = limitEnabled
+      ? getValue(messageLimit, ["limit", "count"])
+      : null;
+
+    const fromEnd = get(false, ["limit", "fromEnd"]);
+    const type = fromEnd ? "last" : "first";
+
+    const minLen = getValue(minMessageLength, ["messageCriteria", "minLength"]);
+    const maxLen = getValue(maxMessageLength, ["messageCriteria", "maxLength"]);
+    const words = getValue(keywords, ["messageCriteria", "keywords"]);
+    const contentFilter = getValue("", ["messageCriteria", "contentFilter"]);
+
+    const uname = getValue(usernameFilter, ["userFilters", "usernameFilter"]);
+    const minMsg = getValue(minMessages, ["userFilters", "minMessages"]);
+    const maxMsg = getValue(maxMessages, ["userFilters", "maxMessages"]);
+    const active = getValue(activeUsers, ["userFilters", "activeUsers"]);
+    const selected = getValue(selectedUsers, ["userFilters", "selectedUsers"]);
+
+    const anonymized = getValue(isAnonymized, ["isAnonymized"]);
+    const directed = getValue(true, ["isDirectedGraph"]);
+    const useTriads = getValue(false, ["useTriads"]);
+    const useHistoryAlgo = getValue(false, ["useHistoryAlgorithm"]);
+    const normalized = getValue(false, ["isNormalized"]);
+
+    if (start) params.append("start_date", start);
+    if (end) params.append("end_date", end);
+
+    if (limitEnabled && limit) {
+      params.append("limit", limit);
+      params.append("limit_type", type); 
+    }
+
+    if (minLen) params.append("min_length", minLen);
+    if (maxLen) params.append("max_length", maxLen);
+    if (words) params.append("keywords", words);
+    if (contentFilter) params.append("content_filter", contentFilter);
+    if (uname) params.append("username", uname);
+    if (minMsg) params.append("min_messages", minMsg);
+    if (maxMsg) params.append("max_messages", maxMsg);
+    if (active) params.append("active_users", active);
+    if (selected) params.append("selected_users", selected);
+    if (startT) params.append("start_time", startT);
+    if (endT) params.append("end_time", endT);
+
+    params.append("anonymize", anonymized ? "true" : "false");
+    params.append("directed", directed ? "true" : "false");
+    params.append("use_triads", useTriads ? "true" : "false");
+    params.append("use_history", useHistoryAlgo ? "true" : "false");
+    params.append("normalize", normalized ? "true" : "false");
 
     return params;
   };
@@ -54,7 +108,7 @@ const useFilters = () => {
     setEndTime("");
     setMessageLimit(50);
     setLimitType("first");
-    setMinMessageLength(10);
+    setMinMessageLength(1);
     setMaxMessageLength(100);
     setKeywords("");
     setUsernameFilter("");

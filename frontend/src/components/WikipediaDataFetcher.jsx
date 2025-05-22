@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Alert, Form, Button } from "react-bootstrap";
+import { Alert, Form, Button, Row, Col } from "react-bootstrap";
 
 const WikipediaDataFetcher = ({ setNetworkData, setWikiUrl }) => {
   const [localWikiUrl, setLocalWikiUrl] = useState("");
@@ -12,15 +12,18 @@ const WikipediaDataFetcher = ({ setNetworkData, setWikiUrl }) => {
       return;
     }
 
-    setWikiUrl(localWikiUrl); 
+    setWikiUrl(localWikiUrl);
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:8001/fetch-wikipedia-data", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: localWikiUrl }),
-      });
+      const response = await fetch(
+        "http://localhost:8001/fetch-wikipedia-data",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: localWikiUrl }),
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`Server error: ${response.status}`);
@@ -31,18 +34,18 @@ const WikipediaDataFetcher = ({ setNetworkData, setWikiUrl }) => {
 
       if (data.nodes && data.links && data.nodes.length > 0) {
         const processedData = {
-          nodes: data.nodes.map(node => ({
+          nodes: data.nodes.map((node) => ({
             ...node,
-            id: String(node.id) 
+            id: String(node.id),
           })),
-          links: data.links.map(link => ({
+          links: data.links.map((link) => ({
             ...link,
-            source: String(link.source), 
-            target: String(link.target)  
-          }))
+            source: String(link.source),
+            target: String(link.target),
+          })),
         };
-        
-        setNetworkData(processedData); 
+
+        setNetworkData(processedData);
         setMessage(" Data successfully loaded!");
       } else {
         setMessage(" No valid discussion data found on this Wikipedia page.");
@@ -58,27 +61,39 @@ const WikipediaDataFetcher = ({ setNetworkData, setWikiUrl }) => {
   return (
     <div className="wiki-fetcher-container">
       {message && (
-        <Alert variant={message.includes("successfully") ? "success" : "danger"}>
+        <Alert
+          variant={message.includes("successfully") ? "success" : "danger"}
+        >
           {message}
         </Alert>
       )}
-
-      <Form.Group>
-        <Form.Label>Wikipedia Discussion Page URL:</Form.Label>
-        <Form.Control
-          type="text"
-          value={localWikiUrl}
-          onChange={(e) => setLocalWikiUrl(e.target.value)}
-          placeholder="Example: https://en.wikipedia.org/wiki/Talk:Jerusalem"
-        />
-      </Form.Group>
-      <Button 
-        onClick={handleFetchData} 
-        disabled={loading}
-        className="mt-2 mb-3 w-100"
-      >
-        {loading ? "Loading..." : "Upload Wikipedia Link"}
-      </Button>
+      <Form.Group className="mb-4">
+        <Form.Label className="form-label">Wikipedia URL*</Form.Label>
+        <Row>
+          <Col xs={9}>
+            <Form.Control
+              type="text"
+              value={localWikiUrl}
+              className="research-input"
+              onChange={(e) => setLocalWikiUrl(e.target.value)}
+              placeholder="Enter a Wikipedia discussion or article URL"
+            />
+          </Col>
+          <Col xs={3}>
+            <Button
+              onClick={handleFetchData}
+              variant="primary"
+              className="upload-btn"
+              disabled={loading}
+            >
+              {loading ? "Loading..." : "Upload Wikipedia Link"}
+            </Button>
+          </Col>
+        </Row>
+        <Form.Text className="text-muted">
+          Enter a valid Wikipedia URL for analysis
+        </Form.Text>
+      </Form.Group>{" "}
     </div>
   );
 };
