@@ -9,8 +9,8 @@ import {
 } from "react-bootstrap-icons";
 import { toast } from "react-hot-toast";
 import { ForceGraph2D } from "react-force-graph";
-import "./Home.css";
-import { GraphContainer } from "./Form.style.js";
+import "./Home/Home.css";
+import { GraphContainer } from "./Home/Form.style.js";
 import NetworkCustomizationToolbar from "../components/NetworkCustomizationToolbar.jsx";
 import ComparisonPanel from "../components/comparison/ComparisonPanel.jsx";
 import ResearchCard from "../components/common/ResearchCard.jsx";
@@ -321,13 +321,16 @@ const home_wikipedia = () => {
     graphReady,
   ]);
 
-
   const handleFileChange = (event) => {
     const selectedFile = event.target.files[0];
     if (!selectedFile) return;
 
-    const newFileName = `${selectedFile.name.split(".")[0]}-${Date.now()}.${selectedFile.name.split(".")[1]}`;
-    const renamedFile = new File([selectedFile], newFileName, { type: selectedFile.type });
+    const newFileName = `${selectedFile.name.split(".")[0]}-${Date.now()}.${
+      selectedFile.name.split(".")[1]
+    }`;
+    const renamedFile = new File([selectedFile], newFileName, {
+      type: selectedFile.type,
+    });
 
     setFile(renamedFile);
     setUploadedFile("");
@@ -394,36 +397,36 @@ const home_wikipedia = () => {
       setMessage("Please select a section to analyze.");
       return false;
     }
-  
+
     setNetworkWasRestored(false);
-  
+
     try {
       const data = await convertWikipediaToTxt(selectedSection.title);
-  
+
       if (data.nodes && data.links) {
         dispatch(clearImages());
-  
+
         const validUsernames = new Set(
           selectedSection.comments.map((c) => c.username?.toString().trim())
         );
-  
+
         const filteredLinks = data.links.filter(
           (l) =>
             validUsernames.has(l.source?.toString().trim()) &&
             validUsernames.has(l.target?.toString().trim())
         );
-  
+
         const filteredNodes = data.nodes.filter((n) =>
           validUsernames.has(n.id?.toString().trim())
         );
-  
+
         filteredNodes.forEach((node) => {
           if (node.x == null || node.y == null) {
             node.x = Math.random() * 500 - 250;
             node.y = Math.random() * 500 - 250;
           }
         });
-  
+
         const degreeMap = {};
         filteredLinks.forEach((link) => {
           const source = link.source?.toString().trim();
@@ -431,24 +434,24 @@ const home_wikipedia = () => {
           degreeMap[source] = (degreeMap[source] || 0) + 1;
           degreeMap[target] = (degreeMap[target] || 0) + 1;
         });
-  
+
         filteredNodes.forEach((node) => {
           const id = node.id?.toString().trim();
           node.degree = degreeMap[id] || 0;
         });
-  
+
         const filteredData = {
           nodes: filteredNodes,
           links: filteredLinks,
           content: networkData?.content || [],
         };
-  
+
         setNetworkData(filteredData);
         setOriginalNetworkData(filteredData);
-  
+
         setShouldFetchCommunities(true);
         setGraphReady(true);
-  
+
         return true;
       } else {
         setMessage("No data returned from TXT conversion.");
@@ -459,7 +462,7 @@ const home_wikipedia = () => {
       return false;
     }
   };
-  
+
   const convertWikipediaToTxt = async (sectionTitle) => {
     try {
       const response = await fetch(
@@ -492,7 +495,7 @@ const home_wikipedia = () => {
   const handleSaveToDB = () => {
     const params = filters.buildNetworkFilterParams();
     const id = currentUser?.id;
-  
+
     if (!name || !description || !uploadedFile || !params || !id) {
       let msg = "Please fill in all required fields.(";
       if (!name) msg += " Name is required.";
@@ -504,13 +507,15 @@ const home_wikipedia = () => {
       toast.error(msg);
       return;
     }
-  
-    const platform = uploadedFile.includes("wikipedia") ? "wikipedia" : "whatsapp";
-  
+
+    const platform = uploadedFile.includes("wikipedia")
+      ? "wikipedia"
+      : "whatsapp";
+
     const fileName = uploadedFile.endsWith(".txt")
       ? uploadedFile
       : `${uploadedFile}.txt`;
-  
+
     console.log(" Saving Research with Data:", {
       researcher_id: id,
       research_name: name,
@@ -522,7 +527,7 @@ const home_wikipedia = () => {
       hasComparison: comparisonNetworkData.length > 0,
       comparisonData: comparisonNetworkData,
     });
-  
+
     toast.promise(
       saveToDB(
         id,
@@ -535,7 +540,7 @@ const home_wikipedia = () => {
           hasComparison: comparisonNetworkData.length > 0,
           data: comparisonNetworkData || undefined,
         },
-        platform 
+        platform
       ),
       {
         loading: "Saving...",
@@ -548,7 +553,6 @@ const home_wikipedia = () => {
       }
     );
   };
-  
 
   const calculateNetworkStats = () => {
     if (!networkData) return;
@@ -586,7 +590,6 @@ const home_wikipedia = () => {
   const handleToggleMetric = (metric) => {
     setSelectedMetric(selectedMetric === metric ? null : metric);
   };
-
 
   const handleDensityMetric = () => {
     const density = calculateDensity(networkData.nodes, networkData.links);
@@ -1057,7 +1060,6 @@ const home_wikipedia = () => {
     const linkColor = isComparisonGraph
       ? "rgba(128, 0, 128, 0.6)"
       : "rgba(128, 128, 128, 0.6)";
-
 
     return (
       <ForceGraph2D
@@ -1599,7 +1601,6 @@ const home_wikipedia = () => {
       {uploadedFile && (
         <div>
           {networkData?.content && (
-     
             <DiscussionSectionPicker
               content={networkData.content}
               selectedSection={selectedSection}

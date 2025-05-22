@@ -22,6 +22,7 @@ import {
   uploadFile,
   analyzeNetwork,
   detectCommunities,
+  fetchWikipediaData,
 } from "../components/utils/ApiService";
 import { saveToDB } from "../components/utils/save";
 
@@ -35,6 +36,8 @@ const ResearchWizard = () => {
   const fileInputRef = useRef(null);
   const { currentUser } = useSelector((state) => state.user) || { id: 1 };
   const [currentStep, setCurrentStep] = useState(1);
+  const [wikiContent, setWikiContent] = useState(null);
+  const [selectedSection, setSelectedSection] = useState(null);
 
   const ALL_STEPS = {
     SETUP: "Setup",
@@ -279,6 +282,42 @@ const ResearchWizard = () => {
     });
   };
 
+  const handleFetchWikipedia = () => {
+    if (!formData.wikipediaUrl?.trim()) {
+      toast.error("Please enter a valid Wikipedia URL.");
+      return;
+    }
+
+    toast.promise(
+      fetchWikipediaData(formData.wikipediaUrl).then((data) => {
+        if (data.nodes && data.links) {
+          setNetworkData(data);
+          setOriginalNetworkData(data);
+          setWikiContent(data.content);
+          console.log("Fetched Wikipedia data:", data);
+          console.log("formData after fetch:", formData);
+          console.log(
+            "Set networkData:",
+            data.nodes?.length,
+            data.links?.length
+          );
+
+          setFormData((prev) => ({
+            ...prev,
+            uploadedFileName: "wikipedia_data",
+          }));
+        } else {
+          throw new Error("No valid discussion data found.");
+        }
+      }),
+      {
+        loading: "Fetching discussion...",
+        success: "Wikipedia discussion analyzed successfully!",
+        error: (err) => err.message || "Error fetching Wikipedia data.",
+      }
+    );
+  };
+
   const handleNetworkAnalysis = () => {
     if (!formData.uploadedFileName) {
       toast.error("No file selected for analysis.");
@@ -477,15 +516,40 @@ const ResearchWizard = () => {
             platform={formData.platform}
             setNetworkData={setNetworkData}
             setOriginalNetworkData={setOriginalNetworkData}
-            setWikiUrl={(url) =>
-              handleInputChange({
-                target: { name: "wikipediaUrl", value: url, type: "text" },
-              })
-            }
+            setFormData={setFormData}
+            handleFetchWikipedia={handleFetchWikipedia}
           />
         );
       case ALL_STEPS.WIKIPEDIA:
-        return <WikipediaStep formData={formData} />;
+        return (
+          <WikipediaStep
+            formData={formData}
+            handleInputChange={handleInputChange}
+            content={wikiContent}
+            selectedSection={selectedSection}
+            onSelect={setSelectedSection}
+            convertToTxt={async (title) => {
+              const result = await fetch(
+                `${import.meta.env.VITE_API_URL}/convert-wikipedia-to-txt`,
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    filename: "wikipedia_data",
+                    section_title: title,
+                  }),
+                }
+              );
+
+              const data = await result.json();
+              if (!result.ok)
+                throw new Error(data.detail || "Failed to convert to TXT");
+              return data;
+            }}
+          />
+        );
       case ALL_STEPS.DATA_CONFIG:
         return (
           <DataConfiguration

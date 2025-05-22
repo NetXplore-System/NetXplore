@@ -1,7 +1,6 @@
 import React from "react";
-import { Card, Form, Button, Row, Col } from "react-bootstrap";
+import { Card, Form, Button, Row, Col, Alert } from "react-bootstrap";
 import { Upload, CheckCircle } from "react-bootstrap-icons";
-import WikipediaDataFetcher from "../../components/WikipediaDataFetcher.jsx";
 
 const ResearchSetup = ({
   formData,
@@ -11,9 +10,15 @@ const ResearchSetup = ({
   platform,
   setNetworkData,
   setOriginalNetworkData,
-  setWikiUrl,
   setFormData,
+  handleFetchWikipedia,
 }) => {
+  const handleUploadClick = () => {
+    if (fileInputRef?.current) {
+      fileInputRef.current.click();
+    }
+  };
+
   return (
     <Card className="research-card">
       <Card.Body>
@@ -52,19 +57,53 @@ const ResearchSetup = ({
         </Form.Group>
 
         {platform === "wikipedia" ? (
-          <WikipediaDataFetcher
-            setNetworkData={setNetworkData}
-            setWikiUrl={setWikiUrl}
-            setFormData={setFormData}
-          />
+          <Form.Group className="mb-4">
+            <Form.Label className="form-label">
+              Wikipedia Discussion URL*
+            </Form.Label>
+            <Row>
+              <Col xs={9}>
+                <Form.Control
+                  type="text"
+                  name="wikipediaUrl"
+                  value={formData.wikipediaUrl}
+                  onChange={handleInputChange}
+                  placeholder="Paste a Wikipedia discussion link"
+                  className="research-input"
+                />
+              </Col>
+              <Col xs={3}>
+                <Button
+                  onClick={handleFetchWikipedia}
+                  variant="primary"
+                  className="upload-btn"
+                >
+                  <Upload className="me-2" />
+                  Upload URL
+                </Button>
+              </Col>
+            </Row>
+            {formData.uploadedFileName && (
+              <Alert
+                variant="success"
+                className="mt-2 py-1 px-2 d-flex align-items-center"
+              >
+                <CheckCircle className="me-2" />
+                Wikipedia discussion loaded successfully!
+              </Alert>
+            )}
+            <Form.Text className="text-muted">
+              This will fetch and analyze discussion data from Wikipedia.
+            </Form.Text>
+          </Form.Group>
         ) : (
           <Form.Group className="mb-4">
             <Form.Label className="form-label">Upload Data File*</Form.Label>
-            <div className="file-upload-container">
+            <div className="file-upload-container d-flex align-items-center">
               <Button
                 variant="primary"
-                className="upload-btn"
-                onClick={() => fileInputRef.current.click()}
+                className="upload-btn me-2"
+                onClick={handleUploadClick}
               >
                 <Upload className="me-2" />
                 Choose File
@@ -81,12 +120,13 @@ const ResearchSetup = ({
               </span>
             </div>
             {formData.uploadedFileName && (
-              <div className="upload-success mt-2">
-                <CheckCircle className="me-2 text-success" />
-                <span className="text-success">
-                  File uploaded successfully!
-                </span>
-              </div>
+              <Alert
+                variant="success"
+                className="mt-2 py-1 px-2 d-flex align-items-center"
+              >
+                <CheckCircle className="me-2" />
+                File uploaded successfully!
+              </Alert>
             )}
             <Form.Text className="text-muted">
               Upload a WhatsApp chat export (.txt)
