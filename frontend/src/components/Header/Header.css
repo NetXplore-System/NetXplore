@@ -1,45 +1,126 @@
-.header-navbar {
-  background-color: #ffffff;
-  padding: 12px 25px;
+.header-wrapper {
   position: fixed;
   top: 0;
-  left: 80px;
-  width: calc(100% - 80px);
-  transition: left 0.3s ease-in-out, width 0.3s ease-in-out;
-  z-index: 1000;
+  left: 70px;
+  width: calc(100% - 70px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 999;
 }
 
-.header-navbar.open {
+.header-wrapper.open {
   left: 250px;
   width: calc(100% - 250px);
+}
+
+.header-navbar {
+  background-color: #ffffff;
+  box-shadow: 0 4px 20px rgba(5, 13, 45, 0.05);
+  padding: 0;
+  height: 70px;
+  width: 100%;
+}
+
+.container-fluid {
+  height: 100%;
+  padding-right: 30px;
 }
 
 .icon-container {
   display: flex;
   align-items: center;
-  gap: 25px;
+  gap: 20px;
+  height: 100%;
 }
 
-.bell-icon {
-  position: relative;
+.header-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  color: #9399af;
   cursor: pointer;
-  color: #4a4a4a;
+  transition: all 0.2s ease;
+  position: relative;
 }
 
-.bell-icon::after {
+.header-icon:hover {
+  background-color: #f5f7fd;
+  color: #050d2d;
+  transform: translateY(-2px);
+}
+
+.notification-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  background-color: #e74c3c;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+}
+
+.profile-container {
+  margin-left: 5px;
+  position: relative;
+}
+
+.profile-container::before {
   content: "";
   position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 7px;
-  height: 7px;
-  background-color: red;
-  border-radius: 50%;
+  left: -15px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 30px;
+  width: 1px;
+  background-color: #f0f0f5;
 }
 
 .profile-image {
   width: 42px;
   height: 42px;
-  border: 2px solid #e0e0e0;
+  border: 2px solid #f0f0f5;
   cursor: pointer;
+  transition: all 0.25s ease;
+  object-fit: cover;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.profile-image:hover {
+  border-color: #050d2d;
+  transform: scale(1.05);
+  box-shadow: 0 5px 15px rgba(5, 13, 45, 0.1);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .header-wrapper {
+    left: 65px;
+    width: calc(100% - 65px);
+  }
+
+  .header-wrapper.open {
+    left: 240px;
+    width: calc(100% - 240px);
+  }
+
+  .container-fluid {
+    padding-right: 20px;
+  }
+
+  .header-navbar {
+    height: 60px;
+  }
+
+  .header-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .profile-image {
+    width: 38px;
+    height: 38px;
+  }
 }

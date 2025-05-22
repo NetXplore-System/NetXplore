@@ -7,6 +7,8 @@ import json
 from typing import List, Dict, Any
 from datetime import datetime
 import os
+from models import Research, NetworkAnalysis  
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 logger = logging.getLogger("wikipedia")
@@ -93,7 +95,6 @@ async def fetch_wikipedia_data(request: Request):
         logger.error(f"Error fetching Wikipedia data: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     
-# @router.get("/analyze/network/{filename}")
 @router.get("/analyze/wikipedia/{filename}")
 async def analyze_network(filename: str, 
                           limit: int = 50,
@@ -102,31 +103,18 @@ async def analyze_network(filename: str,
                           limit_type: str = "first",
                           anonymize: bool = False):
 
-    file_path = f"{filename}.json"
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail=f"File {file_path} not found.")
+    txt_path = f"uploads/{filename}.txt"
+    if not os.path.exists(txt_path):
+        raise HTTPException(status_code=404, detail=f"TXT file {txt_path} not found.")
 
-    with open(file_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
+    graph_data = build_graph_from_txt(txt_path)
 
-    
-    nodes = data.get("nodes", [])
-    links = data.get("links", [])
-    
-    if not links and "content" in data and len(data["content"]) > 0:
-        if "discussion_graph" in data["content"][0]:
-            links = data["content"][0]["discussion_graph"].get("links", [])
-            if not nodes and "nodes" in data["content"][0]["discussion_graph"]:
-                nodes = data["content"][0]["discussion_graph"].get("nodes", [])
-    
-    logger.info(f"Found {len(nodes)} nodes and {len(links)} links in {filename}")
+    logger.info(f" Built graph from TXT with {len(graph_data['nodes'])} nodes and {len(graph_data['links'])} links")
 
-    result = {
-        "nodes": data.get("nodes", []),
-        "links": data.get("links", [])
+    return {
+        "nodes": graph_data["nodes"],
+        "links": graph_data["links"]
     }
-
-    return result
 
     
 def extract_metadata(soup):
@@ -280,7 +268,8 @@ def process_wiki_talk_page(html_content):
             username, timestamp = extract_user_and_timestamp(html)
 
             if username and timestamp:
-                comment_text = re.sub(r'\s*' + re.escape(username) + r'.*$', '', text)
+                # comment_text = re.sub(r'\s*' + re.escape(username) + r'.*$', '', text)
+                comment_text = text  # תשאירי את כל הטקסט המקורי
                 opinion = analyze_comment_for_opinion(comment_text)
                 current_section["opinion_count"][opinion] += 1
                 
@@ -517,3 +506,221 @@ def extract_discussion_graph(soup, url):
         "nodes": nodes,
         "links": links
     }
+
+@router.post("/convert-wikipedia-to-txt")
+async def convert_to_txt(request: Request):
+    data = await request.json()
+    filename = data.get("filename")
+    section_title = data.get("section_title")
+    if not filename or not section_title:
+        raise HTTPException(status_code=400, detail="Missing filename or section_title")
+    
+    json_path = f"{filename}.json"
+    if not os.path.exists(json_path):
+        raise HTTPException(status_code=404, detail=f"File {json_path} not found")
+    
+    with open(json_path, "r", encoding="utf-8") as f:
+        content = json.load(f)
+    
+    selected_section = next((s for s in content["content"][0]["sections"] if s["title"] == section_title), None)
+    if not selected_section:
+        raise HTTPException(status_code=404, detail="Section not found")
+    
+    txt_lines = []
+    for comment in selected_section["comments"]:
+        try:
+            timestamp_match_he = re.match(r"(\d+):(\d+), (\d+) ב([א-ת]+) (\d+)", comment['timestamp'])
+            
+            timestamp_match_en = re.match(r"(\d+):(\d+), (\d+) ([A-Za-z]+) (\d+)", comment['timestamp'])
+            
+            timestamp_match_alt = re.match(r"(\d+):(\d+), (\d+)/(\d+)/(\d+)", comment['timestamp'])
+            
+            if timestamp_match_he:
+                hour, minute, day, month_he, year = timestamp_match_he.groups()
+                
+                month_map_he = {
+                    "ינואר": "01", "פברואר": "02", "מרץ": "03", "אפריל": "04",
+                    "מאי": "05", "יוני": "06", "יולי": "07", "אוגוסט": "08",
+                    "ספטמבר": "09", "אוקטובר": "10", "נובמבר": "11", "דצמבר": "12"
+                }
+                month = month_map_he.get(month_he, "01")
+                
+                whatsapp_date = f"{day.zfill(2)}/{month}/{year}"
+                whatsapp_time = f"{hour.zfill(2)}:{minute.zfill(2)}:00"
+                whatsapp_timestamp = f"[{whatsapp_date}, {whatsapp_time}]"
+                
+            elif timestamp_match_en:
+                hour, minute, day, month_en, year = timestamp_match_en.groups()
+                
+                month_map_en = {
+                    "January": "01", "February": "02", "March": "03", "April": "04",
+                    "May": "05", "June": "06", "July": "07", "August": "08",
+                    "September": "09", "October": "10", "November": "11", "December": "12",
+                    "Jan": "01", "Feb": "02", "Mar": "03", "Apr": "04", "May": "05",
+                    "Jun": "06", "Jul": "07", "Aug": "08", "Sep": "09", "Sept": "09",
+                    "Oct": "10", "Nov": "11", "Dec": "12"
+                }
+                month = month_map_en.get(month_en, "01")
+                
+                whatsapp_date = f"{day.zfill(2)}/{month}/{year}"
+                whatsapp_time = f"{hour.zfill(2)}:{minute.zfill(2)}:00"
+                whatsapp_timestamp = f"[{whatsapp_date}, {whatsapp_time}]"
+                
+            elif timestamp_match_alt:
+                hour, minute, day, month, year = timestamp_match_alt.groups()
+                
+                whatsapp_date = f"{day.zfill(2)}/{month.zfill(2)}/{year}"
+                whatsapp_time = f"{hour.zfill(2)}:{minute.zfill(2)}:00"
+                whatsapp_timestamp = f"[{whatsapp_date}, {whatsapp_time}]"
+                
+            else:
+                all_numbers = re.findall(r'\d+', comment['timestamp'])
+                if len(all_numbers) >= 5: 
+                    hour = all_numbers[0]
+                    minute = all_numbers[1]
+                    day = all_numbers[2]
+                    month = all_numbers[3]
+                    year = all_numbers[4]
+                    
+                    whatsapp_date = f"{day.zfill(2)}/{month.zfill(2)}/{year}"
+                    whatsapp_time = f"{hour.zfill(2)}:{minute.zfill(2)}:00"
+                    whatsapp_timestamp = f"[{whatsapp_date}, {whatsapp_time}]"
+                else:
+                    print(f"Could not parse timestamp format: {comment['timestamp']}")
+                    whatsapp_timestamp = "[01/01/2000, 12:00:00]"
+            
+            line = f"{whatsapp_timestamp} {comment['username']}: {comment['text']}"
+            txt_lines.append(line)
+            
+        except Exception as e:
+            print(f"Error processing comment: {e}, timestamp: {comment.get('timestamp', 'No timestamp')}")
+            whatsapp_timestamp = "[01/01/2000, 12:00:00]"
+            line = f"{whatsapp_timestamp} {comment.get('username', 'Unknown')}: {comment.get('text', '')}"
+            txt_lines.append(line)
+    
+    txt_content = "\n".join(txt_lines)
+    
+    os.makedirs("uploads", exist_ok=True)
+    
+    txt_path = f"uploads/{filename}.txt"
+    
+    with open(txt_path, "w", encoding="utf-8") as txt_file:
+        txt_file.write(txt_content)
+    
+    graph_data = build_graph_from_txt(txt_path)
+    
+    return {
+            "message": "TXT created",
+            "path": txt_path,
+            "nodes": graph_data["nodes"],
+            "links": graph_data["links"]
+        }
+
+
+def build_graph_from_txt(txt_path):
+    nodes = []
+    links = []
+    usernames = set()
+
+    with open(txt_path, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+
+    previous_user = None
+    for line in lines:
+
+        match = re.match(r"\[([\d/\.]+), ([\d:]+)\] ([^:]+):(.*)", line)
+        if match:
+            date, time, username, text = match.groups()
+            username = username.strip()
+            usernames.add(username)
+            nodes.append({"id": username, "name": username, "group": 1})
+
+            if previous_user and previous_user != username:
+                links.append({
+                    "source": username, 
+                    "target": previous_user,
+                    "value": 1
+                })
+            previous_user = username
+
+    unique_nodes = {n["id"]: n for n in nodes}.values()
+    return {
+        "nodes": list(unique_nodes),
+        "links": links
+    }
+
+def extract_massages(file_content, platform="whatsapp", limit_type="first", limit=None, min_length=0, max_length=1000):
+    """
+    מחלץ הודעות מקובץ טקסט של וואטסאפ או ויקיפדיה
+    """
+    messages = []
+    
+    lines = file_content.strip().split('\n')
+    
+    for line in lines:
+        if platform == "whatsapp":
+            match = re.match(r"\[([\d/\.]+), ([\d:]+)\] ([^:]+): (.*)", line)
+            if match:
+                date, time, username, text = match.groups()
+                try:
+                    if '/' in date:
+                        day, month, year = date.split('/')
+                    elif '.' in date:
+                        day, month, year = date.split('.')
+                    else:
+                        continue
+                    
+                    hour, minute, second = time.split(':')
+                    timestamp = f"{day}/{month}/{year}, {hour}:{minute}:{second}"
+                    
+                    if min_length <= len(text) <= max_length:
+                        messages.append({
+                            "timestamp": timestamp,
+                            "user": username.strip(),
+                            "message": text.strip()
+                        })
+                except:
+                    continue
+        
+        elif platform == "wikipedia":
+            match_with_tilde = re.match(r"\[([\d/\.]+), ([\d:]+)\] ~ ([^:]+): (.*)", line)
+            match_without_tilde = re.match(r"\[([\d/\.]+), ([\d:]+)\] ([^:]+): (.*)", line)
+            
+            if match_with_tilde:
+                date, time, username, text = match_with_tilde.groups()
+            elif match_without_tilde:
+                date, time, username, text = match_without_tilde.groups()
+            else:
+                continue
+            try:
+                if '/' in date:
+                    day, month, year = date.split('/')
+                elif '.' in date:
+                    day, month, year = date.split('.')
+                else:
+                    continue
+                
+                hour, minute, second = time.split(':')
+                timestamp = f"{day}/{month}/{year}, {hour}:{minute}:{second}"
+                
+                if min_length <= len(text) <= max_length:
+                    messages.append({
+                        "timestamp": timestamp,
+                        "user": username.strip(),
+                        "message": text.strip()
+                    })
+            except:
+                continue
+    
+    if limit and limit > 0:
+        if limit_type == "first":
+            messages = messages[:limit]
+        elif limit_type == "last":
+            messages = messages[-limit:]
+        elif limit_type == "random":
+            import random
+            random.shuffle(messages)
+            messages = messages[:limit]
+    
+    print(f"🔹 Found {len(messages)} messages in {platform} format.")
+    return messages

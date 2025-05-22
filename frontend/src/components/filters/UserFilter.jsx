@@ -63,18 +63,6 @@ const UserFilter = ({
           />
         </Form.Group>
       </Col>
-      <Col lg={4} md={4} className="mb-3">
-        <Form.Group>
-          <Form.Label className="research-label">Specific Users:</Form.Label>
-          <Form.Control
-            type="text"
-            value={selectedUsers}
-            onChange={(e) => setSelectedUsers(e.target.value)}
-            placeholder="Enter usernames, separated by commas"
-            className="research-input"
-          />
-        </Form.Group>
-      </Col>
     </Row>
   );
 };

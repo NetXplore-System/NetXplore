@@ -76,19 +76,6 @@ button:focus-visible {
   }
 }
 
-.main-content {
-  transition: margin-left 0.3s ease-in-out;
-  padding-top: 70px; 
-  height: 100dvh;
-}
-
-.main-content.expanded {
-  margin-left: 250px; 
-}
-
-.main-content.collapsed {
-  margin-left: 80px; 
-}
 
 
 

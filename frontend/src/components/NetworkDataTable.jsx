@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
-import { Card, Table, Form, Button, Row, Col, Badge } from "react-bootstrap";
+import { Table, Form, Button, Row, Col, Badge } from "react-bootstrap";
 import { Search, Download, XCircle } from "react-bootstrap-icons";
-import "./NetworkDataTable.css";
+import "../styles/NetworkDataTable.css";
 
 const NetworkDataTable = ({ networkData, onClose }) => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -436,170 +436,145 @@ const NetworkDataTable = ({ networkData, onClose }) => {
   if (!networkData) return <div>No data available</div>;
 
   return (
-    <Card className="network-data-table mt-4">
-      <Card.Header className="d-flex justify-content-between align-items-center">
-        <div>
-          <h4 className="m-0">Network Data Explorer</h4>
-        </div>
-        <div>
-          <Button variant="outline-light" onClick={onClose}>
-            <XCircle size={20} />
-          </Button>
-        </div>
-      </Card.Header>
-      <Card.Body>
-        <Row className="mb-3">
-          <Col md={6}>
-            <div className="d-flex">
-              <Button
-                variant={currentTab === "nodes" ? "primary" : "outline-primary"}
-                onClick={() => setCurrentTab("nodes")}
-                className="me-2 rounded-pill"
-              >
-                Nodes ({networkData.nodes?.length || 0})
-              </Button>
-              <Button
-                variant={currentTab === "links" ? "primary" : "outline-primary"}
-                onClick={() => setCurrentTab("links")}
-                className="me-2 rounded-pill"
-              >
-                Links ({networkData.links?.length || 0})
-              </Button>
-              <Button
-                variant={
-                  currentTab === "messages" ? "primary" : "outline-primary"
-                }
-                onClick={() => setCurrentTab("messages")}
-                className="rounded-pill"
-              >
-                Messages ({networkData.messages?.length || 0})
-              </Button>
-            </div>
-          </Col>
-          <Col md={6}>
-            <div className="d-flex">
-              <Form.Control
-                type="search"
-                placeholder="Search..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="me-2 search-input"
-              />
-              <Button
-                variant="outline-success"
-                onClick={exportCSV}
-                className="rounded-pill"
-              >
-                <Download size={20} />
-              </Button>
-            </div>
-          </Col>
-        </Row>
+    <div className="network-data-table px-2">
 
-        <Row className="mb-3">
-          <Col>
-            <Card className="stats-card border-0">
-              <Card.Body>
-                <Row>
-                  {currentTab === "nodes" && (
-                    <>
-                      <Col md={3}>
-                        <div className="text-center stat-item">
-                          <h5>Nodes</h5>
-                          <h2>{nodeStats.totalNodes}</h2>
-                        </div>
-                      </Col>
-                      <Col md={3}>
-                        <div className="text-center stat-item">
-                          <h5>Communities</h5>
-                          <h2>{nodeStats.communitiesCount}</h2>
-                        </div>
-                      </Col>
-                      <Col md={3}>
-                        <div className="text-center stat-item">
-                          <h5>Avg. Degree</h5>
-                          <h2>
-                            {nodeStats.metrics?.degree?.avg.toFixed(2) || "-"}
-                          </h2>
-                        </div>
-                      </Col>
-                      <Col md={3}>
-                        <div className="text-center stat-item">
-                          <h5>Avg. Betweenness</h5>
-                          <h2>
-                            {nodeStats.metrics?.betweenness?.avg.toFixed(4) ||
-                              "-"}
-                          </h2>
-                        </div>
-                      </Col>
-                    </>
-                  )}
+      <Row className="mb-3">
+        <Col md={6}>
+          <div className="d-flex">
+            <Button
+              variant={currentTab === "nodes" ? "primary" : "outline-primary"}
+              onClick={() => setCurrentTab("nodes")}
+              className="me-2 rounded-pill"
+            >
+              Nodes ({networkData.nodes?.length || 0})
+            </Button>
+            <Button
+              variant={currentTab === "links" ? "primary" : "outline-primary"}
+              onClick={() => setCurrentTab("links")}
+              className="me-2 rounded-pill"
+            >
+              Links ({networkData.links?.length || 0})
+            </Button>
+          </div>
+        </Col>
+        <Col md={6}>
+          <div className="d-flex">
+            <Form.Control
+              type="search"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="me-2 search-input"
+            />
+            <Button
+              variant="outline-success"
+              onClick={exportCSV}
+              className="rounded-pill"
+            >
+              <Download size={20} />
+            </Button>
+          </div>
+        </Col>
+      </Row>
 
-                  {currentTab === "links" && (
-                    <>
-                      <Col md={4}>
-                        <div className="text-center stat-item">
-                          <h5>Total Links</h5>
-                          <h2>{linkStats.totalLinks}</h2>
-                        </div>
-                      </Col>
-                      <Col md={4}>
-                        <div className="text-center stat-item">
-                          <h5>Avg. Weight</h5>
-                          <h2>
-                            {linkStats.weightStats?.avg.toFixed(2) || "-"}
-                          </h2>
-                        </div>
-                      </Col>
-                      <Col md={4}>
-                        <div className="text-center stat-item">
-                          <h5>Max Weight</h5>
-                          <h2>{linkStats.weightStats?.max || "-"}</h2>
-                        </div>
-                      </Col>
-                    </>
-                  )}
+      <Row className="mb-3">
+        <Col>
+          <div className="stats-summary p-3 bg-light rounded">
+            <Row>
+              {currentTab === "nodes" && (
+                <>
+                  <Col md={3}>
+                    <div className="text-center stat-item">
+                      <h5>Nodes</h5>
+                      <h2>{nodeStats.totalNodes}</h2>
+                    </div>
+                  </Col>
+                  <Col md={3}>
+                    <div className="text-center stat-item">
+                      <h5>Communities</h5>
+                      <h2>{nodeStats.communitiesCount}</h2>
+                    </div>
+                  </Col>
+                  <Col md={3}>
+                    <div className="text-center stat-item">
+                      <h5>Avg. Degree</h5>
+                      <h2>
+                        {nodeStats.metrics?.degree?.avg.toFixed(2) || "-"}
+                      </h2>
+                    </div>
+                  </Col>
+                  <Col md={3}>
+                    <div className="text-center stat-item">
+                      <h5>Avg. Betweenness</h5>
+                      <h2>
+                        {nodeStats.metrics?.betweenness?.avg.toFixed(4) || "-"}
+                      </h2>
+                    </div>
+                  </Col>
+                </>
+              )}
 
-                  {currentTab === "messages" && (
-                    <>
-                      <Col md={4}>
-                        <div className="text-center stat-item">
-                          <h5>Total Messages</h5>
-                          <h2>{messageStats.totalMessages || 0}</h2>
-                        </div>
-                      </Col>
-                      <Col md={4}>
-                        <div className="text-center stat-item">
-                          <h5>Unique Senders</h5>
-                          <h2>{messageStats.uniqueSenders || 0}</h2>
-                        </div>
-                      </Col>
-                      <Col md={4}>
-                        <div className="text-center stat-item">
-                          <h5>Date Range</h5>
-                          <h2 style={{ fontSize: "1rem" }}>
-                            {messageStats.startDate && messageStats.endDate
-                              ? `${messageStats.startDate.toLocaleDateString()} - 
+              {currentTab === "links" && (
+                <>
+                  <Col md={4}>
+                    <div className="text-center stat-item">
+                      <h5>Total Links</h5>
+                      <h2>{linkStats.totalLinks}</h2>
+                    </div>
+                  </Col>
+                  <Col md={4}>
+                    <div className="text-center stat-item">
+                      <h5>Avg. Weight</h5>
+                      <h2>{linkStats.weightStats?.avg.toFixed(2) || "-"}</h2>
+                    </div>
+                  </Col>
+                  <Col md={4}>
+                    <div className="text-center stat-item">
+                      <h5>Max Weight</h5>
+                      <h2>{linkStats.weightStats?.max || "-"}</h2>
+                    </div>
+                  </Col>
+                </>
+              )}
+
+              {currentTab === "messages" && (
+                <>
+                  <Col md={4}>
+                    <div className="text-center stat-item">
+                      <h5>Total Messages</h5>
+                      <h2>{messageStats.totalMessages || 0}</h2>
+                    </div>
+                  </Col>
+                  <Col md={4}>
+                    <div className="text-center stat-item">
+                      <h5>Unique Senders</h5>
+                      <h2>{messageStats.uniqueSenders || 0}</h2>
+                    </div>
+                  </Col>
+                  <Col md={4}>
+                    <div className="text-center stat-item">
+                      <h5>Date Range</h5>
+                      <h2 style={{ fontSize: "1rem" }}>
+                        {messageStats.startDate && messageStats.endDate
+                          ? `${messageStats.startDate.toLocaleDateString()} - 
                               ${messageStats.endDate.toLocaleDateString()}`
-                              : "-"}
-                          </h2>
-                        </div>
-                      </Col>
-                    </>
-                  )}
-                </Row>
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
+                          : "-"}
+                      </h2>
+                    </div>
+                  </Col>
+                </>
+              )}
+            </Row>
+          </div>
+        </Col>
+      </Row>
 
-        {currentTab === "nodes"
-          ? renderNodesTable()
-          : currentTab === "links"
-          ? renderLinksTable()
-          : renderMessagesTable()}
-      </Card.Body>
-    </Card>
+      {currentTab === "nodes"
+        ? renderNodesTable()
+        : currentTab === "links"
+        ? renderLinksTable()
+        : renderMessagesTable()}
+    </div>
   );
 };
 

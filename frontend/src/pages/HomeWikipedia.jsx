@@ -7,8 +7,8 @@ import {
 } from "react-bootstrap-icons";
 import { toast } from "react-hot-toast";
 import { ForceGraph2D } from "react-force-graph";
-import "./Home.css";
-import { GraphContainer } from "./Form.style.js";
+import "./Home/Home.css";
+import { GraphContainer } from "./Home/Form.style.js";
 import NetworkCustomizationToolbar from "../components/NetworkCustomizationToolbar.jsx";
 import ComparisonPanel from "../components/comparison/ComparisonPanel.jsx";
 import ResearchCard from "../components/common/ResearchCard.jsx";
@@ -30,7 +30,6 @@ import {
   saveToDB,  
 } from "../components/utils/ApiService.js";
 import { useDispatch, useSelector } from "react-redux";
-// import { GraphButton } from "../components/utils/StyledComponents-El.js";
 import { addToMain, clearImages } from "../redux/images/imagesSlice.js";
 
 export const graphMetrics = [
@@ -183,39 +182,37 @@ const home_wikipedia = () => {
       return;
     }
 
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/fetch-wikipedia-data`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ url }),
-        }
-      );
+    toast.promise(
+      fetch(`${import.meta.env.VITE_API_URL}/fetch-wikipedia-data`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.nodes && data.links && data.content) {
+            const fullData = {
+              nodes: data.nodes,
+              links: data.links,
+              content: data.content,
+              opinions: data.opinions || { for: 0, against: 0, neutral: 0 },
+            };
 
-      const data = await response.json();
-      if (data.nodes && data.links && data.content) {
-        const fullData = {
-          nodes: data.nodes,
-          links: data.links,
-          content: data.content,
-          opinions: data.opinions || { for: 0, against: 0, neutral: 0 },
-        };
-
-        setNetworkData(fullData);
-        console.log("First node from Wikipedia data:", fullData.nodes?.[0]);
-        setOriginalNetworkData(fullData);
-        setUploadedFile("wikipedia_data");
-        toast.success("Wikipedia discussion analyzed successfully!");
-      } else {
-        toast.error("Failed to extract discussion data.");
+            setNetworkData(fullData);
+            setOriginalNetworkData(fullData);
+            setUploadedFile("wikipedia_data");
+          } else {
+            throw new Error("Failed to extract discussion data.");
+          }
+        }),
+      {
+        loading: "Uploading...",
+        success: "Wikipedia discussion analyzed successfully!",
+        error: "Error analyzing Wikipedia discussion.",
       }
-    } catch (err) {
-      toast.error("Error analyzing Wikipedia discussion.");
-      console.error(err);
-    }
+    );
   };
 
   const unfixAllNodes = () => {
@@ -282,43 +279,6 @@ const home_wikipedia = () => {
     handleNetworkCustomization(updatedSettings);
   };
 
-  // useEffect(() => {
-  //   if (!uploadedFile) {
-  //     setFile(null);
-  //     setChartData(null);
-  //     setNetworkData(null);
-  //     filters.setFilter("");
-  //     filters.setStartDate("");
-  //     filters.setEndDate("");
-  //     filters.setMessageLimit(50);
-  //     filters.setKeywords("");
-  //     setInputKey(Date.now());
-  //     if (forceGraphRef.current) {
-  //       forceGraphRef.current.zoomToFit(400, 100);
-  //     }
-  //   }
-
-  //   if (graphReady) {
-  //     setShowMetrics(true); // ← פותח את הפאנל כשמופעל הגרף
-  //   }
-  //   if (networkData) {
-  //     calculateNetworkStats();
-  //   }
-  //   if (
-  //     shouldFetchCommunities &&
-  //     networkData &&
-  //     networkData.nodes?.length > 0
-  //   ) {
-  //     fetchCommunityData();
-  //     setShouldFetchCommunities(false);
-  //   }
-  // }, [
-  //   shouldFetchCommunities,
-  //   uploadedFile,
-  //   showMetrics,
-  //   networkData,
-  //   graphReady,
-  // ]);
   useEffect(() => {
     if (!uploadedFile) {
       setFile(null);
@@ -338,12 +298,6 @@ const home_wikipedia = () => {
 
     if (networkData) {
       calculateNetworkStats();
-
-      if (forceGraphRef.current && networkData.nodes.length > 0) {
-        forceGraphRef.current.d3Force("charge").strength(-400);
-        forceGraphRef.current.d3Force("link").distance(200);
-        forceGraphRef.current.d3ReheatSimulation();
-      }
     }
 
     if (
@@ -365,12 +319,20 @@ const home_wikipedia = () => {
   const handleFileChange = (event) => {
     const selectedFile = event.target.files[0];
     if (!selectedFile) return;
-    setFile(selectedFile);
+
+    const newFileName = `${selectedFile.name.split(".")[0]}-${Date.now()}.${
+      selectedFile.name.split(".")[1]
+    }`;
+    const renamedFile = new File([selectedFile], newFileName, {
+      type: selectedFile.type,
+    });
+
+    setFile(renamedFile);
     setUploadedFile("");
     setChartData(null);
     setNetworkData(null);
     setMessage("");
-    handleSubmit(selectedFile);
+    handleSubmit(renamedFile);
   };
 
   const handleUploadClick = () => {
@@ -379,7 +341,6 @@ const home_wikipedia = () => {
 
   const handleSubmit = (selectedFile) => {
     if (!selectedFile) {
-      // setMessage("Please select a file before uploading.");
       toast.error("Please select a file before uploading.");
       return;
     }
@@ -393,18 +354,9 @@ const home_wikipedia = () => {
         return data.message || "File uploaded successfully!";
       },
       error: (error) => {
-        return error?.message || "Error uploading file.";
+        return error || "Error uploading file.";
       },
     });
-
-    // uploadFile(selectedFile)
-    //   .then((data) => {
-    //     if (data.message) {
-    //       setMessage(data.message);
-    //       setUploadedFile(data.filename);
-    //     }
-    //   })
-    //   .catch((error) => setMessage(error.message));
   };
 
   const handleDelete = async () => {
@@ -435,59 +387,6 @@ const home_wikipedia = () => {
     }
   };
 
-  // const handleNetworkAnalysis = async () => {
-  //   if (!uploadedFile || !selectedSection) {
-  //     setMessage("Please select a section to analyze.");
-  //     return false;
-  //   }
-
-  //   setNetworkWasRestored(false);
-  //   const params = filters.buildNetworkFilterParams();
-
-  //   try {
-  //     const data = await analyzeNetwork(uploadedFile, params);
-
-  //     if (data.nodes && data.links) {
-  //       dispatch(clearImages());
-
-  //       const validUsernames = new Set(
-  //         selectedSection.comments.map((c) => c.username?.toString().trim())
-  //       );
-
-  //       const filteredNodes = data.nodes.filter((n) =>
-  //         validUsernames.has(n.id?.toString().trim())
-  //       );
-
-  //       const filteredLinks = data.links.filter(
-  //         (l) =>
-  //           validUsernames.has(l.source?.toString().trim()) &&
-  //           validUsernames.has(l.target?.toString().trim())
-  //       );
-
-  //       const filteredData = {
-  //         nodes: filteredNodes,
-  //         links: filteredLinks,
-  //         content: networkData?.content || [],
-  //       };
-
-  //       if (filteredNodes.length === 0 || filteredLinks.length === 0) {
-  //       }
-
-  //       setNetworkData(filteredData);
-  //       setOriginalNetworkData(filteredData);
-  //       setShouldFetchCommunities(true);
-  //       setGraphReady(true);
-
-  //       return true;
-  //     } else {
-  //       setMessage("No data returned from server.");
-  //       return false;
-  //     }
-  //   } catch (error) {
-  //     setMessage(error?.message || "Error analyzing network.");
-  //     return false;
-  //   }
-  // };
   const handleNetworkAnalysis = async () => {
     if (!uploadedFile || !selectedSection) {
       setMessage("Please select a section to analyze.");
@@ -495,12 +394,9 @@ const home_wikipedia = () => {
     }
 
     setNetworkWasRestored(false);
-    const params = filters.buildNetworkFilterParams();
 
     try {
-      // const data = await analyzeNetwork(uploadedFile, params);
-      const data = await analyzeWikipediaNetwork(uploadedFile, params);
-
+      const data = await convertWikipediaToTxt(selectedSection.title);
 
       if (data.nodes && data.links) {
         dispatch(clearImages());
@@ -547,12 +443,13 @@ const home_wikipedia = () => {
 
         setNetworkData(filteredData);
         setOriginalNetworkData(filteredData);
+
         setShouldFetchCommunities(true);
         setGraphReady(true);
 
         return true;
       } else {
-        setMessage("No data returned from server.");
+        setMessage("No data returned from TXT conversion.");
         return false;
       }
     } catch (error) {
@@ -561,49 +458,84 @@ const home_wikipedia = () => {
     }
   };
 
-  // const handleSaveToDB = () => {
-  //   const params = filters.buildNetworkFilterParams();
-  //   const id = currentUser?.id;
-  //   if (!name || !description || !uploadedFile || !params || !id) {
-  //     toast.error("Please fill in all required fields.");
-  //     return;
-  //   }
-  //   toast.promise(
-  //     saveToDB(id, name, description, uploadedFile, params, selectedMetric, {
-  //       hasComparison: comparisonNetworkData.length ? true : false,
-  //       data: comparisonNetworkData || undefined,
-  //     }),
-  //     {
-  //       loading: "Saving...",
-  //       success: (data) => {
-  //         return data?.detail || "Research saved successfully!";
-  //       },
-  //       error: (error) => {
-  //         return error?.detail || "Error saving research.";
-  //       },
-  //     }
-  //   );
-  // };
+  const convertWikipediaToTxt = async (sectionTitle) => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/convert-wikipedia-to-txt`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            filename: "wikipedia_data",
+            section_title: sectionTitle,
+          }),
+        }
+      );
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.detail || "Failed to convert to TXT");
+      }
+
+      console.log("TXT file created:", result.path);
+      return { nodes: result.nodes, links: result.links };
+    } catch (error) {
+      console.error("TXT conversion error:", error);
+      throw error;
+    }
+  };
+
   const handleSaveToDB = () => {
     const params = filters.buildNetworkFilterParams();
     const id = currentUser?.id;
+
     if (!name || !description || !uploadedFile || !params || !id) {
-      toast.error("Please fill in all required fields.");
+      let msg = "Please fill in all required fields.(";
+      if (!name) msg += " Name is required.";
+      if (!description) msg += " Description is required.";
+      if (!uploadedFile) msg += " File is required.";
+      if (!params) msg += " Filters are required.";
+      if (!id) msg += " Login is required.";
+      msg += ")";
+      toast.error(msg);
       return;
     }
+
+    const platform = uploadedFile.includes("wikipedia")
+      ? "wikipedia"
+      : "whatsapp";
+
+    const fileName = uploadedFile.endsWith(".txt")
+      ? uploadedFile
+      : `${uploadedFile}.txt`;
+
+    console.log(" Saving Research with Data:", {
+      researcher_id: id,
+      research_name: name,
+      description,
+      file_name: fileName,
+      platform,
+      selected_metric: selectedMetric,
+      filters: params.toString(),
+      hasComparison: comparisonNetworkData.length > 0,
+      comparisonData: comparisonNetworkData,
+    });
+
     toast.promise(
       saveToDB(
         id,
         name,
         description,
-        uploadedFile,
+        fileName,
         params,
         selectedMetric,
         {
-          hasComparison: comparisonNetworkData.length ? true : false,
+          hasComparison: comparisonNetworkData.length > 0,
           data: comparisonNetworkData || undefined,
         },
-        "wikipedia"
+        platform
       ),
       {
         loading: "Saving...",
@@ -650,53 +582,10 @@ const home_wikipedia = () => {
     });
   };
 
-  // const handleToggleMetric = (metric) => {
-  //   setSelectedMetric(selectedMetric === metric ? null : metric);
-  // };
-  // Replace the current handleToggleMetric function with this:
-
   const handleToggleMetric = (metric) => {
-    const isTogglingOff = selectedMetric === metric;
-    setSelectedMetric(isTogglingOff ? null : metric);
-
-    if (forceGraphRef.current) {
-      if (isTogglingOff) {
-        forceGraphRef.current.d3Force("charge").strength(-400);
-        forceGraphRef.current.d3Force("link").distance(200);
-      } else {
-        forceGraphRef.current.d3Force("charge").strength(-800);
-        forceGraphRef.current.d3Force("link").distance(250);
-      }
-
-      if (networkData && networkData.nodes) {
-        const jitter = 20;
-        const updatedNodes = [...networkData.nodes].map((node) => {
-          if (!node.fx && !node.fy) {
-            return {
-              ...node,
-              fx: null,
-              fy: null,
-              x: node.x + (Math.random() - 0.5) * jitter,
-              y: node.y + (Math.random() - 0.5) * jitter,
-            };
-          }
-          return node;
-        });
-
-        setNetworkData({
-          nodes: updatedNodes,
-          links: networkData.links,
-        });
-      }
-
-      forceGraphRef.current.d3Force("charge").distanceMax(1000);
-      forceGraphRef.current.d3ReheatSimulation();
-
-      setTimeout(() => {
-        forceGraphRef.current.zoomToFit(400, 150);
-      }, 500);
-    }
+    setSelectedMetric(selectedMetric === metric ? null : metric);
   };
+
   const handleDensityMetric = () => {
     const density = calculateDensity(networkData.nodes, networkData.links);
     setDensityValue(density.toFixed(4));
@@ -1166,36 +1055,6 @@ const home_wikipedia = () => {
     const linkColor = isComparisonGraph
       ? "rgba(128, 0, 128, 0.6)"
       : "rgba(128, 128, 128, 0.6)";
-
-    const getNodeSize = (node) => {
-      if (!node) return 20;
-
-      if (filteredOriginalData && filteredComparisonData) {
-        if (comparisonMetrics.includes("Degree Centrality"))
-          return Math.max(10, node.degree * 80);
-        if (comparisonMetrics.includes("Betweenness Centrality"))
-          return Math.max(10, node.betweenness * 80);
-        if (comparisonMetrics.includes("Closeness Centrality"))
-          return Math.max(10, node.closeness * 50);
-        if (comparisonMetrics.includes("Eigenvector Centrality"))
-          return Math.max(10, node.eigenvector * 60);
-        if (comparisonMetrics.includes("PageRank Centrality"))
-          return Math.max(10, node.pagerank * 500);
-      } else if (!isComparisonGraph && selectedMetric) {
-        if (selectedMetric === "Degree Centrality")
-          return Math.max(10, node.degree * 80);
-        if (selectedMetric === "Betweenness Centrality")
-          return Math.max(10, node.betweenness * 80);
-        if (selectedMetric === "Closeness Centrality")
-          return Math.max(10, node.closeness * 50);
-        if (selectedMetric === "Eigenvector Centrality")
-          return Math.max(10, node.eigenvector * 60);
-        if (selectedMetric === "PageRank Centrality")
-          return Math.max(10, node.pagerank * 500);
-      }
-
-      return 20;
-    };
 
     return (
       <ForceGraph2D
@@ -1744,10 +1603,10 @@ const home_wikipedia = () => {
                 setSelectedSection(section);
                 setSelectedTitle(section.title);
               }}
+              convertToTxt={convertWikipediaToTxt}
             />
           )}
 
-          {/* מציגים פילטרים תמיד אחרי בחירת סקשן */}
           {selectedSection && (
             <FilterForm
               startDate={startDate}

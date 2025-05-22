@@ -3,14 +3,13 @@ import { Link } from "react-router-dom";
 import Button from "react-bootstrap/Button";
 import Form from "react-bootstrap/Form";
 import Container from "react-bootstrap/Container";
-import OAuth from '../components/OAuth.jsx';
+import OAuth from "../components/OAuth.jsx";
 import { useNavigate } from "react-router-dom";
 import Card from "react-bootstrap/Card";
 import toast from "react-hot-toast";
 import { useDispatch } from "react-redux";
 import { setUser } from "../redux/user/userSlice.js";
 import { AiOutlineLoading } from "react-icons/ai";
-
 
 const SignUp = () => {
   const dispatch = useDispatch();
@@ -35,6 +34,7 @@ const SignUp = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    // setSuccess("");
 
     const { name, email, password, confirmPassword } = formData;
 
@@ -61,7 +61,9 @@ const SignUp = () => {
       const data = await response.json();
       toast.success("Registration successful!");
       dispatch(setUser(data));
-      navigate("/choose-platform");
+      localStorage.setItem("user", JSON.stringify(data.user));
+      localStorage.setItem("token", data.access_token);
+      navigate("/");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -74,7 +76,10 @@ const SignUp = () => {
       className="d-flex justify-content-center align-items-center pb-5"
       style={{ minHeight: "100vh" }}
     >
-      <Card style={{ width: "100%", maxWidth: "500px", borderRadius: "20px" }} className="shadow">
+      <Card
+        style={{ width: "100%", maxWidth: "500px", borderRadius: "20px" }}
+        className="shadow"
+      >
         <Card.Body className="p-4">
           <h3 className="text-center mb-4">Sign Up</h3>
 
@@ -142,7 +147,7 @@ const SignUp = () => {
 
             <p className="text-center mt-3">
               Already have an account?{" "}
-              <Link to="/sign-in" style={{ textDecoration: "none" }}>
+              <Link to="/signin" style={{ textDecoration: "none" }}>
                 Sign In
               </Link>
             </p>

@@ -1,28 +1,64 @@
-import { useState } from "react";
-import { Routes, Route, useLocation } from "react-router-dom";
-import Home from "./pages/Home.jsx";
+import React, { useEffect, useState } from "react";
+import { Routes, Route, useLocation, HashRouter } from "react-router-dom";
+
+// Pages
+import ResearchWizard from "./pages/ResearchWizard.jsx";
+// import Home from "./pages/Home.jsx";
 import SignIn from "./pages/SignIn.jsx";
 import SignUp from "./pages/SignUp.jsx";
 import Profile from "./pages/Profile.jsx";
 import EditProfile from "./pages/EditProfile.jsx";
-import PrivateRoute from "./components/PrivateRoute";
+// import HomeW from "./pages/HomeW.jsx";
+import History from "./pages/History.jsx";
+import Dashboard from "./pages/Dashboard.jsx";
+import ChoosePlatform from "./pages/ChoosePlatform.jsx";
+import Welcome from "./pages/Welcome.jsx";
+
+// Components
 import Header from "./components/Header/Header.jsx";
 import Menu from "./components/Menu/Menu.jsx";
-// import HomeW from "./pages/HomeW.jsx";
+import PrivateRoute from "./components/PrivateRoute.jsx";
 import HomeW from "./pages/HomeWikipedia.jsx";
-import History from "./pages/History.jsx";
-import ChoosePlatform from "./pages/ChoosePlatform.jsx";
+
+// State
+import { useDispatch, useSelector } from "react-redux";
+import { setUser } from "./redux/user/userSlice";
+
+// UI
 import { Toaster } from "react-hot-toast";
-import { HashRouter } from "react-router-dom";
 import { Tooltip } from 'react-tooltip';
 
 
 
 function AppContent() {
   const [isOpen, setIsOpen] = useState(false);
+  const [isAppReady, setIsAppReady] = useState(false);
+  const { currentUser } = useSelector((state) => state.user);
+  const dispatch = useDispatch();
   const location = useLocation();
 
-  const isAuthPage = location.pathname === '/sign-in' || location.pathname === '/' || location.pathname === '/sign-up';
+  useEffect(() => {
+    const savedUser = localStorage.getItem("user");
+    const savedToken = localStorage.getItem("token");
+
+    if (savedUser && savedToken) {
+      dispatch(
+        setUser({
+          user: JSON.parse(savedUser),
+          access_token: savedToken,
+        })
+      );
+    }
+    setIsAppReady(true);
+  }, [dispatch]);
+
+  if (!isAppReady) return null;
+
+  const isWelcomePage = location.pathname === "/" && !currentUser;
+  const isAuthPage =
+    location.pathname === "/signin" ||
+    location.pathname === "/register" ||
+    isWelcomePage;
 
   return (
     <>
@@ -32,18 +68,20 @@ function AppContent() {
         reverseOrder={false}
         gutter={8}
         toastOptions={{
-          className: '',
           duration: 5000,
           removeDelay: 1000,
           style: {
-            fontWeight: 'bold',
-            fontSize: '12px',
+            background: "#050d2d",
+            color: "#fff",
+            fontWeight: "bold",
+            fontSize: "12px",
+            marginTop: "30px",
           },
           success: {
             duration: 3000,
             iconTheme: {
-              primary: 'green',
-              secondary: 'black',
+              primary: "green",
+              secondary: "black",
             },
           },
         }}
@@ -58,16 +96,22 @@ function AppContent() {
 
       <div className={`main-content ${isOpen ? "expanded" : "collapsed"}`}>
         <Routes>
-          <Route path="/" element={<SignIn />} />
-          <Route path="/home" element={<Home />} />
-          <Route path="/home_wikipedia" element={<HomeW />} />
-          <Route path="/sign-in" element={<SignIn />} />
-          <Route path="/sign-up" element={<SignUp />} />
+          {/* Public Routes */}
+          <Route path="/signin" element={<SignIn />} />
+          <Route path="/register" element={<SignUp />} />
           <Route path="/choose-platform" element={<ChoosePlatform />} />
+          {/* <Route path="/explore" element={<Home />} /> */}
+          <Route path="/newresearch" element={<ResearchWizard />} />
+          <Route path="/home_wikipedia" element={<HomeW />} />
+
+          <Route path="/" element={currentUser ? <Dashboard /> : <Welcome />} />
+
+          {/* Protected Routes */}
           <Route element={<PrivateRoute />}>
             <Route path="/profile" element={<Profile />} />
             <Route path="/edit-profile" element={<EditProfile />} />
             <Route path="/history" element={<History />} />
+            <Route path="/dashboard" element={<Dashboard />} />
           </Route>
         </Routes>
       </div>
@@ -77,11 +121,9 @@ function AppContent() {
 
 function App() {
   return (
-    // <BrowserRouter>
     <HashRouter>
       <AppContent />
     </HashRouter>
-    // </BrowserRouter>
   );
 }
 

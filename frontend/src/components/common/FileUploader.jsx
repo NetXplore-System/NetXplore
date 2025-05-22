@@ -1,7 +1,7 @@
 import React from "react";
 import { Button, Form } from "react-bootstrap";
 import { Upload } from "react-bootstrap-icons";
-import { AlertBox } from "../../pages/Form.style.js";
+import { AlertBox } from "../../pages/Home/Form.style.js";
 
 const FileUploader = ({
   inputKey,
