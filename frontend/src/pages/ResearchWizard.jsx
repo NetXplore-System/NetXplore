@@ -25,7 +25,7 @@ import {
   fetchWikipediaData,
   analyzeWikipediaNetwork
 } from "../components/utils/ApiService";
-import { saveToDB } from "../components/utils/save";
+// import { saveToDB } from "../components/utils/save";
 
 import "../styles/ResearchWizard.css";
 
@@ -319,6 +319,72 @@ const ResearchWizard = () => {
     );
   };
 
+  // const handleNetworkAnalysis = async () => {
+  //   if (!formData.uploadedFileName) {
+  //     toast.error("No file selected for analysis.");
+  //     return;
+  //   }
+  
+  //   const params = filters.buildNetworkFilterParams();
+  //   setLastAnalysisParams(params.toString());
+  
+  //   const isWikipedia = formData.platform === "wikipedia";
+  
+  //   try {
+  //     if (isWikipedia) {
+  //       await fetch(`${import.meta.env.VITE_API_URL}/convert-wikipedia-to-txt`, {
+  //         method: "POST",
+  //         headers: {
+  //           "Content-Type": "application/json",
+  //         },
+  //         body: JSON.stringify({
+  //           filename: formData.uploadedFileName,
+  //           section_title: selectedSection || "Top", 
+  //         }),
+  //       });
+  
+  //       toast.promise(analyzeWikipediaNetwork("wikipedia_data", params), {
+  //         loading: "Analyzing Wikipedia discussion...",
+  //         success: (data) => {
+  //           if (data.nodes && data.links) {
+  //             dispatch(clearImages());
+  //             setNetworkData(data);
+  //             setOriginalNetworkData(data);
+  //             setShouldFetchCommunities(true);
+  //             return "Wikipedia analysis completed successfully!";
+  //           } else {
+  //             return "No data returned from Wikipedia analysis.";
+  //           }
+  //         },
+  //         error: (error) => {
+  //           return error?.message || "Error analyzing Wikipedia discussion.";
+  //         },
+  //       });
+  //     } else {
+  //       toast.promise(analyzeNetwork(formData.uploadedFileName, params), {
+  //         loading: "Analyzing WhatsApp network...",
+  //         success: (data) => {
+  //           if (data.nodes && data.links) {
+  //             dispatch(clearImages());
+  //             setNetworkData(data);
+  //             setOriginalNetworkData(data);
+  //             setShouldFetchCommunities(true);
+  //             return "WhatsApp analysis completed successfully!";
+  //           } else {
+  //             return "No data returned from server.";
+  //           }
+  //         },
+  //         error: (error) => {
+  //           return error?.message || "Error analyzing network.";
+  //         },
+  //       });
+  //     }
+  //   } catch (error) {
+  //     console.error("Error during network analysis:", error);
+  //     toast.error("Failed to analyze network.");
+  //   }
+  // };
+  
   const handleNetworkAnalysis = async () => {
     if (!formData.uploadedFileName) {
       toast.error("No file selected for analysis.");
@@ -329,6 +395,7 @@ const ResearchWizard = () => {
     setLastAnalysisParams(params.toString());
   
     const isWikipedia = formData.platform === "wikipedia";
+    const isWhatsApp = formData.platform === "whatsapp";
   
     try {
       if (isWikipedia) {
@@ -339,7 +406,7 @@ const ResearchWizard = () => {
           },
           body: JSON.stringify({
             filename: formData.uploadedFileName,
-            section_title: selectedSection || "Top", 
+            section_title: selectedSection || "Top",
           }),
         });
   
@@ -360,7 +427,7 @@ const ResearchWizard = () => {
             return error?.message || "Error analyzing Wikipedia discussion.";
           },
         });
-      } else {
+      } else if (isWhatsApp) {
         toast.promise(analyzeNetwork(formData.uploadedFileName, params), {
           loading: "Analyzing WhatsApp network...",
           success: (data) => {
@@ -378,6 +445,8 @@ const ResearchWizard = () => {
             return error?.message || "Error analyzing network.";
           },
         });
+      } else {
+        toast.error("Unsupported platform selected.");
       }
     } catch (error) {
       console.error("Error during network analysis:", error);

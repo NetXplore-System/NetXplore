@@ -3,20 +3,18 @@ import { ForceGraph2D } from "react-force-graph";
 import PropTypes from "prop-types";
 
 const NetworkGraph = ({
-  networkData = null,
-  filteredNodes = [],
-  filteredLinks = [],
-  customizedNetworkData = null,
-  selectedMetric = null,
-  highlightCentralNodes = false,
-  showMetrics = true,
-  visualizationSettings = {},
-  handleNodeClick = () => {},
-  networkWasRestored = false,
-  forceGraphRef = null,
-  isDirectedGraph = false,
-  triadCensusMode = false,
-  triadCensusData = null,
+  networkData,
+  filteredNodes,
+  filteredLinks,
+  customizedNetworkData,
+  selectedMetric,
+  highlightCentralNodes,
+  showMetrics,
+  visualizationSettings,
+  handleNodeClick,
+  networkWasRestored,
+  forceGraphRef,
+  isDirectedGraph,
 }) => {
   useEffect(() => {
     if (forceGraphRef.current) {
@@ -29,6 +27,15 @@ const NetworkGraph = ({
   }
 
   return (
+    <div className="graph-wrapper"  style={{
+      maxWidth: "100%",
+      width: "100%",
+      height: "700px",
+      overflowX: "auto",
+      overflowY: "hidden",
+      position: "relative",
+      margin: "0 auto",
+    }}>
     <ForceGraph2D
       ref={forceGraphRef}
       key={customizedNetworkData ? "customized" : "default"}
@@ -268,6 +275,7 @@ const NetworkGraph = ({
         }
       }}
     />
+    </div>
   );
 };
 
@@ -284,7 +292,16 @@ NetworkGraph.propTypes = {
   networkWasRestored: PropTypes.bool,
   forceGraphRef: PropTypes.object,
   isDirectedGraph: PropTypes.bool,
-  triadCensusMode: PropTypes.bool,
-  triadCensusData: PropTypes.object,
 };
+
+NetworkGraph.defaultProps = {
+  filteredNodes: [],
+  filteredLinks: [],
+  highlightCentralNodes: false,
+  showMetrics: true,
+  visualizationSettings: {},
+  networkWasRestored: false,
+  isDirectedGraph: false,
+};
+
 export default NetworkGraph;
