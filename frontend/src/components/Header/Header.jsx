@@ -11,13 +11,6 @@ const Header = ({ isOpen }) => {
       <Navbar className="header-navbar">
         <Container fluid className="d-flex justify-content-end align-items-center">
           <div className="icon-container">
-            <div className="header-icon">
-              <Bell size={20} />
-              <span className="notification-badge"></span>
-            </div>
-            <div className="header-icon">
-              <Gear size={20} />
-            </div>
             <div className="profile-container">
               <Link to="/profile">
                 <Image
