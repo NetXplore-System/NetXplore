@@ -5,7 +5,7 @@ import {
   ChevronRight,
   FileBarGraph,
 } from "react-bootstrap-icons";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { ForceGraph2D } from "react-force-graph";
 import "./Home/Home.css";
 import { GraphContainer } from "./Home/Form.style.js";

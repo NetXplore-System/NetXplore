@@ -2,6 +2,7 @@ import os
 import json
 import logging
 from typing import List, Optional
+from datetime import datetime
 
 from fastapi import APIRouter, Form, Query, Depends, HTTPException
 from fastapi.responses import JSONResponse
@@ -54,6 +55,7 @@ async def save_research(
     username: str = Query(None),
     anonymize: bool = Query(False),
     algorithm: str = Query("louvain"),
+    save_messages: bool = Query(True),
     db: AsyncSession = Depends(get_db)
 ):
     try:
@@ -89,7 +91,7 @@ async def save_research(
             active_users,
             selected_users,
             username,
-            anonymize,
+            False,
             date_formats,
         )
 
@@ -101,21 +103,22 @@ async def save_research(
             description=description,
             user_id=researcher_id,
             platform=platform,
-            # created_at=datetime.datetime.utcnow()
+            created_at=datetime.utcnow()
         )
         db.add(new_research)
         await db.commit()
         await db.refresh(new_research)
 
-        for message in data["messages"]:
-            new_message = Message(
-                research_id=new_research.research_id,
-                message_text=message[1],
-                send_by=message[0],
-                # created_at=datetime.datetime.utcnow()
-            )
-            db.add(new_message)
-        await db.commit()
+        if save_messages:
+            for message in data["messages"]:
+                new_message = Message(
+                    research_id=new_research.research_id,
+                    message_text=message[1],
+                    send_by=message[0],
+                    created_at=datetime.utcnow()
+                )
+                db.add(new_message)
+            await db.commit()
 
 
         new_filter = ResearchFilter(

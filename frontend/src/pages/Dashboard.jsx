@@ -16,7 +16,7 @@ import {
   FaArrowRight,
 } from "react-icons/fa";
 import { motion } from "framer-motion";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import "../styles/Dashboard.css";
 
 const Dashboard = () => {

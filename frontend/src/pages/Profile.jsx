@@ -1,9 +1,10 @@
-import  { useEffect } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button, Container, Row, Col, Card } from "react-bootstrap";
 import { useDispatch, useSelector } from "react-redux";
 import { logoutUser, deleteUser } from "../redux/user/userSlice";
-import { PersonCircle } from "react-bootstrap-icons";import toast from "react-hot-toast";
+import { PersonCircle } from "react-bootstrap-icons";
+import { toast } from "sonner";
 
 
 const Profile = () => {

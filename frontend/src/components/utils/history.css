@@ -2,11 +2,11 @@
 .history-container {
     display: flex;
     flex-direction: column;
-    padding: 2rem;
+    padding: calc(70px + 2rem) 2rem calc(70px + 2rem) calc(70px + 2rem);
     gap: 1.5rem;
     overflow-x: auto;
     background-color: #f8f9fa;
-    height: 100%;
+    min-height: 100dvh;
 }
 
 .react-tooltip {

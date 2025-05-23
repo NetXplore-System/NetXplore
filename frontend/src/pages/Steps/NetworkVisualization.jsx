@@ -41,7 +41,7 @@ import {
   Eye,
   Share,
 } from "react-bootstrap-icons";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { useDispatch } from "react-redux";
 import { addToMain } from "../../redux/images/imagesSlice";
 

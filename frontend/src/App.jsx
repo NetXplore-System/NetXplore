@@ -25,7 +25,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { setUser } from "./redux/user/userSlice";
 
 // UI
-import { Toaster } from "react-hot-toast";
+import { Toaster } from "sonner";
 import { Tooltip } from 'react-tooltip';
 
 
@@ -63,29 +63,8 @@ function AppContent() {
   return (
     <>
       <Tooltip id="my-tooltip" place="top" type="dark" effect="solid" />
-      <Toaster
-        position="top-center"
-        reverseOrder={false}
-        gutter={8}
-        toastOptions={{
-          duration: 5000,
-          removeDelay: 1000,
-          style: {
-            background: "#050d2d",
-            color: "#fff",
-            fontWeight: "bold",
-            fontSize: "12px",
-            marginTop: "30px",
-          },
-          success: {
-            duration: 3000,
-            iconTheme: {
-              primary: "green",
-              secondary: "black",
-            },
-          },
-        }}
-      />
+      <Toaster position="top-center" />
+
 
       {!isAuthPage && (
         <>

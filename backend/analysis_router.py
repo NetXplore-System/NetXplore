@@ -34,6 +34,7 @@ UPLOAD_FOLDER = "Uploads"  # Ensure this folder exists or adjust as needed
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+
 @router.get("/analyze/network/{filename}")
 async def analyze_network(
         filename: str,
@@ -59,15 +60,6 @@ async def analyze_network(
         if not os.path.exists(file_path):
             raise HTTPException(detail=f"File '{filename}' not found.", status_code=404)
 
-        nodes = set()
-        user_message_count = defaultdict(int)
-        edges_counter = defaultdict(int)
-        previous_sender = None
-        anonymized_map = {}
-
-
-        keyword_list = [kw.strip().lower() for kw in keywords.split(",")] if keywords else []
-        selected_user_list = [user.strip().lower() for user in selected_users.split(",")] if selected_users else []
         start_datetime = None
         end_datetime = None
 
@@ -85,180 +77,30 @@ async def analyze_network(
         with open(file_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
 
-        
         date_formats = detect_date_format(lines[0])
-        filtered_lines = []
-        current_message = ""
-        current_datetime = None
-
-        for line in lines:
-            line = re.sub(r"[\u200f\u202f\u202a\u202b\u202c\u202d\u202e\u200d]", "", line).strip()
-            match = re.search(timestamp_pattern, line)
-
-            if match:
-                date_part = match.group()
-                parsed = False
-                for fmt in date_formats:
-                    try:
-                        dt = datetime.strptime(date_part, fmt)
-                        parsed = True
-                        break
-                    except ValueError:
-                        continue
-                if not parsed:
-                    continue
-
-                if not ": " in line:
-                    continue
-                if any(spam in line for spam in spam_messages):
-                    continue
-                if MEDIA_RE.search(line):
-                    continue
-
-                if current_message and current_datetime:
-                    if (not start_datetime or current_datetime >= start_datetime) and \
-                    (not end_datetime or current_datetime <= end_datetime):
-                        filtered_lines.append(current_message.strip())
-
-                current_message = line
-                current_datetime = dt
-            else:
-                if current_datetime:
-                    current_message += " " + line.strip()
-
-        if current_message and current_datetime:
-            if (not start_datetime or current_datetime >= start_datetime) and \
-            (not end_datetime or current_datetime <= end_datetime):
-                filtered_lines.append(current_message.strip())
-
         
-        if limit_type == "last":
-            selected_lines = filtered_lines[::-1]
-        else:
-            selected_lines = filtered_lines
-
-        logger.info(f"🔹 Processing {len(selected_lines)} messages (Limit Type: {limit_type})")
-
-        for i, line in enumerate(selected_lines):
-            match = re.search(timestamp_pattern, line)
-            try:
-                timestamp = match.group()
-                message_part = line.split(timestamp, 1)[1].strip(" -[]")
-                sender, message_content = message_part.split(": ", 1)
-                sender = sender.strip("~").replace("\u202a", "").strip()
-                message_length = len(message_content)
-                if (min_length and message_length < min_length) or (max_length and message_length > max_length):
-                    logger.info(f"🔹 Message length {message_length} is out of bounds ({min_length}, {max_length}) index: {i}")
-                    continue
-
-                if username and sender.lower() != username.lower():
-                    logger.info(f"🔹 Sender {sender} does not match username {username}. index: {i}")
-                    continue
-
-                if keywords and not any(kw in message_content.lower() for kw in keyword_list):
-                    logger.info(f"🔹 Message does not contain keywords: {message_content}. index: {i}")
-                    continue
-
-                logger.info(f"🔹 Sender: {sender}, Message: {message_content}, line: {line}")
-
-                user_message_count[sender] += 1
-                
-                if sender:
-                    if anonymize:
-                        sender = anonymize_name(sender, anonymized_map)
-
-                    nodes.add(sender)
-                    if previous_sender and previous_sender != sender:
-                        edge = tuple(sorted([previous_sender, sender]))
-                        edges_counter[edge] += 1
-                    previous_sender = sender
-                    
-                if limit and sum(user_message_count.values()) >= limit:
-                    logger.info(f"🔹 Reached limit of {limit} messages")
-                    break
-                    
-            except Exception as e:
-                logger.error(f"Error processing line: {line.strip()} - {e}. index: {i}")
-                continue
-            
-        logger.info(f'🔹 Found {user_message_count} ')
-
-        filtered_users = {
-            user: count for user, count in user_message_count.items()
-            if (not min_messages or count >= min_messages) and (not max_messages or count <= max_messages)
-        }
-
-        if active_users:
-            sorted_users = sorted(filtered_users.items(), key=lambda x: x[1], reverse=True)[:active_users]
-            filtered_users = dict(sorted_users)
-
-        if selected_users:
-            filtered_users = {user: count for user, count in filtered_users.items()
-                              if user.lower() in selected_user_list}
-
-        filtered_nodes = set(filtered_users.keys())
-        if anonymize:
-            filtered_nodes = {anonymize_name(node, anonymized_map) for node in filtered_nodes}
-
-        G = nx.Graph()
-        G.add_nodes_from(filtered_nodes)
+        result = await extract_data(
+            lines,
+            start_datetime,
+            end_datetime,
+            limit,
+            limit_type,
+            min_length,
+            max_length,
+            keywords,
+            min_messages,
+            max_messages,
+            active_users,
+            selected_users,
+            username,
+            anonymize,
+            date_formats
+        )
         
-        if G.number_of_nodes() == 0:
-            logger.error("Warning: The graph is empty. No connectivity or centrality metrics can be calculated.")
-            raise HTTPException(detail="The graph is empty. No data to analyze.", status_code=400)
-            
-        for (source, target), weight in edges_counter.items():
-            if source in filtered_nodes and target in filtered_nodes:
-                G.add_edge(source, target, weight=weight)
-
-        degree_centrality = nx.degree_centrality(G)
-        betweenness_centrality = nx.betweenness_centrality(G, weight="weight", normalized=True)
-        if not nx.is_connected(G):
-            logger.warning("Warning: The graph is not fully connected. Betweenness centrality might be inaccurate.")
-
-        if nx.is_connected(G):
-            closeness_centrality = nx.closeness_centrality(G)
-            eigenvector_centrality = nx.eigenvector_centrality(G, max_iter=1000)
-            pagerank_centrality = nx.pagerank(G, alpha=0.85)
-        else:
-            largest_cc = max(nx.connected_components(G), key=len)
-            G_subgraph = G.subgraph(largest_cc).copy()
-            closeness_centrality = nx.closeness_centrality(G_subgraph)
-            eigenvector_centrality = nx.eigenvector_centrality(G_subgraph, max_iter=1000)
-            pagerank_centrality = nx.pagerank(G_subgraph, alpha=0.85)
-
-        nodes_list = [
-            { 
-                "id": node,
-                "messages": user_message_count.get(node, 0),
-                "degree": round(degree_centrality.get(node, 0), 4),
-                "betweenness": round(betweenness_centrality.get(node, 0), 4),
-                "closeness": round(closeness_centrality.get(node, 0), 4),
-                "eigenvector": round(eigenvector_centrality.get(node, 0), 4),
-                "pagerank": round(pagerank_centrality.get(node, 0), 4),
-            }
-            for node in filtered_nodes
-        ]
-
-        links_list = []
-        for edge, weight in edges_counter.items():
-            source, target = edge
-
-            if anonymize:
-                source = anonymized_map.get(source, source)
-                target = anonymized_map.get(target, target)
-
-            if source in filtered_nodes and target in filtered_nodes:
-                links_list.append({
-                    "source": source,
-                    "target": target,
-                    "weight": weight
-                })
-        return JSONResponse(content={"nodes": nodes_list, "links": links_list}, status_code=200)
+        return JSONResponse(content={"nodes": result["nodes"] , "links": result["links"]}, status_code=200)
     except Exception as e:
         logger.error("Error:", e)
         raise HTTPException(detail=str(e), status_code=500)
-
 
 
 @router.get("/analyze/decaying-network/{filename}")
@@ -302,7 +144,7 @@ async def analyze_decaying_network(
 
         date_formats = detect_date_format(lines[0])
         
-        selected_messages = await extract_data(
+        result = await extract_data(
             lines,
             start_datetime,
             end_datetime,
@@ -320,14 +162,18 @@ async def analyze_decaying_network(
             date_formats,
             True
         )
+
+        # Destructure the result
+        selected_messages = result["messages"]
+        all_messages = result["all_messages"]
         
         logger.info(f"found {len(selected_messages)} messages after filtering")
         if not selected_messages:
             logger.error("No messages found after filtering.")
             raise HTTPException(status_code=400, detail="No messages found after filtering.")
         
-        seq_weights = calculate_sequential_weights(selected_messages, n_prev)
-
+        seq_weights = calculate_sequential_weights(selected_messages, all_messages, n_prev)
+        logger.info(f"found {(seq_weights)} edges after filtering")
         user_counts: Dict[str, int] = defaultdict(int)
         for sender, _ in selected_messages:
             user_counts[sender] += 1
@@ -604,4 +450,161 @@ async def analyze_communities(
         logger.error(f"Error in community detection: {e}")
         raise HTTPException(detail=str(e), status_code=500)
 
+
+@router.get("/analyze/triad-census/{filename}")
+async def analyze_triad_census(
+        filename: str,
+        start_date: str = Query(None),
+        start_time: str = Query(None),
+        end_date: str = Query(None),
+        end_time: str = Query(None),
+        limit: int = Query(None),
+        limit_type: str = Query("first"),
+        min_length: int = Query(None),
+        max_length: int = Query(None),
+        keywords: str = Query(None),
+        min_messages: int = Query(None),
+        max_messages: int = Query(None),
+        active_users: int = Query(None),
+        selected_users: str = Query(None),
+        username: str = Query(None),
+        anonymize: bool = Query(False)
+):
+    try:
+        network_result = await analyze_network(
+            filename, start_date, start_time, end_date, end_time,
+            limit, limit_type, min_length, max_length, keywords,
+            min_messages, max_messages, active_users, selected_users,
+            username, anonymize
+        )
+
+        if hasattr(network_result, 'body'):
+            network_data = json.loads(network_result.body)
+        else:
+            network_data = network_result
+
+        if "error" in network_data:
+            return JSONResponse(content=network_data, status_code=400)
+
+        DG = nx.DiGraph()
+
+        for node in network_data["nodes"]:
+            DG.add_node(node["id"], **{k: v for k, v in node.items() if k != "id"})
+
+        for link in network_data["links"]:
+            source = link["source"]
+            target = link["target"]
+
+            if isinstance(source, dict) and "id" in source:
+                source = source["id"]
+            if isinstance(target, dict) and "id" in target:
+                target = target["id"]
+
+            DG.add_edge(source, target)
+
+        triad_census = nx.triadic_census(DG)
+
+        triad_census = {str(k): v for k, v in triad_census.items()}
+
+        total_triads = sum(triad_census.values())
+
+        for k in triad_census:
+            triad_census[k] = {
+                "count": triad_census[k],
+                "percentage": round((triad_census[k] / total_triads) * 100, 2) if total_triads > 0 else 0
+            }
+
+        response = {
+            "triad_census": triad_census,
+            "total_triads": total_triads,
+            "original_network": network_data
+        }
+
+        return JSONResponse(content=response, status_code=200)
+
+    except Exception as e:
+        print(f"Error in triad census: {e}")
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+    
+    
+    
+    
+@router.get("/analyze/triad-census/{filename}")
+async def analyze_triad_census(
+        filename: str,
+        start_date: str = Query(None),
+        start_time: str = Query(None),
+        end_date: str = Query(None),
+        end_time: str = Query(None),
+        limit: int = Query(None),
+        limit_type: str = Query("first"),
+        min_length: int = Query(None),
+        max_length: int = Query(None),
+        keywords: str = Query(None),
+        min_messages: int = Query(None),
+        max_messages: int = Query(None),
+        active_users: int = Query(None),
+        selected_users: str = Query(None),
+        username: str = Query(None),
+        anonymize: bool = Query(False)
+):
+    try:
+        network_result = await analyze_network(
+            filename, start_date, start_time, end_date, end_time,
+            limit, limit_type, min_length, max_length, keywords,
+            min_messages, max_messages, active_users, selected_users,
+            username, anonymize
+        )
+
+        if hasattr(network_result, 'body'):
+            network_data = json.loads(network_result.body)
+        else:
+            network_data = network_result
+
+        if "error" in network_data:
+            return JSONResponse(content=network_data, status_code=400)
+
+        DG = nx.DiGraph()
+
+        for node in network_data["nodes"]:
+            DG.add_node(node["id"], **{k: v for k, v in node.items() if k != "id"})
+
+        for link in network_data["links"]:
+            source = link["source"]
+            target = link["target"]
+
+            if isinstance(source, dict) and "id" in source:
+                source = source["id"]
+            if isinstance(target, dict) and "id" in target:
+                target = target["id"]
+
+            DG.add_edge(source, target)
+
+        triad_census = nx.triadic_census(DG)
+
+        triad_census = {str(k): v for k, v in triad_census.items()}
+
+        total_triads = sum(triad_census.values())
+
+        for k in triad_census:
+            triad_census[k] = {
+                "count": triad_census[k],
+                "percentage": round((triad_census[k] / total_triads) * 100, 2) if total_triads > 0 else 0
+            }
+
+        response = {
+            "triad_census": triad_census,
+            "total_triads": total_triads,
+            "original_network": network_data
+        }
+
+        return JSONResponse(content=response, status_code=200)
+
+    except Exception as e:
+        print(f"Error in triad census: {e}")
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(content={"error": str(e)}, status_code=500)
 

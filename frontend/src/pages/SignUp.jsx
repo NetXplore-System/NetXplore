@@ -6,7 +6,7 @@ import Container from "react-bootstrap/Container";
 import OAuth from "../components/OAuth.jsx";
 import { useNavigate } from "react-router-dom";
 import Card from "react-bootstrap/Card";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { useDispatch } from "react-redux";
 import { setUser } from "../redux/user/userSlice.js";
 import { AiOutlineLoading } from "react-icons/ai";

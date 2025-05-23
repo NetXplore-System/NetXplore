@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Container, Row, Col, Button, Modal } from "react-bootstrap";
 import { ChevronLeft, ChevronRight } from "react-bootstrap-icons";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
 import useFilters from "../hooks/useFilters";

@@ -1,4 +1,4 @@
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 
 export const BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -263,3 +263,23 @@ export const saveToDB = async (
     throw new Error("An error occurred while saving the research.");
   }
 };
+
+
+export const deleteResearch = async (researchId, token) => {
+  try {
+    const response = await fetch(`${BASE_URL}/research/${researchId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      throw Error('Failed to delete research');
+    }
+    
+    return "Research deleted successfully";
+  } catch (error) {
+    console.error('Error deleting research:', error);
+    throw Error('Error deleting research');
+  }
+}

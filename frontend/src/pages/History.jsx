@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import { FaEye, FaEdit, FaCopy, FaTrash } from 'react-icons/fa';
 import { Badge, Button, ButtonGroup, Card, Table } from 'react-bootstrap';
 
@@ -11,35 +11,44 @@ import UpdateResearch from '../components/utils/UpdateResearch';
 import ComparisonHistory from '../components/utils/HistoryComparison';
 
 import '../components/utils/history.css';
+import { deleteResearch } from '../components/utils/ApiService';
 
 const History = () => {
   const user = useSelector((state) => state.user);
   const [userHistory, setUserHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [research, setResearch] = useState(null);
-  const [inAction, setInAction] = useState(false);
+  const [action, setAction] = useState({
+    inAction: false,
+    ids: []
+  });
+  const resetAction = (id) => {
+    setAction(prev => ({ inAction: !prev.inAction, ids: prev.ids.filter(val => val != id) }));
+  };
 
   const handleDelete = async (researchId) => {
-    try {
-      setInAction(true);
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/research/${researchId}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${user?.token}`,
-        },
-      });
-      if (!response.ok) {
-        toast.error('Failed to delete research');
-      }
-      toast.success('Research deleted successfully');
-      setUserHistory(userHistory.filter((research) => research.id !== researchId));
 
-    } catch (error) {
-      console.error('Error deleting research:', error);
-      toast.error('Error deleting research');
-    } finally {
-      setInAction(false);
-    }
+    setAction(prev => ({
+      inAction:true,
+      ids: [...prev.ids, researchId]
+    }));
+    
+    toast.promise(deleteResearch(researchId, user?.token), {
+      loading: 'Deleting research...',
+      success: (data) => {
+        setUserHistory(prev => prev.filter((research) => research.id !== researchId));
+        resetAction(researchId);
+        return data;
+      },
+      error: (data) => {
+        resetAction(researchId);
+        return data;
+      },
+    }, {
+      duration: 5000, 
+      closeButton: true, 
+      position: 'top-center', 
+    })
   };
 
   const updateResearchs = (researchData) => {
@@ -65,7 +74,7 @@ const History = () => {
           toast.error('Error fetching user history');
           return;
         }
-        
+
         const data = await history.json();
         if (!data.history.length) {
           toast.error("Don't find history. Please create research");
@@ -174,7 +183,7 @@ const History = () => {
                           data-tooltip-place="top"
                           aria-label="Delete"
                           onClick={() => handleDelete(research.id)}
-                          disabled={inAction}
+                          disabled={action.inAction && action.ids.some((id) => id === research.id)}
                         >
                           <FaTrash />
                         </Button>

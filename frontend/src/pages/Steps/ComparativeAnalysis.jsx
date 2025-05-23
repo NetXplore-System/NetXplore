@@ -16,7 +16,7 @@ import {
   ArrowsCollapse,
   InfoCircle,
 } from "react-bootstrap-icons";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { useDispatch } from "react-redux";
 import ComparisonItem from "../../components/comparison/ComparisonItem";
 import ComparisonMetrics from "../../components/comparison/ComparisonMetrics";

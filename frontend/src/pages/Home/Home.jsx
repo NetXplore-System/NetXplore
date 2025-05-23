@@ -8,7 +8,7 @@ import {
 } from "react-icons/bs";
 import { FaBalanceScale } from "react-icons/fa";
 import { FiRefreshCw } from "react-icons/fi";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { ForceGraph2D } from "react-force-graph";
 import "./Home.css";
 import { GraphContainer } from "./Form.style.js";

@@ -3,13 +3,17 @@ from datetime import datetime
 from collections import defaultdict
 import networkx as nx
 import re
-from fastapi.responses import JSONResponse  # type: ignore
-from collections import deque, defaultdict
+from collections import  defaultdict
 from typing import List, Tuple, Dict
+import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 MEDIA_RE = re.compile(r'\b(Media|image|video|GIF|sticker|Contact card) omitted\b', re.I)
 timestamp_pattern = r"\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4},?\s\d{1,2}:\d{2}(?::\d{2})?\b"
 spam_messages = [
+    "הקבוצה נוצרה על ידי",
     "צורפו על ידי",
     "This message was deleted",
     "צורף/ה",
@@ -34,6 +38,8 @@ spam_messages = [
     "ההודעות והשיחות מוצפנות מקצה לקצה. לאף אחד מחוץ לצ'אט הזה, גם לא ל-WhatsApp, אין אפשרות לקרוא אותן ולהאזין להן.",
     "הצטרפת לקבוצה דרך קישור הזמנה של הקבוצה"
 ]
+UPLOAD_FOLDER = "./uploads/" 
+
 
 def detect_date_format(first_line: str) -> list[str]:
     if re.search(r"\[\d{1,2}[.]\d{1,2}[.]\d{4},\s\d{2}:\d{2}:\d{2}\]", first_line):
@@ -135,24 +141,61 @@ def get_network_metrics(original_data, comparison_data, metrics_list):
 
     return results
 
+
 def calculate_sequential_weights(
     sequence: List[Tuple[str, str]],
+    all_messages: List[str],
     n_prev: int = 3
 ) -> Dict[Tuple[str, str], float]:
+    """
+    Calculate sequential weights for a given sequence of messages, considering all messages.
+
+    Args:
+        sequence: Filtered list of messages (sender, message_content).
+        all_messages: Complete list of raw message strings.
+        n_prev: Number of previous messages to consider for weight calculation.
+
+    Returns:
+        A dictionary with edges as keys and weights as values.
+    """
     weight_schemes = {2: [0.7, 0.3], 3: [0.5, 0.3, 0.2]}
-    weights = weight_schemes[n_prev]
-    last = deque(maxlen=n_prev)
+    weights = weight_schemes.get(n_prev, [1.0])  # Default to [1.0] if n_prev is not in weight_schemes
     edge_weights = defaultdict(float)
 
-    for sender, _ in sequence:
-        for idx, prior in enumerate(reversed(last)):
-            if prior != sender:
-                # **no sorting**: (prior → sender) keeps orientation
-                edge_weights[(prior, sender)] += weights[idx]
-        last.append(sender)
+    # Parse all_messages into (sender, message_content) tuples
+    parsed_all_messages = []
+    for line in all_messages:
+        try:
+            match = re.search(timestamp_pattern, line)
+            if not match:
+                continue
+            timestamp = match.group()
+            message_part = line.split(timestamp, 1)[1].strip(" -[]")
+            sender, message_content = message_part.split(": ", 1)
+            sender = sender.strip("~").replace("\u202a", "").strip()
+            parsed_all_messages.append((sender, message_content))
+        except Exception as e:
+            logger.error(f"Error parsing line in all_messages: {line.strip()} - {e}")
+            continue
+
+    # Iterate through the filtered sequence
+    for sender, message_content in sequence:
+        # Find the index of the current message in parsed_all_messages by matching content
+        current_index = next(
+            (i for i, (_, content) in enumerate(parsed_all_messages) if content == message_content),
+            None
+        )
+
+        if current_index is not None:
+            # Look back at the previous n_prev messages in parsed_all_messages
+            for i in range(1, n_prev + 1):
+                if current_index - i >= 0:
+                    prior_sender, prior_content = parsed_all_messages[current_index - i]
+                    if prior_sender != sender:
+                        # Add weight for the edge (prior_sender → sender)
+                        edge_weights[(prior_sender, sender)] += weights[i - 1]
 
     return dict(edge_weights)
-
 
 
 
@@ -185,7 +228,7 @@ async def extract_data(
     edges_counter = defaultdict(int)
     previous_sender = None
     
-    print(f"🔹 Converted: start_datetime={start_datetime}, end_datetime={end_datetime}")
+    logger.info(f"🔹 Converted: start_datetime={start_datetime}, end_datetime={end_datetime}")
 
     filtered_lines = []
     current_message = ""
@@ -254,7 +297,7 @@ async def extract_data(
             all_messages.append((sender, message_content))
 
         except Exception as e:
-            print(f"Error processing line: {line.strip()} - {e}")
+            logger.error(f"Error processing line: {line.strip()} - {e}")
             continue
         
         
@@ -298,7 +341,7 @@ async def extract_data(
         messages.append((sender, message_content))
         
     if for_decaying_network:
-        return messages
+        return {"messages": messages, "all_messages": filtered_lines}
     
     filtered_users = {
         user: count for user, count in user_message_count.items()
@@ -392,7 +435,6 @@ async def extract_data(
                         "eigenvector": round(eigenvector_centrality.get(node_id, 0), 4),
                         "pagerank": round(pagerank.get(node_id, 0), 4)
                     })
-
     return {
         "messages": messages,
         "nodes": nodes_list,
@@ -417,3 +459,25 @@ def clean_filter_value(key: str, value: Any):
     elif isinstance(value, str) and not value.strip():
         return None
     return value
+
+# TODO: decide when we call this function 
+def delete_old_files():
+    """Delete files older than 20 hours based on their timestamp in the filename."""
+    now = datetime.now()
+
+    for filename in os.listdir(UPLOAD_FOLDER):
+        # Split the filename to extract the timestamp
+        if "-" in filename and filename.endswith(".txt"):
+            name, timestamp_str = filename.rsplit("-", 1)
+            timestamp_str = timestamp_str.replace(".txt", "")
+
+            try:
+                # Convert the timestamp from milliseconds to a datetime object
+                file_time = datetime.fromtimestamp(int(timestamp_str) / 1000)
+                # Check if the file is older than 20 hours
+                if now - file_time > timedelta(hours=20):
+                    file_path = os.path.join(UPLOAD_FOLDER, filename)
+                    os.remove(file_path)
+                    logger.info(f"Deleted old file: {file_path}")
+            except ValueError:
+                logger.warning(f"Skipping file with invalid timestamp format: {filename}")

@@ -3,7 +3,7 @@ import { Row, Col, Button, Card } from 'react-bootstrap';
 import { ChevronLeft, ChevronRight, FileBarGraph } from 'react-bootstrap-icons';
 import MetricsButton from '../common/MetricsButton';
 import { graphMetrics } from "../../constants/graphMetrics";
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import { useState, useEffect, useRef } from 'react';
 import MetricsPanel from '../network/MetricsPanel';
 import NetworkCustomizationToolbar from '../NetworkCustomizationToolbar';

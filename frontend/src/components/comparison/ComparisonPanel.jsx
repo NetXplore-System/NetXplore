@@ -21,7 +21,7 @@ import {
   FileBarGraph,
   InfoCircle,
 } from "react-bootstrap-icons";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 
 const ComparisonPanel = ({
   originalNetworkData,

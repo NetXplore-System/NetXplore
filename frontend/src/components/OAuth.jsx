@@ -6,7 +6,7 @@ import { useDispatch } from "react-redux";
 import { setUser } from "../redux/user/userSlice";
 import { useNavigate } from "react-router-dom";
 import { AiOutlineLoading } from "react-icons/ai";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 
 
 const OAuth = () => {
@@ -45,7 +45,7 @@ const OAuth = () => {
       navigate("/profile");
     } catch (error) {
       console.error("Google SignIn Error:", error.message);
-      alert("Failed to sign in with Google.");
+      toast.error("Failed to sign in with Google.");
     }
   };
 
