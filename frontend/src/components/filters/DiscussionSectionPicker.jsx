@@ -1,7 +1,12 @@
-
 import React, { useState, useEffect } from "react";
+import "../../styles/DiscussionSectionPicker.css";
 
-const DiscussionSectionPicker = ({ content, onSelect, selectedSection,convertToTxt  }) => {
+const DiscussionSectionPicker = ({
+  content,
+  onSelect,
+  selectedSection,
+  convertToTxt,
+}) => {
   const [options, setOptions] = useState([]);
   const [selectedTitle, setSelectedTitle] = useState("");
 
@@ -15,44 +20,41 @@ const DiscussionSectionPicker = ({ content, onSelect, selectedSection,convertToT
   const handleSelect = async (section) => {
     setSelectedTitle(section.title);
     onSelect(section);
-  
+
     try {
       const result = await convertToTxt(section.title);
       console.log("TXT file created:", result.path);
-  
-      setUploadedFile("wikipedia_data");
-  
     } catch (err) {
       console.error("Error converting JSON to TXT:", err);
     }
   };
-  
-  
+
+  const totalComments = options.reduce(
+    (acc, section) => acc + section.comments.length,
+    0
+  );
+
   return (
-    <div className="shadow-sm p-4 mb-4 rounded bg-white">
-      <div className="mb-4">
-        <h4 className="fw-bold text-start">Discussion Sections</h4>
-        {options.length > 0 && (
-          <p className="text-muted text-start">
-            Found: {options.length} sections with {options.reduce((acc, section) => acc + section.comments.length, 0)} comments
-          </p>
-        )}
-      </div>
+    <div className="discussion-section-picker">
+      {options.length > 0 && (
+        <div className="section-stats">
+          <div className="stats-label">
+            Found: <span className="stats-number">{options.length}</span>{" "}
+            sections with <span className="stats-number">{totalComments}</span>{" "}
+            comments
+          </div>
+        </div>
+      )}
 
       {options.length > 0 ? (
-        <div className="d-flex flex-wrap gap-3">
+        <div className="sections-grid">
           {options.map((section, idx) => (
             <div
               key={idx}
-              onClick={() => handleSelect(section)}
-              className={`flex-grow-1 flex-shrink-0 rounded shadow-sm p-3 text-start bg-white cursor-pointer transition ${
-                selectedTitle === section.title ? "border border-primary bg-light" : "hover-shadow"
+              className={`section-card ${
+                selectedTitle === section.title ? "section-card-selected" : ""
               }`}
-              style={{ 
-                minWidth: "200px", 
-                maxWidth: "250px",
-                cursor: "pointer" 
-              }}
+              onClick={() => handleSelect(section)}
               role="button"
               tabIndex="0"
               onKeyPress={(e) => {
@@ -61,23 +63,25 @@ const DiscussionSectionPicker = ({ content, onSelect, selectedSection,convertToT
                 }
               }}
             >
-              <h6 className="fw-semibold mb-2 text-truncate">{section.title}</h6>
-              <span className="badge bg-primary-subtle text-primary">
-                {section.comments.length} Comments
-              </span>
+              <div className="section-card-body">
+                <h4 className="sec-title">{section.title}</h4>
+                <div className="section-badge">
+                  {section.comments.length} Comments
+                </div>
+              </div>
             </div>
           ))}
         </div>
       ) : (
-        <div className="text-center p-4 bg-light rounded">
-          <p className="text-muted">No interactive discussion sections found</p>
+        <div className="no-sections-card">
+          <div className="no-sections-content">
+            No interactive discussion sections found
+          </div>
         </div>
       )}
     </div>
   );
 };
-
-export default DiscussionSectionPicker;
 
 const getInteractiveSections = (content) => {
   return content
@@ -85,3 +89,5 @@ const getInteractiveSections = (content) => {
     .flatMap((item) => item.sections)
     .filter((section) => section.comments && section.comments.length > 0);
 };
+
+export default DiscussionSectionPicker;

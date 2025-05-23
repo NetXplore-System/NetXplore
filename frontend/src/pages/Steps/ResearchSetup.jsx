@@ -84,13 +84,12 @@ const ResearchSetup = ({
               </Col>
             </Row>
             {formData.uploadedFileName && (
-              <Alert
-                variant="success"
-                className="mt-2 py-1 px-2 d-flex align-items-center"
-              >
-                <CheckCircle className="me-2" />
-                Wikipedia discussion loaded successfully!
-              </Alert>
+              <div className="upload-success mt-2">
+                <CheckCircle className="me-2 text-success" />
+                <span className="text-success">
+                  Wikipedia discussion loaded successfully!
+                </span>
+              </div>
             )}
             <Form.Text className="text-muted">
               This will fetch and analyze discussion data from Wikipedia.
@@ -120,13 +119,12 @@ const ResearchSetup = ({
               </span>
             </div>
             {formData.uploadedFileName && (
-              <Alert
-                variant="success"
-                className="mt-2 py-1 px-2 d-flex align-items-center"
-              >
-                <CheckCircle className="me-2" />
-                File uploaded successfully!
-              </Alert>
+              <div className="upload-success mt-2">
+                <CheckCircle className="me-2 text-success" />
+                <span className="text-success">
+                  File uploaded successfully!
+                </span>
+              </div>
             )}
             <Form.Text className="text-muted">
               Upload a WhatsApp chat export (.txt)
