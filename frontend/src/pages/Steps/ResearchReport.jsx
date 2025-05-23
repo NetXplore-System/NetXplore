@@ -132,7 +132,7 @@ const ResearchReport = ({
               </div>
               <div className="summary-item mb-3">
                 <div className="summary-label mb-1">
-                  Message Content Analysis
+                  Message Content
                 </div>
                 <div className="summary-value d-flex align-items-center">
                   {formData.includeMessageContent ? (
