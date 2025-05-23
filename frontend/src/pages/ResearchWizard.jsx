@@ -9,7 +9,7 @@ import useComparison from "../hooks/useComparison";
 import { clearImages } from "../redux/images/imagesSlice";
 
 import ResearchSetup from "./Steps/ResearchSetup";
-import WikipediaStep from "./Steps/WikipediaStep";
+import Discussion from "./Steps/Discussion";
 import DataConfiguration from "./Steps/DataConfiguration";
 import TimeFrame from "./Steps/TimeFrame";
 import MessageContent from "./Steps/MessageContent";
@@ -571,7 +571,7 @@ const ResearchWizard = () => {
         );
       case ALL_STEPS.WIKIPEDIA:
         return (
-          <WikipediaStep
+          <Discussion
             formData={formData}
             handleInputChange={handleInputChange}
             content={wikiContent}

@@ -31,7 +31,7 @@ const NetworkGraph = ({
       maxWidth: "100%",
       width: "100%",
       height: "700px",
-      overflowX: "auto",
+      overflowX: "hidden",
       overflowY: "hidden",
       position: "relative",
       margin: "0 auto",

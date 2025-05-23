@@ -23,6 +23,7 @@ const Dashboard = () => {
   const user = useSelector((state) => state.user);
   const navigate = useNavigate();
   const [researches, setResearches] = useState([]);
+  const [stats, setStats] = useState({});
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -52,6 +53,7 @@ const Dashboard = () => {
         }
 
         setResearches(data.researches || []);
+        setStats(data.stats || {});
       } catch (error) {
         console.error("Error loading dashboard data:", error);
         toast.error("Failed to load dashboard data");
@@ -70,15 +72,6 @@ const Dashboard = () => {
     animate: { opacity: 1, y: 0 },
   };
 
-  const totalResearches = researches.length;
-  const whatsappResearches = researches.filter(
-    (r) => r.type === "whatsapp"
-  ).length;
-  const wikipediaResearches = researches.filter(
-    (r) => r.type === "wikipedia"
-  ).length;
-  const totalNodes = researches.reduce((sum, item) => sum + item.nodes, 0);
-
   const ResearchTypeIcon = ({ type }) => {
     return type === "whatsapp" ? (
       <div className="research-icon whatsapp">
@@ -90,16 +83,6 @@ const Dashboard = () => {
       </div>
     );
   };
-
-  const activities = researches
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-    .slice(0, 5)
-    .map((r, index) => ({
-      id: r.id || index,
-      action: "Research Created",
-      details: r.name,
-      date: r.date,
-    }));
 
   return (
     <Container fluid className="dashboard-container">
@@ -128,25 +111,25 @@ const Dashboard = () => {
           {[
             {
               icon: <FaNetworkWired />,
-              count: totalResearches,
+              count: stats.total_researches || 0,
               label: "Total Researches",
               delay: 0.1,
             },
             {
               icon: <FaWikipediaW />,
-              count: wikipediaResearches,
+              count: stats.wikipedia_researches || 0,
               label: "Wikipedia Studies",
               delay: 0.2,
             },
             {
               icon: <FaWhatsapp />,
-              count: whatsappResearches,
+              count: stats.whatsapp_researches || 0,
               label: "WhatsApp Studies",
               delay: 0.3,
             },
             {
               icon: <FaLayerGroup />,
-              count: totalNodes,
+              count: stats.total_nodes || 0,
               label: "Total Nodes",
               delay: 0.4,
             },
@@ -195,6 +178,16 @@ const Dashboard = () => {
                         <div className="research-header">
                           <ResearchTypeIcon type={research.type} />
                           <h3>{research.name}</h3>
+                          <Button
+                            variant="light"
+                            size="sm"
+                            className="ms-auto btn-outline-secondary"
+                            onClick={() =>
+                              navigate(`/explore?research=${research.id}`)
+                            }
+                          >
+                            <FaSearch className="me-1" /> View
+                          </Button>
                         </div>
                         <p>{research.description}</p>
                         <div className="research-meta">
@@ -210,26 +203,6 @@ const Dashboard = () => {
                             />
                             {research.date}
                           </span>
-                        </div>
-                        <div className="research-actions">
-                          <Button
-                            variant="outline-primary"
-                            size="sm"
-                            onClick={() =>
-                              navigate(`/explore?research=${research.id}`)
-                            }
-                          >
-                            <FaSearch className="me-2" /> View Analysis
-                          </Button>
-                          <Button
-                            variant="outline-secondary"
-                            size="sm"
-                            onClick={() =>
-                              navigate(`/choose-platform?edit=${research.id}`)
-                            }
-                          >
-                            Edit Research
-                          </Button>
                         </div>
                       </div>
                     ))}
@@ -247,8 +220,7 @@ const Dashboard = () => {
                       className="dashboard-action-button"
                       onClick={() => navigate("/choose-platform")}
                     >
-                      {" "}
-                      <FaPlus className="me-2" /> Start New Research{" "}
+                      <FaPlus className="me-2" /> Start New Research
                     </Button>
                   </div>
                 )}

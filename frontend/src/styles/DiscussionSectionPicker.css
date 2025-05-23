@@ -1,0 +1,137 @@
+.discussion-section-picker {
+  width: 100%;
+}
+
+.section-stats {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.stats-label {
+  font-weight: 600;
+  color: #333;
+  font-size: 0.95rem;
+}
+
+.stats-number {
+  color: #050d2d;
+  font-weight: 700;
+}
+
+.sections-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.section-card {
+  background: white;
+  border: 1px solid #dddddd65;
+  border-radius: 12px;
+  padding: 1.25rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.section-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+  border-color: #050d2d;
+}
+
+.section-card:focus {
+  outline: none;
+  border-color: #050d2d;
+  box-shadow: 0 0 0 0.2rem rgba(5, 13, 45, 0.15);
+}
+
+.section-card-selected {
+  background-color: #f8f9fa;
+  border-color: #050d2d;
+  border-width: 2px;
+  box-shadow: 0 0 0 0.2rem rgba(5, 13, 45, 0.15);
+}
+
+.section-card-selected:hover {
+  transform: none;
+}
+
+.section-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.sec-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #050d2d;
+  margin-bottom: 0.75rem;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border: none;
+}
+
+.section-badge {
+  background-color: #050d2d48;
+  color: 050d2d;
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: inline-block;
+  align-self: flex-start;
+  margin-top: auto;
+}
+
+.section-card-selected .section-badge {
+  background-color: #050d2d;
+  color: white;
+}
+
+.no-sections-card {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.no-sections-content {
+  color: #6c757d;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .sections-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .section-card {
+    padding: 1rem;
+  }
+
+  .section-title {
+    font-size: 1rem;
+  }
+
+  .section-stats {
+    padding: 0.75rem;
+  }
+
+  .stats-label {
+    font-size: 0.9rem;
+  }
+}
