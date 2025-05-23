@@ -29,7 +29,7 @@ from utils import (
 )
 
 
-UPLOAD_FOLDER = "Uploads"  # Ensure this folder exists or adjust as needed
+UPLOAD_FOLDER = "uploads"  # Ensure this folder exists or adjust as needed
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
