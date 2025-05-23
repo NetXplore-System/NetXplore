@@ -81,7 +81,6 @@ const History = () => {
           return;
         }
         setUserHistory(data.history);
-        toast.success('User history fetched successfully');
       } catch (error) {
         console.error('Error fetching user history:', error);
         toast.error('Error fetching user history');
