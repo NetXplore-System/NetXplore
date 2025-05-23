@@ -1,8 +1,8 @@
 from fastapi import FastAPI # type: ignore      
 from fastapi.middleware.cors import CORSMiddleware  # type: ignore
 import logging
-import os
 from dotenv import load_dotenv
+import os
 from database import verify_connection, engine, Base
 from wikipedia_router import router as wikipedia_router
 from user_router import router as user_router
