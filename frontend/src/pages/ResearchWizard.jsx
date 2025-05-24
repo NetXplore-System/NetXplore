@@ -23,9 +23,9 @@ import {
   analyzeNetwork,
   detectCommunities,
   fetchWikipediaData,
-  analyzeWikipediaNetwork
+  analyzeWikipediaNetwork,
 } from "../components/utils/ApiService";
-// import { saveToDB } from "../components/utils/save";
+import { saveToDB } from "../components/utils/ApiService";
 
 import "../styles/ResearchWizard.css";
 
@@ -291,30 +291,39 @@ const ResearchWizard = () => {
     }
 
     toast.promise(
-      fetchWikipediaData(formData.wikipediaUrl).then((data) => {
+      fetchWikipediaData(formData.wikipediaUrl).then(async (data) => {
         if (data.nodes && data.links) {
           setNetworkData(data);
           setOriginalNetworkData(data);
           setWikiContent(data.content);
-          console.log("Fetched Wikipedia data:", data);
-          console.log("formData after fetch:", formData);
-          console.log(
-            "Set networkData:",
-            data.nodes?.length,
-            data.links?.length
-          );
 
           setFormData((prev) => ({
             ...prev,
-            uploadedFileName: "wikipedia_data",
+            uploadedFileName: "wikipedia_data.txt",
           }));
+
+          await fetch(
+            `${import.meta.env.VITE_API_URL}/convert-wikipedia-to-txt`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                filename: "wikipedia_data",
+                section_title: "Top",
+              }),
+            }
+          );
+
+          return data;
         } else {
           throw new Error("No valid discussion data found.");
         }
       }),
       {
         loading: "Fetching discussion...",
-        success: "Wikipedia discussion analyzed successfully!",
+        success: "Wikipedia discussion loaded and converted!",
         error: (err) => err.message || "Error fetching Wikipedia data.",
       }
     );
@@ -325,26 +334,29 @@ const ResearchWizard = () => {
       toast.error("No file selected for analysis.");
       return;
     }
-  
+
     const params = filters.buildNetworkFilterParams();
     setLastAnalysisParams(params.toString());
-  
+
     const isWikipedia = formData.platform === "wikipedia";
     const isWhatsApp = formData.platform === "whatsapp";
-  
+
     try {
       if (isWikipedia) {
-        await fetch(`${import.meta.env.VITE_API_URL}/convert-wikipedia-to-txt`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            filename: formData.uploadedFileName,
-            section_title: selectedSection || "Top",
-          }),
-        });
-  
+        await fetch(
+          `${import.meta.env.VITE_API_URL}/convert-wikipedia-to-txt`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              filename: formData.uploadedFileName,
+              section_title: selectedSection || "Top",
+            }),
+          }
+        );
+
         toast.promise(analyzeWikipediaNetwork("wikipedia_data", params), {
           loading: "Analyzing Wikipedia discussion...",
           success: (data) => {
@@ -362,10 +374,9 @@ const ResearchWizard = () => {
             return error?.message || "Error analyzing Wikipedia discussion.";
           },
         });
-  
       } else if (isWhatsApp) {
         if (hasShownToastRef.current) return;
-      
+
         hasShownToastRef.current = true;
         toast.promise(analyzeNetwork(formData.uploadedFileName, params), {
           loading: "Analyzing WhatsApp network...",
@@ -384,7 +395,6 @@ const ResearchWizard = () => {
             return error?.message || "Error analyzing network.";
           },
         });
-            
       } else {
         toast.error("Unsupported platform selected.");
       }
@@ -393,7 +403,6 @@ const ResearchWizard = () => {
       toast.error("Failed to analyze network.");
     }
   };
-  
 
   const fetchCommunityData = () => {
     if (!formData.uploadedFileName || !networkData) return;
@@ -488,14 +497,15 @@ const ResearchWizard = () => {
     }
   };
 
-  const handleSaveResearch = () => {
+  const handleSaveResearch = async () => {
     const params = filters.buildNetworkFilterParams();
     const id = currentUser?.id;
     if (!formData.name || !formData.uploadedFileName || !params || !id) {
       toast.error("Please fill in all required fields.");
-      return;
+      return null;
     }
-    toast.promise(
+
+    const result = await toast.promise(
       saveToDB(
         id,
         formData.name,
@@ -504,24 +514,18 @@ const ResearchWizard = () => {
         params,
         selectedMetric,
         {
-          hasComparison:
-            comparison.comparisonNetworkData &&
-            comparison.comparisonNetworkData.length
-              ? true
-              : false,
-          data: comparison.comparisonNetworkData || undefined,
-        }
+          hasComparison: comparison.comparisonNetworkData?.length > 0,
+          data: comparison.comparisonNetworkData,
+        },
+        formData.platform
       ),
       {
         loading: "Saving research...",
-        success: (data) => {
-          return data?.detail || "Research saved successfully!";
-        },
-        error: (error) => {
-          return error?.detail || "Error saving research.";
-        },
+        error: (error) => error?.detail || "Error saving research.",
       }
     );
+
+    return result;
   };
 
   const goToNextStep = () => {
@@ -768,10 +772,14 @@ const ResearchWizard = () => {
           </Button>
           <Button
             variant="primary"
-            onClick={() => {
+            onClick={async () => {
               setShowSaveModal(false);
-              handleSaveResearch();
-              toast.success("Research completed and saved successfully!");
+              try {
+                await handleSaveResearch();
+                setTimeout(() => navigate("/history"), 800);
+              } catch (err) {
+                toast.error("Failed to save research.");
+              }
             }}
           >
             Yes, save it
