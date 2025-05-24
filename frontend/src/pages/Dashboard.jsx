@@ -181,7 +181,7 @@ const Dashboard = () => {
                           <Button
                             variant="light"
                             size="sm"
-                            className="ms-auto btn-outline-secondary"
+                            className="ms-auto btn-dashboard"
                             onClick={() =>
                               navigate(`/explore?research=${research.id}`)
                             }
