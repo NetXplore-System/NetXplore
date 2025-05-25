@@ -623,17 +623,17 @@ const NetworkVisualization = ({
   };
 
   const handleRestoreNetwork = () => {
-    if (originalNetworkData) {
-      if (networkWasRestored) {
-        setNetworkWasRestored(false);
-      } else {
-        setNetworkData(JSON.parse(JSON.stringify(originalNetworkData)));
-        setNetworkWasRestored(true);
+    setNetworkWasRestored((prev) => !prev);
+    if (activityFilterEnabled) {
+      setActivityFilterEnabled(false);
+    }
+  };
 
-        if (activityFilterEnabled) {
-          setActivityFilterEnabled(false);
-        }
-      }
+  const handleRestoreGraphToOriginal = () => {
+    if (originalNetworkData) {
+      setNetworkData(JSON.parse(JSON.stringify(originalNetworkData)));
+      setNetworkWasRestored(false);
+      setActivityFilterEnabled(false);
     }
   };
 
@@ -1051,6 +1051,15 @@ const NetworkVisualization = ({
                   {networkWasRestored
                     ? "Restore Removed Node"
                     : "Remove Selected Node"}
+                </Button>
+
+                <Button
+                  variant="light"
+                  className="btn-block mb-2"
+                  onClick={handleRestoreGraphToOriginal}
+                >
+                  <NodePlus className="me-2" />
+                  Restore Full Graph
                 </Button>
               </div>
 
