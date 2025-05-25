@@ -3,6 +3,8 @@ import { Routes, Route, useLocation, HashRouter } from "react-router-dom";
 
 // Pages
 import ResearchWizard from "./pages/ResearchWizard.jsx";
+import FilteredResearches from "./pages/FilteredResearches.jsx";
+
 // import Home from "./pages/Home.jsx";
 import SignIn from "./pages/SignIn.jsx";
 import SignUp from "./pages/SignUp.jsx";
@@ -82,6 +84,7 @@ function AppContent() {
           {/* <Route path="/explore" element={<Home />} /> */}
           <Route path="/newresearch" element={<ResearchWizard />} />
           <Route path="/home_wikipedia" element={<HomeW />} />
+          <Route path="/researches/:type" element={<FilteredResearches />} />
 
           <Route path="/" element={currentUser ? <Dashboard /> : <Welcome />} />
 

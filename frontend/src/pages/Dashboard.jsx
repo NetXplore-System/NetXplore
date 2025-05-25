@@ -120,12 +120,14 @@ const Dashboard = () => {
               count: stats.wikipedia_researches || 0,
               label: "Wikipedia Studies",
               delay: 0.2,
+              onClick: () => navigate("/researches/wikipedia"),
             },
             {
               icon: <FaWhatsapp />,
               count: stats.whatsapp_researches || 0,
               label: "WhatsApp Studies",
               delay: 0.3,
+              onClick: () => navigate("/researches/whatsapp"),
             },
             {
               icon: <FaLayerGroup />,
@@ -133,7 +135,7 @@ const Dashboard = () => {
               label: "Total Nodes",
               delay: 0.4,
             },
-          ].map(({ icon, count, label, delay }, index) => (
+          ].map(({ icon, count, label, delay, onClick }, index) => (
             <Col key={index} lg={3} md={6} sm={12} className="mb-4">
               <motion.div
                 variants={cardVariants}
@@ -141,7 +143,11 @@ const Dashboard = () => {
                 animate="animate"
                 transition={{ duration: 0.3, delay }}
               >
-                <Card className="dashboard-stat-card">
+                <Card
+                  className="dashboard-stat-card"
+                  onClick={onClick}
+                  style={{ cursor: onClick ? "pointer" : "default" }}
+                >
                   <Card.Body>
                     <div className="stat-icon">{icon}</div>
                     <h3>{count}</h3>
