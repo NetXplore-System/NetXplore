@@ -10,7 +10,6 @@ import SignIn from "./pages/SignIn.jsx";
 import SignUp from "./pages/SignUp.jsx";
 import Profile from "./pages/Profile.jsx";
 import EditProfile from "./pages/EditProfile.jsx";
-// import HomeW from "./pages/HomeW.jsx";
 import History from "./pages/History.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import ChoosePlatform from "./pages/ChoosePlatform.jsx";
@@ -20,7 +19,7 @@ import Welcome from "./pages/Welcome.jsx";
 import Header from "./components/Header/Header.jsx";
 import Menu from "./components/Menu/Menu.jsx";
 import PrivateRoute from "./components/PrivateRoute.jsx";
-import HomeW from "./pages/HomeWikipedia.jsx";
+// import HomeW from "./pages/Home/HomeWikipedia.jsx";
 
 // State
 import { useDispatch, useSelector } from "react-redux";
