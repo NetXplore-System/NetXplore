@@ -82,7 +82,7 @@ function AppContent() {
           <Route path="/choose-platform" element={<ChoosePlatform />} />
           {/* <Route path="/explore" element={<Home />} /> */}
           <Route path="/newresearch" element={<ResearchWizard />} />
-          <Route path="/home_wikipedia" element={<HomeW />} />
+          {/* <Route path="/home_wikipedia" element={<HomeW />} /> */}
           <Route path="/researches/:type" element={<FilteredResearches />} />
 
           <Route path="/" element={currentUser ? <Dashboard /> : <Welcome />} />

@@ -9,6 +9,11 @@ from datetime import datetime
 import os
 from models import Research, NetworkAnalysis  
 from sqlalchemy.ext.asyncio import AsyncSession
+from collections import defaultdict
+import networkx as nx
+from fastapi import Query
+from community import community_louvain
+from networkx.algorithms import community as nx_community
 
 router = APIRouter()
 logger = logging.getLogger("wikipedia")
@@ -269,7 +274,7 @@ def process_wiki_talk_page(html_content):
 
             if username and timestamp:
                 # comment_text = re.sub(r'\s*' + re.escape(username) + r'.*$', '', text)
-                comment_text = text  # תשאירי את כל הטקסט המקורי
+                comment_text = text  
                 opinion = analyze_comment_for_opinion(comment_text)
                 current_section["opinion_count"][opinion] += 1
                 
@@ -617,42 +622,120 @@ async def convert_to_txt(request: Request):
         }
 
 
-def build_graph_from_txt(txt_path):
+def build_graph_from_txt(txt_path, limit=None, limit_type="first", min_length=0, max_length=1000, anonymize=False):
+
     nodes = []
     links = []
     usernames = set()
+    user_message_count = defaultdict(int)
+    edges_counter = defaultdict(int)
+    anonymized_map = {}
 
     with open(txt_path, "r", encoding="utf-8") as f:
         lines = f.readlines()
 
-    previous_user = None
+    filtered_lines = []
     for line in lines:
+        match = re.match(r"\[([\d/\.]+), ([\d:]+)\] ([^:]+):(.*)", line)
+        if match:
+            date, time, username, text = match.groups()
+            if min_length <= len(text.strip()) <= max_length:
+                filtered_lines.append(line)
 
+    if limit and limit > 0:
+        if limit_type == "last":
+            filtered_lines = filtered_lines[-limit:]
+        else:  
+            filtered_lines = filtered_lines[:limit]
+
+    previous_user = None
+    
+    for line in filtered_lines:
         match = re.match(r"\[([\d/\.]+), ([\d:]+)\] ([^:]+):(.*)", line)
         if match:
             date, time, username, text = match.groups()
             username = username.strip()
+            
+            if anonymize:
+                if username not in anonymized_map:
+                    anonymized_map[username] = f"User_{len(anonymized_map) + 1}"
+                username = anonymized_map[username]
+            
             usernames.add(username)
-            nodes.append({"id": username, "name": username, "group": 1})
+            user_message_count[username] += 1
 
             if previous_user and previous_user != username:
-                links.append({
-                    "source": username, 
-                    "target": previous_user,
-                    "value": 1
-                })
+                edge = tuple(sorted([previous_user, username]))
+                edges_counter[edge] += 1
             previous_user = username
 
-    unique_nodes = {n["id"]: n for n in nodes}.values()
+    G = nx.Graph()
+    G.add_nodes_from(usernames)
+    
+    for edge, weight in edges_counter.items():
+        G.add_edge(edge[0], edge[1], weight=weight)
+
+    is_connected = nx.is_connected(G) if len(G.nodes()) > 0 else False
+    
+    degree_centrality = {}
+    betweenness_centrality = {}
+    closeness_centrality = {}
+    eigenvector_centrality = {}
+    pagerank = {}
+    
+    if len(G.nodes()) > 0 and len(G.edges()) > 0:
+        try:
+            degree_centrality = nx.degree_centrality(G)
+            betweenness_centrality = nx.betweenness_centrality(G, weight="weight")
+            
+            if is_connected:
+                closeness_centrality = nx.closeness_centrality(G)
+                eigenvector_centrality = nx.eigenvector_centrality(G, max_iter=1000)
+                pagerank = nx.pagerank(G)
+            else:
+                largest_cc = max(nx.connected_components(G), key=len) if len(list(nx.connected_components(G))) > 0 else set()
+                if largest_cc:
+                    G_subgraph = G.subgraph(largest_cc).copy()
+                    closeness_centrality = nx.closeness_centrality(G_subgraph)
+                    eigenvector_centrality = nx.eigenvector_centrality(G_subgraph, max_iter=1000)
+                    pagerank = nx.pagerank(G_subgraph)
+        except Exception as e:
+            logger.warning(f"Error calculating network metrics: {e}")
+
+    nodes_list = []
+    for username in usernames:
+        node = {
+            "id": username,
+            "name": username,
+            "group": 1,
+            "messages": user_message_count.get(username, 0),
+            "degree": round(degree_centrality.get(username, 0), 4),
+            "betweenness": round(betweenness_centrality.get(username, 0), 4),
+            "closeness": round(closeness_centrality.get(username, 0), 4),
+            "eigenvector": round(eigenvector_centrality.get(username, 0), 4),
+            "pagerank": round(pagerank.get(username, 0), 4)
+        }
+        nodes_list.append(node)
+
+    links_list = []
+    for edge, weight in edges_counter.items():
+        links_list.append({
+            "source": edge[0],
+            "target": edge[1],
+            "weight": weight
+        })
+
+    logger.info(f"Created Wikipedia graph with {len(nodes_list)} nodes and {len(links_list)} links")
+
     return {
-        "nodes": list(unique_nodes),
-        "links": links
+        "nodes": nodes_list,
+        "links": links_list,
+        "is_connected": is_connected
     }
 
+
 def extract_massages(file_content, platform="whatsapp", limit_type="first", limit=None, min_length=0, max_length=1000):
-    """
-    מחלץ הודעות מקובץ טקסט של וואטסאפ או ויקיפדיה
-    """
+
     messages = []
     
     lines = file_content.strip().split('\n')
@@ -724,3 +807,184 @@ def extract_massages(file_content, platform="whatsapp", limit_type="first", limi
     
     print(f"🔹 Found {len(messages)} messages in {platform} format.")
     return messages
+
+
+@router.get("/analyze/wikipedia-communities/{filename}")
+async def analyze_wikipedia_communities(
+    filename: str,
+    algorithm: str = Query("louvain", description="Algorithm: louvain, girvan_newman, greedy_modularity"),
+    limit: int = Query(50),
+    min_length: int = Query(0),
+    max_length: int = Query(100),
+    limit_type: str = Query("first"),
+    anonymize: bool = Query(False)
+):
+
+    try:
+        txt_path = f"uploads/{filename}.txt"
+        if not os.path.exists(txt_path):
+            raise HTTPException(status_code=404, detail=f"TXT file {txt_path} not found.")
+
+        graph_data = build_graph_from_txt(txt_path)
+        
+        if not graph_data["nodes"] or not graph_data["links"]:
+            logger.warning("No nodes or links found in Wikipedia data")
+            return {
+                "nodes": [],
+                "links": [],
+                "communities": [],
+                "node_communities": {},
+                "algorithm": algorithm,
+                "num_communities": 0,
+                "modularity": None,
+                "warning": "No data found for community analysis"
+            }
+
+        G = nx.Graph()
+        
+        for node in graph_data["nodes"]:
+            G.add_node(node["id"], **{k: v for k, v in node.items() if k != "id"})
+
+        for link in graph_data["links"]:
+            source = link["source"]
+            target = link["target"]
+            weight = link.get("weight", 1)
+            G.add_edge(source, target, weight=weight)
+
+        communities = {}
+        node_communities = {}
+
+        if algorithm == "louvain":
+            partition = community_louvain.best_partition(G)
+            node_communities = partition
+
+            for node, community_id in partition.items():
+                if community_id not in communities:
+                    communities[community_id] = []
+                communities[community_id].append(node)
+
+        elif algorithm == "girvan_newman":
+            communities_iter = nx_community.girvan_newman(G)
+            communities_list = list(next(communities_iter))
+
+            for i, community in enumerate(communities_list):
+                communities[i] = list(community)
+                for node in community:
+                    node_communities[node] = i
+
+        elif algorithm == "greedy_modularity":
+            communities_list = list(nx_community.greedy_modularity_communities(G))
+
+            for i, community in enumerate(communities_list):
+                communities[i] = list(community)
+                for node in community:
+                    node_communities[node] = i
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown algorithm: {algorithm}. Supported: louvain, girvan_newman, greedy_modularity"
+            )
+
+        communities_list = []
+        for community_id, nodes in communities.items():
+            if nodes:
+                community_nodes_data = [node for node in graph_data["nodes"] if node["id"] in nodes]
+                
+                avg_betweenness = sum(node["betweenness"] for node in community_nodes_data) / len(community_nodes_data) if community_nodes_data else 0
+                avg_pagerank = sum(node["pagerank"] for node in community_nodes_data) / len(community_nodes_data) if community_nodes_data else 0
+                avg_messages = sum(node["messages"] for node in community_nodes_data) / len(community_nodes_data) if community_nodes_data else 0
+
+                communities_list.append({
+                    "id": community_id,
+                    "size": len(nodes),
+                    "nodes": nodes,
+                    "avg_betweenness": round(avg_betweenness, 4),
+                    "avg_pagerank": round(avg_pagerank, 4),
+                    "avg_messages": round(avg_messages, 2)
+                })
+
+        communities_list.sort(key=lambda x: x["size"], reverse=True)
+
+        for i, node in enumerate(graph_data["nodes"]):
+            node_id = node["id"]
+            if node_id in node_communities:
+                graph_data["nodes"][i]["community"] = node_communities[node_id]
+
+        modularity = None
+        if algorithm == "louvain":
+            modularity = community_louvain.modularity(node_communities, G)
+
+        logger.info(f"Found {len(communities)} communities using {algorithm} algorithm")
+
+        return {
+            "nodes": graph_data["nodes"],
+            "links": graph_data["links"],
+            "communities": communities_list,
+            "node_communities": node_communities,
+            "algorithm": algorithm,
+            "num_communities": len(communities),
+            "modularity": round(modularity, 4) if modularity is not None else None,
+            "is_connected": graph_data.get("is_connected", False)
+        }
+
+    except Exception as e:
+        logger.error(f"Error in Wikipedia community analysis: {e}")
+        raise HTTPException(status_code=500, detail=f"Error analyzing communities: {str(e)}")
+
+
+@router.get("/analyze/wikipedia-triad-census/{filename}")
+async def analyze_wikipedia_triad_census(
+    filename: str,
+    limit: int = Query(50),
+    min_length: int = Query(0),
+    max_length: int = Query(100),
+    limit_type: str = Query("first"),
+    anonymize: bool = Query(False)
+):
+    try:
+        txt_path = f"uploads/{filename}.txt"
+        if not os.path.exists(txt_path):
+            raise HTTPException(status_code=404, detail=f"TXT file {txt_path} not found.")
+
+        graph_data = build_graph_from_txt(txt_path)
+
+        if not graph_data["nodes"] or not graph_data["links"]:
+            return {
+                "triad_census": {},
+                "total_triads": 0,
+                "original_network": graph_data,
+                "warning": "No data found for triad analysis"
+            }
+
+        DG = nx.DiGraph()
+
+        for node in graph_data["nodes"]:
+            DG.add_node(node["id"], **{k: v for k, v in node.items() if k != "id"})
+
+        for link in graph_data["links"]:
+            source = link["source"]
+            target = link["target"]
+            DG.add_edge(source, target)
+
+        triad_census = nx.triadic_census(DG)
+        triad_census = {str(k): v for k, v in triad_census.items()}
+
+        total_triads = sum(triad_census.values())
+
+        for k in triad_census:
+            triad_census[k] = {
+                "count": triad_census[k],
+                "percentage": round((triad_census[k] / total_triads) * 100, 2) if total_triads > 0 else 0
+            }
+
+        logger.info(f"Calculated triad census for Wikipedia network with {total_triads} total triads")
+
+        return {
+            "triad_census": triad_census,
+            "total_triads": total_triads,
+            "original_network": graph_data
+        }
+
+    except Exception as e:
+        logger.error(f"Error in Wikipedia triad census: {e}")
+        raise HTTPException(status_code=500, detail=f"Error analyzing triads: {str(e)}")
