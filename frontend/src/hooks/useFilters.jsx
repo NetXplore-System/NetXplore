@@ -8,8 +8,8 @@ const useFilters = (formData = null) => {
 
   const [messageLimit, setMessageLimit] = useState(50);
   const [limitType, setLimitType] = useState("first");
-  const [minMessageLength, setMinMessageLength] = useState(1);
-  const [maxMessageLength, setMaxMessageLength] = useState(100);
+  const [minMessageLength, setMinMessageLength] = useState("");
+  const [maxMessageLength, setMaxMessageLength] = useState("");  
   const [keywords, setKeywords] = useState("");
 
   const [usernameFilter, setUsernameFilter] = useState("");
@@ -82,8 +82,8 @@ const useFilters = (formData = null) => {
       params.append("limit_type", type); 
     }
 
-    if (minLen) params.append("min_length", minLen);
-    if (maxLen) params.append("max_length", maxLen);
+    if (minLen !== "" && minLen !== null) params.append("min_length", minLen);
+    if (maxLen !== "" && maxLen !== null) params.append("max_length", maxLen);    
     if (words) params.append("keywords", words);
     if (contentFilter) params.append("content_filter", contentFilter);
     if (uname) params.append("username", uname);

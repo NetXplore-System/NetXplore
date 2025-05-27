@@ -204,7 +204,7 @@ export const fetchWikipediaData = async (url) => {
 
 export const analyzeWikipediaNetwork = async (filename, params) => {
   try {
-    const url = `${BASE_URL}/analyze/wikipedia/${filename}?${params.toString()}⁠`;
+    const url = `${BASE_URL}/analyze/wikipedia/${filename}?${params.toString()}`;
     const response = await fetch(url);
     if (!response.ok) {
       const { detail } = await response.json();
@@ -283,3 +283,11 @@ export const deleteResearch = async (researchId, token) => {
     throw Error('Error deleting research');
   }
 }
+
+export const detectWikipediaCommunities = async (filename, params) => {
+  params.append("algorithm", "louvain");
+  const url = `${BASE_URL}/analyze/wikipedia-communities/${filename}?${params.toString()}`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(await response.text());
+  return await response.json();
+};

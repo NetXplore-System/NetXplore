@@ -24,6 +24,7 @@ import {
   detectCommunities,
   fetchWikipediaData,
   analyzeWikipediaNetwork,
+  detectWikipediaCommunities
 } from "../components/utils/ApiService";
 import { saveToDB } from "../components/utils/ApiService";
 
@@ -359,12 +360,17 @@ const ResearchWizard = () => {
 
         toast.promise(analyzeWikipediaNetwork("wikipedia_data", params), {
           loading: "Analyzing Wikipedia discussion...",
-          success: (data) => {
+          success: async (data) => {
             if (data.nodes && data.links) {
               dispatch(clearImages());
               setNetworkData(data);
               setOriginalNetworkData(data);
-              setShouldFetchCommunities(true);
+              const communityData = await detectWikipediaCommunities(
+                "wikipedia_data",
+                params
+              );
+              setCommunities(communityData.communities || []);
+              setCommunityMap(communityData.node_communities || {});
               return "Wikipedia analysis completed successfully!";
             } else {
               return "No data returned from Wikipedia analysis.";
@@ -376,15 +382,21 @@ const ResearchWizard = () => {
         });
       } else if (isWhatsApp) {
         if (hasShownToastRef.current) return;
-
         hasShownToastRef.current = true;
+
         toast.promise(analyzeNetwork(formData.uploadedFileName, params), {
           loading: "Analyzing WhatsApp network...",
-          success: (data) => {
+          success: async (data) => {
             if (data.nodes && data.links) {
               dispatch(clearImages());
               setNetworkData(data);
               setOriginalNetworkData(data);
+              const communityData = await detectCommunities(
+                formData.uploadedFileName,
+                params
+              );
+              setCommunities(communityData.communities || []);
+              setCommunityMap(communityData.node_communities || {});
               setShouldFetchCommunities(true);
               return "WhatsApp analysis completed successfully!";
             } else {
@@ -417,6 +429,7 @@ const ResearchWizard = () => {
               newCommunityMap[node.id.toString().trim()] = node.community;
             }
           });
+          setCommunities(data.communities || []);
           setCommunityMap(newCommunityMap);
           if (networkData && networkData.nodes) {
             const updatedNodes = networkData.nodes.map((node) => {
@@ -638,6 +651,8 @@ const ResearchWizard = () => {
             originalNetworkData={originalNetworkData}
             communities={communities}
             communityMap={communityMap}
+            setCommunities={setCommunities}
+            setCommunityMap={setCommunityMap}
             handleNetworkAnalysis={handleNetworkAnalysis}
             formData={formData}
             setNetworkData={setNetworkData}

@@ -63,6 +63,8 @@ const NetworkVisualization = ({
   originalNetworkData,
   communities,
   communityMap,
+  setCommunities,
+  setCommunityMap,
   handleNetworkAnalysis,
   formData,
   setNetworkData,
