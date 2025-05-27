@@ -38,7 +38,7 @@ const Dashboard = () => {
           return;
         }
 
-        const response = await fetch(
+        const response = await fetchWithAuth(
           `${import.meta.env.VITE_API_URL}/dashboard/${userId}`,
           {
             headers: {
