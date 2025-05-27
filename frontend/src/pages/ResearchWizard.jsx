@@ -24,7 +24,7 @@ import {
   detectCommunities,
   fetchWikipediaData,
   analyzeWikipediaNetwork,
-  detectWikipediaCommunities
+  detectWikipediaCommunities,
 } from "../components/utils/ApiService";
 import { saveToDB } from "../components/utils/ApiService";
 
@@ -363,14 +363,25 @@ const ResearchWizard = () => {
           success: async (data) => {
             if (data.nodes && data.links) {
               dispatch(clearImages());
-              setNetworkData(data);
-              setOriginalNetworkData(data);
+
               const communityData = await detectWikipediaCommunities(
                 "wikipedia_data",
                 params
               );
+
+              const nodeCommunities = communityData.node_communities || {};
+              const updatedNodes = data.nodes.map((node) => {
+                const community = nodeCommunities[node.id?.toString().trim()];
+                return community !== undefined ? { ...node, community } : node;
+              });
+
+              data.nodes = updatedNodes;
+
+              setNetworkData(data);
+              setOriginalNetworkData(data);
               setCommunities(communityData.communities || []);
-              setCommunityMap(communityData.node_communities || {});
+              setCommunityMap(nodeCommunities);
+
               return "Wikipedia analysis completed successfully!";
             } else {
               return "No data returned from Wikipedia analysis.";
@@ -391,13 +402,16 @@ const ResearchWizard = () => {
               dispatch(clearImages());
               setNetworkData(data);
               setOriginalNetworkData(data);
+
               const communityData = await detectCommunities(
                 formData.uploadedFileName,
                 params
               );
+
               setCommunities(communityData.communities || []);
               setCommunityMap(communityData.node_communities || {});
               setShouldFetchCommunities(true);
+
               return "WhatsApp analysis completed successfully!";
             } else {
               return "No data returned from server.";

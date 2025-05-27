@@ -309,55 +309,50 @@ const NetworkVisualization = ({
 
     const params = filters.buildNetworkFilterParams();
 
-    toast.promise(detectCommunities(uploadedFileName, params), {
+    const isWikipedia = formData.platform === "wikipedia";
+    const isWhatsApp = formData.platform === "whatsapp";
+
+    const detectFn = isWikipedia
+      ? detectWikipediaCommunities
+      : detectCommunities;
+
+    toast.promise(detectFn(uploadedFileName, params), {
       loading: "Detecting communities...",
       success: (data) => {
         if (data.communities && data.nodes) {
           const newCommunityMap = {};
-
           data.nodes.forEach((node) => {
             if (node.community !== undefined) {
               newCommunityMap[node.id.toString().trim()] = node.community;
             }
           });
 
-          if (networkData && networkData.nodes) {
-            const updatedNodes = networkData.nodes.map((node) => {
-              const normalizedId = node.id.toString().trim();
-              const community = newCommunityMap[normalizedId];
+          const updatedNodes = networkData.nodes.map((node) => {
+            const normalizedId = node.id.toString().trim();
+            const community = newCommunityMap[normalizedId];
+            return community !== undefined ? { ...node, community } : node;
+          });
 
-              if (community !== undefined) {
-                return { ...node, community };
-              }
-              return node;
-            });
+          const updatedOriginalNodes = originalNetworkData.nodes.map((node) => {
+            const normalizedId = node.id.toString().trim();
+            const community = newCommunityMap[normalizedId];
+            return community !== undefined ? { ...node, community } : node;
+          });
 
-            setNetworkData({
-              nodes: updatedNodes,
-              links: networkData.links,
-            });
+          setNetworkData({
+            nodes: updatedNodes,
+            links: networkData.links,
+          });
 
-            if (originalNetworkData) {
-              const updatedOriginalNodes = originalNetworkData.nodes.map(
-                (node) => {
-                  const normalizedId = node.id.toString().trim();
-                  const community = newCommunityMap[normalizedId];
+          setOriginalNetworkData({
+            nodes: updatedOriginalNodes,
+            links: originalNetworkData.links,
+          });
 
-                  if (community !== undefined) {
-                    return { ...node, community };
-                  }
-                  return node;
-                }
-              );
+          setCommunities(data.communities || []);
+          setCommunityMap(newCommunityMap);
 
-              setOriginalNetworkData({
-                nodes: updatedOriginalNodes,
-                links: originalNetworkData.links,
-              });
-            }
-
-            loadCommunityColors(data.communities);
-          }
+          loadCommunityColors(data.communities);
 
           return `Detected ${data.communities.length} communities in the network.`;
         } else {
@@ -1065,46 +1060,6 @@ const NetworkVisualization = ({
                 </Button>
               </div>
 
-              {shouldShowUserFilters && (
-                <div className="filter-group mb-3">
-                  <div className="filter-label mb-2">Activity Level</div>
-                  <Button
-                    variant="light"
-                    className={`btn-block mb-2 ${
-                      activityFilterEnabled ? "active" : ""
-                    }`}
-                    onClick={handleActivityFilter}
-                  >
-                    <Activity className="me-2" />
-                    {activityFilterEnabled
-                      ? "Show All Nodes"
-                      : "Filter By Activity"}
-                  </Button>
-
-                  {activityFilterEnabled && (
-                    <div className="mt-2">
-                      <label htmlFor="activitySlider" className="form-label">
-                        Min. Connections: {activityThreshold}
-                      </label>
-                      <input
-                        type="range"
-                        className="form-range"
-                        id="activitySlider"
-                        min="1"
-                        max="10"
-                        step="1"
-                        value={activityThreshold}
-                        onChange={(e) => {
-                          const value = parseInt(e.target.value);
-                          setActivityThreshold(value);
-                          applyActivityFilter(value);
-                        }}
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-
               <div className="filter-group">
                 <div className="filter-label mb-2">Community Structure</div>
                 <Button
@@ -1118,15 +1073,6 @@ const NetworkVisualization = ({
                   {showOnlyIntraCommunityLinks
                     ? "Show All Links"
                     : "Show Only Within-Community"}
-                </Button>
-
-                <Button
-                  variant="light"
-                  className="btn-block mb-2"
-                  onClick={fetchCommunityData}
-                >
-                  <Share className="me-2" />
-                  Detect Communities
                 </Button>
               </div>
             </div>
