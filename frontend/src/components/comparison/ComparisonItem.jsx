@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { toast } from "sonner";
 import {
   Button,
   Card,
@@ -10,6 +11,7 @@ import {
   Accordion,
   Spinner,
   Dropdown,
+  Alert,
 } from "react-bootstrap";
 import {
   Upload,
@@ -21,7 +23,9 @@ import {
   Lightning,
   InfoCircle,
   FileEarmark,
+  ChatText,
 } from "react-bootstrap-icons";
+import DiscussionSectionPicker from "../filters/DiscussionSectionPicker";
 
 const ComparisonItem = ({
   index,
@@ -38,8 +42,21 @@ const ComparisonItem = ({
   hasActiveFilters,
   originalFileName,
   useOriginalFile,
+  platform,
+  formData,
+  setFormData,
+  wikiContent,
+  setWikiContent,
+  selectedSection,
+  setSelectedSection,
+  handleFetchWikipedia,
 }) => {
   const [showFilters, setShowFilters] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
+  const [isLoadingWikipedia, setIsLoadingWikipedia] = useState(false);
+  const [comparisonWikiContent, setComparisonWikiContent] = useState(null);
+  const [comparisonSelectedSection, setComparisonSelectedSection] =
+    useState(null);
   const [localFilterSettings, setLocalFilterSettings] = useState({
     timeFrame: {
       startDate: "",
@@ -112,9 +129,12 @@ const ComparisonItem = ({
     if (
       comparisonData?.filename ||
       comparisonFile ||
-      comparisonData?.isOriginalFile
+      comparisonData?.isOriginalFile ||
+      comparisonData?.isWikipediaData
     ) {
-      onAnalyzeNetwork(index, localFilterSettings);
+      const isWikipediaData =
+        comparisonData?.isWikipediaData || platform === "wikipedia";
+      onAnalyzeNetwork(index, localFilterSettings, isWikipediaData);
     }
   };
 
@@ -153,7 +173,26 @@ const ComparisonItem = ({
   };
 
   const handleUseOriginalFile = () => {
-    useOriginalFile(index);
+    if (platform === "wikipedia") {
+      const updatedData = {
+        id: index,
+        name: selectedSection
+          ? `Original Wikipedia: ${selectedSection.title}`
+          : "Original Wikipedia Discussion",
+        filename: "wikipedia_data",
+        isWikipediaData: true,
+        isOriginalFile: true,
+        isAnalyzed: false,
+        wikiContent: wikiContent,
+        selectedSection: selectedSection,
+      };
+
+      useOriginalFile(index);
+      setComparisonWikiContent(wikiContent);
+      setComparisonSelectedSection(selectedSection);
+    } else {
+      useOriginalFile(index);
+    }
 
     setTimeout(() => {
       if (accordionRef.current) {
@@ -166,11 +205,134 @@ const ComparisonItem = ({
           accordionButton.click();
         }
       }
-
       setShowFilters(true);
     }, 100);
   };
 
+  const handleLoadNewWikipediaUrl = async () => {
+    if (!formData.comparisonWikipediaUrl?.trim()) {
+      toast.error("Please enter a valid Wikipedia URL.");
+      return;
+    }
+
+    setIsLoadingWikipedia(true);
+
+    try {
+      const data = await handleFetchWikipedia(formData.comparisonWikipediaUrl);
+
+      if (data?.content) {
+        setComparisonWikiContent(data.content);
+        setComparisonSelectedSection(null);
+
+        const updatedData = {
+          id: index,
+          name: "New Wikipedia Discussion (No section selected)",
+          filename: `comparison_wikipedia_data_${index}`,
+          isWikipediaData: true,
+          isOriginalFile: false,
+          isAnalyzed: false,
+          wikiContent: data.content,
+          selectedSection: null,
+        };
+
+        if (comparisonData && typeof comparisonData === "object") {
+          Object.assign(comparisonData, updatedData);
+        }
+
+        if (useOriginalFile && typeof useOriginalFile === "function") {
+          const wikiData = {
+            content: data.content,
+            selectedSection: null,
+            isWikipediaData: true,
+            isOriginalFile: false,
+          };
+          useOriginalFile(index, wikiData, updatedData);
+        }
+
+        setShowPicker(true);
+
+        toast.success(
+          "Wikipedia content loaded successfully! Please select a discussion section."
+        );
+      }
+    } catch (error) {
+      toast.error("Failed to load Wikipedia content: " + error.message);
+    } finally {
+      setIsLoadingWikipedia(false);
+    }
+  };
+
+  const handleSectionSelect = async (section) => {
+    setComparisonSelectedSection(section);
+
+    try {
+      const filename = comparisonData?.isOriginalFile
+        ? "wikipedia_data"
+        : "comparison_wikipedia_data";
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/convert-wikipedia-to-txt`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            filename: filename,
+            section_title: section.title,
+          }),
+        }
+      );
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || "Failed to convert section to TXT");
+      }
+
+      if (comparisonData) {
+        comparisonData.selectedSection = section;
+        comparisonData.name = `Wikipedia: ${section.title}`;
+        comparisonData.isAnalyzed = false;
+      }
+
+      toast.success(`Section "${section.title}" selected successfully!`);
+
+      setShowPicker(false);
+    } catch (error) {
+      toast.error("Failed to convert section: " + error.message);
+    }
+  };
+
+  const getDataDisplayName = () => {
+    if (platform === "wikipedia") {
+      if (comparisonData?.isOriginalFile) {
+        return selectedSection
+          ? `Original Wikipedia: ${selectedSection.title}`
+          : "Original Wikipedia Discussion";
+      } else if (comparisonSelectedSection) {
+        return `Wikipedia: ${comparisonSelectedSection.title}`;
+      } else if (comparisonData?.selectedSection) {
+        return `Wikipedia: ${comparisonData.selectedSection.title}`;
+      } else if (comparisonData?.isWikipediaData || comparisonWikiContent) {
+        return "Wikipedia Discussion (Please select a section)";
+      } else {
+        return "No Wikipedia content loaded";
+      }
+    }
+    return comparisonData?.name || "No file selected";
+  };
+
+  const hasValidData = () => {
+    if (platform === "wikipedia") {
+      return (
+        comparisonWikiContent ||
+        comparisonData?.wikiContent ||
+        comparisonData?.isWikipediaData
+      );
+    }
+    return (
+      comparisonData?.filename ||
+      comparisonFile ||
+      comparisonData?.isOriginalFile
+    );
+  };
   return (
     <Card
       className={`comparison-file-card mb-3 ${isActive ? "active-card" : ""}`}
@@ -196,34 +358,102 @@ const ComparisonItem = ({
                   Original File
                 </Badge>
               )}
+              {comparisonData?.isWikipediaData && (
+                <Badge bg="warning" className="ms-2">
+                  Wikipedia
+                </Badge>
+              )}
             </div>
-            <p className="text-muted mb-0 mt-1">
-              {comparisonData?.name || "No file selected"}
-            </p>
+            <p className="text-muted mb-0 mt-1">{getDataDisplayName()}</p>
           </Col>
           <Col md={5} className="d-flex justify-content-end align-items-center">
-            <Dropdown className="me-2">
-              <Dropdown.Toggle variant="light" id={`file-dropdown-${index}`}>
-                <FileEarmark size={16} className="me-1" /> Select File
-              </Dropdown.Toggle>
-
-              <Dropdown.Menu>
-                <Dropdown.Item
-                  onClick={() =>
-                    document.getElementById(`compFile${index}`).click()
-                  }
+            {platform === "wikipedia" ? (
+              <div className="d-flex flex-column w-100">
+                <Button
+                  variant="outline-primary"
+                  className="mb-2"
+                  onClick={handleUseOriginalFile}
+                  disabled={!wikiContent}
                 >
-                  <Upload size={14} className="me-1" /> Upload New File
-                </Dropdown.Item>
+                  Use Original Wikipedia Discussion
+                </Button>
 
-                {originalFileName && (
-                  <Dropdown.Item onClick={handleUseOriginalFile}>
-                    <FileEarmark size={14} className="me-1" /> Use Original
-                    File: {originalFileName}
-                  </Dropdown.Item>
+                <Form.Control
+                  type="text"
+                  placeholder="Paste new Wikipedia URL"
+                  value={formData.comparisonWikipediaUrl || ""}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      comparisonWikipediaUrl: e.target.value,
+                    }))
+                  }
+                  className="mb-2"
+                />
+
+                <Button
+                  variant="secondary"
+                  onClick={handleLoadNewWikipediaUrl}
+                  disabled={isLoadingWikipedia}
+                  className="mb-2"
+                >
+                  {isLoadingWikipedia ? (
+                    <>
+                      <Spinner
+                        as="span"
+                        animation="border"
+                        size="sm"
+                        role="status"
+                        aria-hidden="true"
+                        className="me-1"
+                      />
+                      Loading...
+                    </>
+                  ) : (
+                    <>Load New Wikipedia URL</>
+                  )}
+                </Button>
+
+                {(comparisonWikiContent ||
+                  comparisonData?.wikiContent ||
+                  comparisonData?.isWikipediaData) && (
+                  <Button
+                    variant="outline-info"
+                    onClick={() => setShowPicker(true)}
+                    className="mb-2"
+                  >
+                    <ChatText className="me-1" size={16} />
+                    {comparisonSelectedSection ||
+                    comparisonData?.selectedSection
+                      ? "Change Discussion Section"
+                      : "Select Discussion Section"}
+                  </Button>
                 )}
-              </Dropdown.Menu>
-            </Dropdown>
+              </div>
+            ) : (
+              <Dropdown className="me-2">
+                <Dropdown.Toggle variant="light" id={`file-dropdown-${index}`}>
+                  <FileEarmark size={16} className="me-1" /> Select File
+                </Dropdown.Toggle>
+
+                <Dropdown.Menu>
+                  <Dropdown.Item
+                    onClick={() =>
+                      document.getElementById(`compFile${index}`).click()
+                    }
+                  >
+                    <Upload size={14} className="me-1" /> Upload New File
+                  </Dropdown.Item>
+
+                  {originalFileName && (
+                    <Dropdown.Item onClick={handleUseOriginalFile}>
+                      <FileEarmark size={14} className="me-1" /> Use Original
+                      File: {originalFileName}
+                    </Dropdown.Item>
+                  )}
+                </Dropdown.Menu>
+              </Dropdown>
+            )}
 
             <input
               type="file"
@@ -233,14 +463,21 @@ const ComparisonItem = ({
               onChange={(e) => onFileUpload(e, index)}
             />
 
-            {(comparisonData?.filename ||
-              comparisonFile ||
-              comparisonData?.isOriginalFile) && (
+            {hasValidData() && (
               <>
                 <Button
                   variant="primary"
                   className="me-2"
-                  onClick={() => onAnalyzeNetwork(index, localFilterSettings)}
+                  onClick={() => {
+                    const isWikipediaData =
+                      comparisonData?.isWikipediaData ||
+                      platform === "wikipedia";
+                    onAnalyzeNetwork(
+                      index,
+                      localFilterSettings,
+                      isWikipediaData
+                    );
+                  }}
                   disabled={isAnalyzing}
                 >
                   {isAnalyzing ? (
@@ -278,9 +515,71 @@ const ComparisonItem = ({
           </Col>
         </Row>
 
-        {(comparisonData?.filename ||
-          comparisonFile ||
-          comparisonData?.isOriginalFile) && (
+        {platform === "wikipedia" && showPicker && (
+          <Accordion className="mt-3" defaultActiveKey="0">
+            <Accordion.Item eventKey="0">
+              <Accordion.Header>
+                <ChatText className="me-2" /> Select Discussion Section
+              </Accordion.Header>
+              <Accordion.Body>
+                {comparisonWikiContent || comparisonData?.wikiContent ? (
+                  <DiscussionSectionPicker
+                    content={
+                      comparisonWikiContent || comparisonData?.wikiContent
+                    }
+                    selectedSection={
+                      comparisonSelectedSection ||
+                      comparisonData?.selectedSection
+                    }
+                    onSelect={handleSectionSelect}
+                    convertToTxt={async (title) => {
+                      const response = await fetch(
+                        `${
+                          import.meta.env.VITE_API_URL
+                        }/convert-wikipedia-to-txt`,
+                        {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            filename: comparisonData?.isOriginalFile
+                              ? "wikipedia_data"
+                              : "comparison_wikipedia_data",
+                            section_title: title,
+                          }),
+                        }
+                      );
+
+                      const data = await response.json();
+                      if (!response.ok)
+                        throw new Error(
+                          data.detail || "Failed to convert section to TXT"
+                        );
+
+                      return data;
+                    }}
+                  />
+                ) : (
+                  <Alert variant="warning">
+                    <InfoCircle size={16} className="me-2" />
+                    No Wikipedia content loaded yet. Please load a Wikipedia URL
+                    first.
+                  </Alert>
+                )}
+
+                <div className="mt-3 d-flex justify-content-end">
+                  <Button
+                    variant="outline-secondary"
+                    onClick={() => setShowPicker(false)}
+                  >
+                    Close
+                  </Button>
+                </div>
+              </Accordion.Body>
+            </Accordion.Item>
+          </Accordion>
+        )}
+
+        {hasValidData() && (
           <Accordion
             className="mt-3"
             defaultActiveKey={comparisonData?.isOriginalFile ? "0" : ""}
@@ -431,11 +730,13 @@ const ComparisonItem = ({
                   </Col>
                 </Row>
 
-                {comparisonData?.isOriginalFile && (
+                {(comparisonData?.isOriginalFile ||
+                  comparisonData?.isWikipediaData) && (
                   <div className="alert alert-info mt-3">
                     <InfoCircle size={16} className="me-2" />
-                    You're using the original file. Apply different filters and
-                    click "Analyze" to create a comparison.
+                    {platform === "wikipedia"
+                      ? "You're using Wikipedia data. Apply different filters and click 'Analyze' to create a comparison."
+                      : "You're using the original file. Apply different filters and click 'Analyze' to create a comparison."}
                   </div>
                 )}
               </Accordion.Body>

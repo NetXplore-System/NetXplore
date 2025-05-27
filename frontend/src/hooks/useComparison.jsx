@@ -102,10 +102,8 @@ const useComparison = (originalNetworkData, uploadedFile) => {
           message: `Server error: ${response.statusText}`,
         };
       }
-      console.log(response);
-      
+
       const data = await response.json();
-      console.log(response, data);
 
       if (data.filename) {
         const updatedData = [...comparisonData];
@@ -113,6 +111,8 @@ const useComparison = (originalNetworkData, uploadedFile) => {
           id: index,
           filename: data.filename,
           name: selectedFile.name,
+          isWikipediaData: false,
+          isOriginalFile: false,
         };
         setComparisonData(updatedData);
         console.log(`Comparison file ${index} uploaded: ${data.filename}`);
@@ -168,10 +168,14 @@ const useComparison = (originalNetworkData, uploadedFile) => {
   const analyzeComparisonNetwork = async (
     index,
     globalFilterParams,
-    customFilters = null
+    customFilters = null,
+    isWikipediaData = false
   ) => {
     const comparisonFile = comparisonData[index];
-    if (!comparisonFile || !comparisonFile.filename) {
+    if (
+      !comparisonFile ||
+      (!comparisonFile.filename && !comparisonFile.isWikipediaData)
+    ) {
       return {
         success: false,
         message: "Please select a comparison file first.",
@@ -185,7 +189,7 @@ const useComparison = (originalNetworkData, uploadedFile) => {
       const customParams = buildFilterParamsFromSettings(customFilters);
 
       for (const [key, value] of customParams.entries()) {
-        params.set(key, value); 
+        params.set(key, value);
       }
     } else if (comparisonFilterSettings[index]) {
       const savedParams = buildFilterParamsFromSettings(
@@ -196,18 +200,59 @@ const useComparison = (originalNetworkData, uploadedFile) => {
       }
     }
 
-    const url = `${BASE_URL}/analyze/network/${
-      comparisonFile.filename
-    }?${params.toString()}`;
+    let url;
+    if (isWikipediaData || comparisonFile.isWikipediaData) {
+      const filename = comparisonFile.isOriginalFile
+        ? "wikipedia_data"
+        : "comparison_wikipedia_data";
+      url = `${BASE_URL}/analyze/wikipedia/${filename}?${params.toString()}`;
+    } else {
+      url = `${BASE_URL}/analyze/network/${
+        comparisonFile.filename
+      }?${params.toString()}`;
+    }
 
     try {
       const response = await fetch(url);
       const data = await response.json();
 
       if (data.nodes && data.links) {
+        if (isWikipediaData || comparisonFile.isWikipediaData) {
+          try {
+            const filename = comparisonFile.isOriginalFile
+              ? "wikipedia_data"
+              : "comparison_wikipedia_data";
+            const communityResponse = await fetch(
+              `${BASE_URL}/analyze/wikipedia-communities/${filename}?${params.toString()}`
+            );
+            const communityData = await communityResponse.json();
+
+            if (communityData.node_communities) {
+              const nodeCommunities = communityData.node_communities || {};
+              const updatedNodes = data.nodes.map((node) => {
+                const community = nodeCommunities[node.id?.toString().trim()];
+                return community !== undefined ? { ...node, community } : node;
+              });
+
+              data.nodes = updatedNodes;
+              data.communities = communityData.communities || [];
+              data.communityMap = nodeCommunities;
+            }
+          } catch (communityError) {
+            console.warn("Failed to fetch community data:", communityError);
+          }
+        }
+
         const updatedComparisonData = [...comparisonNetworkData];
         updatedComparisonData[index] = data;
         setComparisonNetworkData(updatedComparisonData);
+
+        const updatedData = [...comparisonData];
+        updatedData[index] = {
+          ...updatedData[index],
+          isAnalyzed: true,
+        };
+        setComparisonData(updatedData);
 
         if (!activeComparisonIndices.includes(index)) {
           setActiveComparisonIndices((prev) => [...prev, index]);
@@ -331,10 +376,19 @@ const useComparison = (originalNetworkData, uploadedFile) => {
     try {
       const comparisonPromises = activeComparisonIndices.map((index) => {
         const comparisonParams = new URLSearchParams(params);
-        comparisonParams.append(
-          "comparison_filename",
-          comparisonData[index].filename
-        );
+        const comparisonFile = comparisonData[index];
+
+        if (comparisonFile.isWikipediaData) {
+          const filename = comparisonFile.isOriginalFile
+            ? "wikipedia_data"
+            : "comparison_wikipedia_data";
+          comparisonParams.append("comparison_filename", filename);
+        } else {
+          comparisonParams.append(
+            "comparison_filename",
+            comparisonFile.filename
+          );
+        }
 
         if (comparisonFilterSettings[index]) {
           const fileSpecificParams = buildFilterParamsFromSettings(
@@ -464,6 +518,29 @@ const useComparison = (originalNetworkData, uploadedFile) => {
     };
   };
 
+  const addWikipediaComparison = (index, wikiData, isOriginal = false) => {
+    const updatedData = [...comparisonData];
+    updatedData[index] = {
+      id: index,
+      filename: isOriginal
+        ? "wikipedia_data"
+        : `comparison_wikipedia_data_${index}`,
+      name: isOriginal
+        ? "Original Wikipedia Discussion"
+        : "Wikipedia Discussion",
+      isWikipediaData: true,
+      isOriginalFile: isOriginal,
+      isAnalyzed: false,
+      wikiContent: wikiData.content,
+      selectedSection: wikiData.selectedSection,
+    };
+    setComparisonData(updatedData);
+
+    if (!comparisonFilterSettings[index]) {
+      updateComparisonFilterSettings(index, getDefaultFilterSettings());
+    }
+  };
+
   return {
     comparisonCount,
     comparisonFiles,
@@ -488,6 +565,7 @@ const useComparison = (originalNetworkData, uploadedFile) => {
     calculateComparisonStats,
     setComparisonData,
     setComparisonFiles,
+    addWikipediaComparison,
   };
 };
 

@@ -686,6 +686,14 @@ const ResearchWizard = () => {
             comparison={comparison}
             filters={filters}
             uploadedFileName={formData.uploadedFileName}
+            platform={formData.platform}
+            formData={formData}
+            setFormData={setFormData}
+            wikiContent={wikiContent}
+            setWikiContent={setWikiContent}
+            selectedSection={selectedSection}
+            setSelectedSection={setSelectedSection}
+            handleFetchWikipedia={handleFetchWikipedia}
           />
         );
       case ALL_STEPS.RESEARCH_REPORT:
