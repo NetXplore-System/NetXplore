@@ -155,42 +155,6 @@ export const compareNetworks = async (params) => {
   }
 };
 
-export const analyzeTriadCensus = async (filename, params) => {
-  try {
-    let queryString;
-    if (params instanceof URLSearchParams) {
-      queryString = params.toString();
-    } else if (typeof params === "string") {
-      queryString = params;
-    } else {
-      const queryParams = new URLSearchParams();
-      for (const [key, value] of Object.entries(params)) {
-        if (value !== null && value !== undefined && value !== "") {
-          queryParams.append(key, value);
-        }
-      }
-      queryString = queryParams.toString();
-    }
-
-    const url = `${BASE_URL}/analyze/triad-census/${filename}?${queryString}`;
-    console.log("Triad Census Request URL:", url);
-
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || "Failed to analyze triad census");
-    }
-
-    const data = await response.json();
-    console.log("Triad Census data received:", data);
-    return data;
-  } catch (error) {
-    console.error("Error analyzing triad census:", error);
-    throw error;
-  }
-};
-
 export const fetchWikipediaData = async (url) => {
   try {
     const response = await fetch(`${BASE_URL}/fetch-wikipedia-data`, {

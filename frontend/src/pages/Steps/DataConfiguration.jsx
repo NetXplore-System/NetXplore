@@ -153,28 +153,6 @@ const DataConfiguration = ({ formData, handleInputChange }) => {
                 </Form.Group>
               </>
             )}
-
-            <Form.Group className="mb-4 ms-4">
-              <div className="d-flex justify-content-between align-items-center">
-                <div>
-                  <Form.Label className="form-label mb-0">
-                    Use Triad Census
-                    <InfoTooltip text="Triad census analyzes communication patterns between groups of three users, identifying structures like chains, cycles, and transitive relationships." />
-                  </Form.Label>
-                </div>
-                <Form.Check
-                  type="switch"
-                  id="triads-switch"
-                  name="useTriads"
-                  checked={formData.useTriads}
-                  onChange={handleInputChange}
-                  className="config-switch"
-                />
-              </div>
-              <Form.Text className="text-muted">
-                Analyze patterns between groups of three users
-              </Form.Text>
-            </Form.Group>
           </div>
         )}
       </Card.Body>

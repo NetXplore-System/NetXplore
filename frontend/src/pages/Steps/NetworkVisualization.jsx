@@ -48,11 +48,9 @@ import { addToMain } from "../../redux/images/imagesSlice";
 import NetworkCustomizationToolbar from "../../components/NetworkCustomizationToolbar";
 import NetworkGraph from "../../components/network/NetworkGraph";
 import NetworkDataTable from "../../components/NetworkDataTable";
-import TriadCensusVisualization from "../../components/network/TriadCensusVisualization";
 import { graphMetrics } from "../../constants/graphMetrics";
 
 import {
-  analyzeTriadCensus,
   detectCommunities,
 } from "../../components/utils/ApiService";
 
@@ -102,8 +100,6 @@ const NetworkVisualization = ({
   const [isDirectedGraph, setIsDirectedGraph] = useState(
     formData.isDirectedGraph
   );
-  const [showTriadCensus, setShowTriadCensus] = useState(false);
-  const [triadCensusData, setTriadCensusData] = useState(null);
   const [networkWasRestored, setNetworkWasRestored] = useState(false);
   const [showRemoveNodeModal, setShowRemoveNodeModal] = useState(false);
   const [selectedNode, setSelectedNode] = useState(null);
@@ -391,37 +387,6 @@ const NetworkVisualization = ({
 
     setVisualizationSettings(updatedSettings);
     handleNetworkCustomization(updatedSettings);
-  };
-
-  const handleTriadCensusAnalysis = () => {
-    if (!uploadedFileName) {
-      toast.error("No file selected for triad census analysis.");
-      return;
-    }
-
-    if (showTriadCensus) {
-      setShowTriadCensus(false);
-      return;
-    }
-
-    const params = filters.buildNetworkFilterParams();
-
-    toast.promise(analyzeTriadCensus(uploadedFileName, params), {
-      loading: "Analyzing triad census...",
-      success: (data) => {
-        if (data.triad_census) {
-          setTriadCensusData(data);
-          setShowTriadCensus(true);
-          setActiveTab("triadCensus");
-          return "Triad Census analysis completed successfully!";
-        } else {
-          return "No valid triad census data returned from server.";
-        }
-      },
-      error: (error) => {
-        return error?.message || "Error analyzing triad census.";
-      },
-    });
   };
 
   const handleNetworkCustomization = (settings) => {
@@ -1085,21 +1050,6 @@ const NetworkVisualization = ({
             <div className="section-title">Graph Tools</div>
             <div className="settings-group">
               <div className="settings-label mb-2">Analysis</div>
-              {formData.isDirectedGraph && formData.useTriads && (
-                <Button
-                  variant="light"
-                  className={`btn-block mb-2 ${
-                    showTriadCensus ? "active" : ""
-                  }`}
-                  onClick={handleTriadCensusAnalysis}
-                >
-                  <Grid3x3 className="me-2" />
-                  {showTriadCensus
-                    ? "Hide Triad Census"
-                    : "Analyze Triad Census"}
-                </Button>
-              )}
-
               <Button
                 variant="light"
                 className={`btn-block mb-2 ${showDataTable ? "active" : ""}`}
@@ -1174,10 +1124,6 @@ const NetworkVisualization = ({
                       <li>
                         <strong>Activity Filter:</strong> Show only active nodes
                       </li>
-                      <li>
-                        <strong>Triad Census:</strong> Shows patterns of
-                        connections between triplets of nodes
-                      </li>
                     </ul>
                   </Accordion.Body>
                 </Accordion.Item>
@@ -1206,8 +1152,6 @@ const NetworkVisualization = ({
     setFilteredNodes([]);
     setFilteredLinks([]);
     setShowOnlyIntraCommunityLinks(false);
-    setShowTriadCensus(false);
-    setTriadCensusData(null);
     setActivityFilterEnabled(false);
     setActivityThreshold(2);
     setNetworkWasRestored(false);
@@ -1558,14 +1502,6 @@ const NetworkVisualization = ({
                     isDirectedGraph={isDirectedGraph}
                   />
                 </div>
-
-                {showTriadCensus && triadCensusData && (
-                  <div className="px-3 mt-3">
-                    <TriadCensusVisualization
-                      triadCensusData={triadCensusData}
-                    />
-                  </div>
-                )}
 
                 {showDataTable && networkData && (
                   <Modal

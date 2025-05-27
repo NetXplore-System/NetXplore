@@ -103,7 +103,6 @@ const ResearchWizard = () => {
     isAnonymized: false,
     includeMessageContent: true,
     isDirectedGraph: false,
-    useTriads: false,
     useHistoryAlgorithm: false,
     isNormalized: false,
     timeFrame: {
@@ -249,7 +248,6 @@ const ResearchWizard = () => {
     formData.userFilters.activeUsers,
     formData.userFilters.usernameFilter,
     formData.isDirectedGraph,
-    formData.useTriads,
     formData.useHistoryAlgorithm,
     formData.isNormalized,
   ]);
