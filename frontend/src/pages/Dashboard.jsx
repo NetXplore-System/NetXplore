@@ -17,6 +17,8 @@ import {
 } from "react-icons/fa";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { fetchWithAuth } from "../components/utils/ApiService";
+
 import "../styles/Dashboard.css";
 
 const Dashboard = () => {

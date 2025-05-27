@@ -1,6 +1,29 @@
 import { toast } from "sonner";
-
+import { logoutUser } from "../../redux/user/userSlice"; 
+import store from "../../redux/store";
 export const BASE_URL = import.meta.env.VITE_API_URL;
+
+export const fetchWithAuth = async (url, options = {}) => {
+  const token = localStorage.getItem("token");
+
+  const headers = {
+    ...(options.headers || {}),
+    Authorization: `Bearer ${token}`,
+  };
+
+  const response = await fetch(url, { ...options, headers });
+
+  if (response.status === 401 || response.status === 403) {
+    toast.error("Session expired. Please log in again.");
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    store.dispatch(logoutUser());
+    window.location.href = "/#/signin"; 
+    throw new Error("Session expired");
+  }
+
+  return response;
+};
 
 
 export const uploadFile = async (file) => {
