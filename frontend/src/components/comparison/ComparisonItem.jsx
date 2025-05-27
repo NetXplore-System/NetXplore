@@ -218,26 +218,54 @@ const ComparisonItem = ({
     setIsLoadingWikipedia(true);
 
     try {
-      const data = await handleFetchWikipedia(formData.comparisonWikipediaUrl);
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/fetch-wikipedia-data`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ url: formData.comparisonWikipediaUrl }),
+        }
+      );
 
-      if (data?.content) {
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to fetch Wikipedia data");
+      }
+
+      const data = await response.json();
+
+      if (data?.content && data.content.length > 0) {
         setComparisonWikiContent(data.content);
         setComparisonSelectedSection(null);
 
+        const filename = `comparison_wikipedia_data_${index}`;
+
+        await fetch(
+          `${import.meta.env.VITE_API_URL}/save-wikipedia-comparison`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              filename: filename,
+              data: data,
+            }),
+          }
+        );
+
         const updatedData = {
           id: index,
-          name: "New Wikipedia Discussion (No section selected)",
-          filename: `comparison_wikipedia_data_${index}`,
+          name: "Wikipedia Discussion (Please select a section)",
+          filename: filename,
           isWikipediaData: true,
           isOriginalFile: false,
           isAnalyzed: false,
           wikiContent: data.content,
           selectedSection: null,
         };
-
-        if (comparisonData && typeof comparisonData === "object") {
-          Object.assign(comparisonData, updatedData);
-        }
 
         if (useOriginalFile && typeof useOriginalFile === "function") {
           const wikiData = {
@@ -246,7 +274,7 @@ const ComparisonItem = ({
             isWikipediaData: true,
             isOriginalFile: false,
           };
-          useOriginalFile(index, wikiData, updatedData);
+          useOriginalFile(index, wikiData);
         }
 
         setShowPicker(true);
@@ -254,8 +282,13 @@ const ComparisonItem = ({
         toast.success(
           "Wikipedia content loaded successfully! Please select a discussion section."
         );
+      } else {
+        throw new Error(
+          "No valid discussion data found on this Wikipedia page."
+        );
       }
     } catch (error) {
+      console.error("Error loading Wikipedia:", error);
       toast.error("Failed to load Wikipedia content: " + error.message);
     } finally {
       setIsLoadingWikipedia(false);
@@ -268,7 +301,8 @@ const ComparisonItem = ({
     try {
       const filename = comparisonData?.isOriginalFile
         ? "wikipedia_data"
-        : "comparison_wikipedia_data";
+        : `comparison_wikipedia_data_${index}`;
+
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/convert-wikipedia-to-txt`,
         {
@@ -292,10 +326,31 @@ const ComparisonItem = ({
         comparisonData.isAnalyzed = false;
       }
 
-      toast.success(`Section "${section.title}" selected successfully!`);
+      if (onFilterChange) {
+        onFilterChange(index, {
+          ...localFilterSettings,
+          selectedSection: section,
+          filterUpdated: true,
+        });
+      }
 
+      toast.success(`Section "${section.title}" selected successfully!`);
       setShowPicker(false);
+
+      setTimeout(() => {
+        if (accordionRef.current) {
+          const accordionButton =
+            accordionRef.current.querySelector(".accordion-button");
+          if (
+            accordionButton &&
+            accordionButton.classList.contains("collapsed")
+          ) {
+            accordionButton.click();
+          }
+        }
+      }, 100);
     } catch (error) {
+      console.error("Error selecting section:", error);
       toast.error("Failed to convert section: " + error.message);
     }
   };
@@ -310,7 +365,7 @@ const ComparisonItem = ({
         return `Wikipedia: ${comparisonSelectedSection.title}`;
       } else if (comparisonData?.selectedSection) {
         return `Wikipedia: ${comparisonData.selectedSection.title}`;
-      } else if (comparisonData?.isWikipediaData || comparisonWikiContent) {
+      } else if (comparisonWikiContent || comparisonData?.wikiContent) {
         return "Wikipedia Discussion (Please select a section)";
       } else {
         return "No Wikipedia content loaded";
@@ -533,6 +588,10 @@ const ComparisonItem = ({
                     }
                     onSelect={handleSectionSelect}
                     convertToTxt={async (title) => {
+                      const filename = comparisonData?.isOriginalFile
+                        ? "wikipedia_data"
+                        : `comparison_wikipedia_data_${index}`;
+
                       const response = await fetch(
                         `${
                           import.meta.env.VITE_API_URL
@@ -541,9 +600,7 @@ const ComparisonItem = ({
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({
-                            filename: comparisonData?.isOriginalFile
-                              ? "wikipedia_data"
-                              : "comparison_wikipedia_data",
+                            filename: filename,
                             section_title: title,
                           }),
                         }
