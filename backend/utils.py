@@ -1,6 +1,6 @@
 from typing import List, Tuple, Any
 from datetime import datetime
-from collections import defaultdict
+from collections import defaultdict, deque
 import networkx as nx
 import re
 from collections import  defaultdict
@@ -27,29 +27,26 @@ spam_messages = [
     "סרטון הווידאו הושמט",
     "הוחלף למספר חדש. הקש/י כדי לשלוח הודעה או להוסיף מספר חדש.",
     "שם הקבוצה השתנה על ידי",
-    "צירפת את"
-    "הצטרף/ה"
-    "צירף/ה"
-    "התמונה הושמטה"
-    "הודעה זו נמחקה"
-    "צורפת על ידי" 
-    "הקבוצה נוצרה על ידי"
-    "ההודעה נמחקה על ידי"
+    "צירפת את",
+    "הצטרף/ה",
+    "צירף/ה",
+    "התמונה הושמטה",
+    "הודעה זו נמחקה",
+    "צורפת על ידי" ,
+    "הקבוצה נוצרה על ידי",
+    "ההודעה נמחקה על ידי",
     "ההודעות והשיחות מוצפנות מקצה לקצה. לאף אחד מחוץ לצ'אט הזה, גם לא ל-WhatsApp, אין אפשרות לקרוא אותן ולהאזין להן.",
-    "הצטרפת לקבוצה דרך קישור הזמנה של הקבוצה"
+    "הצטרפת לקבוצה דרך קישור הזמנה של הקבוצה",
 ]
 UPLOAD_FOLDER = "./uploads/" 
 
 
 def detect_date_format(first_line: str) -> list[str]:
     if re.search(r"\[\d{1,2}[.]\d{1,2}[.]\d{4},\s\d{2}:\d{2}:\d{2}\]", first_line):
-        # פורמט עברי עם סוגריים מרובעים
         return ["%d.%m.%Y, %H:%M:%S", "%d.%m.%Y, %H:%M"]
     elif re.search(r"\d{1,2}/\d{1,2}/\d{2,4},\s\d{1,2}:\d{2}", first_line):
-        # פורמט אנגלי
         return ["%m/%d/%y, %H:%M", "%m/%d/%Y, %H:%M"]
     else:
-        # פורמט לא מזוהה, נ fallback
         return ["%d/%m/%y, %H:%M", "%d.%m.%Y, %H:%M"]
 
 def parse_date_time(date_str: str | None, time_str: str | None) -> datetime | None:
@@ -144,60 +141,43 @@ def get_network_metrics(original_data, comparison_data, metrics_list):
 
 def calculate_sequential_weights(
     sequence: List[Tuple[str, str]],
-    all_messages: List[str],
     n_prev: int = 3
 ) -> Dict[Tuple[str, str], float]:
+    """Compute decaying edge‑weights for a chronological (sender, message) sequence.
+
+    n_prev = 2  →  weights [0.7, 0.3]
+    n_prev = 3  →  weights [0.5, 0.3, 0.2]
     """
-    Calculate sequential weights for a given sequence of messages, considering all messages.
+    scheme = {2: [0.7, 0.3], 3: [0.5, 0.3, 0.2]}
+    if n_prev not in scheme:
+        raise ValueError("n_prev must be 2 or 3")
+    weights = scheme[n_prev]
 
-    Args:
-        sequence: Filtered list of messages (sender, message_content).
-        all_messages: Complete list of raw message strings.
-        n_prev: Number of previous messages to consider for weight calculation.
+    window: deque = deque(maxlen=n_prev)
+    edge_w: Dict[Tuple[str, str], float] = defaultdict(float)
 
-    Returns:
-        A dictionary with edges as keys and weights as values.
-    """
-    weight_schemes = {2: [0.7, 0.3], 3: [0.5, 0.3, 0.2]}
-    weights = weight_schemes.get(n_prev, [1.0])  # Default to [1.0] if n_prev is not in weight_schemes
-    edge_weights = defaultdict(float)
+    for curr, _ in sequence:
+        seen: set[str] = set()
+        for idx, prev in enumerate(reversed(window)):
+            if prev == curr or prev in seen:
+                continue  # skip self‑loops and duplicates in window
+            edge_w[(prev, curr)] += weights[idx]
+            seen.add(prev)
+        window.append(curr)
 
-    # Parse all_messages into (sender, message_content) tuples
-    parsed_all_messages = []
-    for line in all_messages:
-        try:
-            match = re.search(timestamp_pattern, line)
-            if not match:
-                continue
-            timestamp = match.group()
-            message_part = line.split(timestamp, 1)[1].strip(" -[]")
-            sender, message_content = message_part.split(": ", 1)
-            sender = sender.strip("~").replace("\u202a", "").strip()
-            parsed_all_messages.append((sender, message_content))
-        except Exception as e:
-            logger.error(f"Error parsing line in all_messages: {line.strip()} - {e}")
-            continue
-
-    # Iterate through the filtered sequence
-    for sender, message_content in sequence:
-        # Find the index of the current message in parsed_all_messages by matching content
-        current_index = next(
-            (i for i, (_, content) in enumerate(parsed_all_messages) if content == message_content),
-            None
-        )
-
-        if current_index is not None:
-            # Look back at the previous n_prev messages in parsed_all_messages
-            for i in range(1, n_prev + 1):
-                if current_index - i >= 0:
-                    prior_sender, prior_content = parsed_all_messages[current_index - i]
-                    if prior_sender != sender:
-                        # Add weight for the edge (prior_sender → sender)
-                        edge_weights[(prior_sender, sender)] += weights[i - 1]
-
-    return dict(edge_weights)
+    return dict(edge_w)
 
 
+def normalize_links_by_target(links: List[Dict[str, object]]) -> List[Dict[str, object]]:
+    """Divide each link weight by the sum of incoming weights of its *target* node."""
+    totals: Dict[str, float] = defaultdict(float)
+    for link in links:
+        totals[link["target"]] += link["weight"]
+    for link in links:
+        denom = totals[link["target"]]
+        if denom:
+            link["weight"] = round(link["weight"] / denom, 4)
+    return links
 
 async def extract_data(
     lines: List[str],
@@ -215,8 +195,7 @@ async def extract_data(
     username: str,
     anonymize: bool,
     date_formats: List[str],
-    for_decaying_network: bool = False  
-        
+    for_history_network: bool = False  
 ) -> List[Tuple[str, str]]:
 
     keyword_list = [kw.strip().lower() for kw in keywords.split(",")] if keywords else []
@@ -299,9 +278,9 @@ async def extract_data(
         except Exception as e:
             logger.error(f"Error processing line: {line.strip()} - {e}")
             continue
-        
-        
-    if for_decaying_network:
+
+
+    if for_history_network:
         if limit:
             if limit_type == "last":
                 selected_messages = all_messages[-limit:]
@@ -315,7 +294,7 @@ async def extract_data(
     else:
         if limit:
             if limit_type == "last":
-                selected_messages = all_messages[-limit:][::-1]  # Get last N, then reverse for newest first
+                selected_messages = all_messages[-limit:][::-1]
             else:
                 selected_messages = all_messages[:limit]
         else:
@@ -339,8 +318,8 @@ async def extract_data(
             previous_sender = sender
             
         messages.append((sender, message_content))
-        
-    if for_decaying_network:
+
+    if for_history_network:
         return {"messages": messages, "all_messages": filtered_lines}
     
     filtered_users = {

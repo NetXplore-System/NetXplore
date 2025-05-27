@@ -246,6 +246,7 @@ export const analyzeWikipediaNetwork = async (filename, params) => {
 
 export const saveToDB = async (
   id,
+  token,
   name,
   description,
   file,
@@ -267,10 +268,13 @@ export const saveToDB = async (
     formData.append("platform", platform);
 
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL}/save-research?${params.toString()}`,
+     `${BASE_URL}/save-research?${params.toString()}`,
       {
         method: "POST",
         body: formData,
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       }
     );
     if (!response.ok) {

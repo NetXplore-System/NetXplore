@@ -95,7 +95,12 @@ class ResearchFilter(Base):
     filter_by_username = Column(String, nullable=True)
     anonymize = Column(Boolean, default=False)
     algorithm = Column(String, nullable=True)
-
+    directed = Column(Boolean, default=False)
+    use_triads = Column(Boolean, default=False)
+    use_history = Column(Boolean, default=False)
+    normalize = Column(Boolean, default=False)
+    history_length = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
     def to_dict(self):
         return {
             "filter_id": str(self.filter_id),
@@ -115,33 +120,14 @@ class ResearchFilter(Base):
             "top_active_users": self.top_active_users,
             "limit_type": self.limit_type,
             "algorithm": self.algorithm,
-            "anonymize": self.anonymize
+            "anonymize": self.anonymize,
+            "directed": self.directed,
+            "use_triads": self.use_triads,
+            "use_history": self.use_history,
+            "normalize": self.normalize,
+            "history_length": self.history_length,
+            "created_at": self.created_at.isoformat() if self.created_at else None
         }
-
-
-# class UploadedFile(Base):
-#     __tablename__ = "saved_files"
-
-#     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-#     filename = Column(String, nullable=False)
-#     original_filename = Column(String, nullable=False)
-#     file_path = Column(String, nullable=False)
-#     file_type = Column(String, nullable=False)
-#     uploaded_at = Column(DateTime, default=datetime.utcnow)
-#     user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=True)
-#     research_id = Column(UUID(as_uuid=True), ForeignKey("research.id"), nullable=True)
-
-#     def to_dict(self):
-#         return {
-#             "id": str(self.id),
-#             "filename": self.filename,
-#             "original_filename": self.original_filename,
-#             "file_path": self.file_path,
-#             "file_type": self.file_type,
-#             "uploaded_at": self.uploaded_at.isoformat() if self.uploaded_at else None,
-#             "user_id": str(self.user_id) if self.user_id else None,
-#             "research_id": str(self.research_id) if self.research_id else None
-#         }
 
 
 class NetworkAnalysis(Base):
