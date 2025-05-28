@@ -199,7 +199,8 @@ export const saveToDB = async (
   params,
   selectedMetric = "Degree Centrality",
   comparison,
-  platform = "whatsapp"
+  platform = "whatsapp",
+  communities = []
 ) => {
 
   try {
@@ -212,6 +213,8 @@ export const saveToDB = async (
     formData.append("file_name", file);
     formData.append("selected_metric", selectedMetric);
     formData.append("platform", platform);
+    formData.append("communities", JSON.stringify(communities || []));
+
 
     const response = await fetch(
      `${BASE_URL}/save-research?${params.toString()}`,

@@ -18,6 +18,7 @@ from models import Research, Message, ResearchFilter, NetworkAnalysis, Compariso
 from utils import  extract_data
 from auth_router import get_current_user
 from analysis_router import analyze_network
+import ast
 
 from analyzers.factory import get_analyzer
 
@@ -65,7 +66,8 @@ async def save_research(
     normalize: bool = Query(False),
     history_length: int = Query(3),
     current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    communities: Optional[str] = Form(None),
 ):
     try:
         file_path = os.path.join(UPLOAD_FOLDER, file_name)
@@ -158,13 +160,15 @@ async def save_research(
             history_length=history_length if use_history else None
         )
         db.add(new_filter) 
-
+        parsed_communities = json.loads(communities) if communities not in [None, "", "[]"] else []
         new_analysis = NetworkAnalysis(
             research_id=new_research.research_id,
             nodes=data['nodes'],
             links=data['links'],
             is_connected=data['is_connected'],
-            metric_name=selected_metric
+            metric_name=selected_metric,
+            communities=parsed_communities
+
         )
         db.add(new_analysis)
         await db.commit()

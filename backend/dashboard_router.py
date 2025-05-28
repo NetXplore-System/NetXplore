@@ -33,7 +33,9 @@ async def get_dashboard_data(
             Research.platform,
             Research.created_at,
             NetworkAnalysis.nodes,
-            NetworkAnalysis.links
+            NetworkAnalysis.links,
+            NetworkAnalysis.communities
+
         ).select_from(
             Research.__table__.join(
                 NetworkAnalysis.__table__, 
@@ -48,14 +50,8 @@ async def get_dashboard_data(
         researches = []
         for row in rows:
             nodes_count = len(row.nodes) if row.nodes else 0
-            communities_count = 0
-            
-            if row.nodes:
-                communities = set()
-                for node in row.nodes:
-                    if 'community' in node:
-                        communities.add(node['community'])
-                communities_count = len(communities)
+            communities_count = len(row.communities) if row.communities else 0
+
             
             research_data = {
                 "id": str(row.research_id),

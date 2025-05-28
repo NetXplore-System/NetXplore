@@ -575,7 +575,8 @@ const ResearchWizard = () => {
           hasComparison: comparison.comparisonNetworkData?.length > 0,
           data: comparison.comparisonNetworkData,
         },
-        formData.platform
+        formData.platform,
+        communities
       ),
       {
         loading: "Saving research...",
