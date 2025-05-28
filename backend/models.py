@@ -103,6 +103,12 @@ class ResearchFilter(Base):
     history_length = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(pytz.utc))
     
+    directed = Column(Boolean, default=False)
+    use_triads = Column(Boolean, default=False)
+    use_history = Column(Boolean, default=False)
+    normalize = Column(Boolean, default=False)
+    history_length = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
     def to_dict(self):
         return {
             "filter_id": str(self.filter_id),
@@ -122,6 +128,14 @@ class ResearchFilter(Base):
             "top_active_users": self.top_active_users,
             "limit_type": self.limit_type,
             "algorithm": self.algorithm,
+            "anonymize": self.anonymize,
+            "directed": self.directed,
+            "use_triads": self.use_triads,
+            "use_history": self.use_history,
+            "normalize": self.normalize,
+            "history_length": self.history_length,
+            "created_at": self.created_at.isoformat() if self.created_at else None
+        }
             "anonymize": self.anonymize,
             "directed": self.directed,
             "use_history": self.use_history,
