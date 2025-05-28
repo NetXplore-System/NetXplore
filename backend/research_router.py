@@ -19,6 +19,9 @@ from utils import  extract_data
 from auth_router import get_current_user
 from analysis_router import analyze_network
 
+from analyzers.factory import get_analyzer
+
+
 UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "./uploads/")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -70,13 +73,12 @@ async def save_research(
             logger.error(f"File '{file_name}' not found.")
             raise HTTPException(status_code=404, detail=f"File '{file_name}' not found.")
         
-
-        data = await analyze_network(
+        if platform == "wikipedia" and file_name.endswith(".txt"):
+            file_name = file_name[:-4]
+        
+        analyzer = get_analyzer(platform)
+        data = await analyzer.analyze(
             filename=file_name,
-            start_date=start_date,
-            end_date=end_date,
-            start_time=start_time,
-            end_time=end_time,
             limit=limit,
             limit_type=limit_type,
             min_length=min_length,
@@ -91,18 +93,23 @@ async def save_research(
             directed=directed,
             use_history=use_history,
             normalize=normalize,
+            include_messages=include_messages,
+            start_date=start_date,
+            end_date=end_date,
+            start_time=start_time,
+            end_time=end_time,
             history_length=history_length,
             is_for_save=True
         )
         
-        
-        data = json.loads(data.body)
-        logger.info(f"🔹 Data received from analysis: {data}")
+        data = data if isinstance(data, dict) else json.loads(data.body)
+
+        logger.info(f" Data received from analysis: {data}")
         if not data or "nodes" not in data or "links" not in data:
             logger.error("Invalid data format received from analysis.")
             raise HTTPException(status_code=400, detail="Invalid data format received from analysis.")
         
-        logger.info(f"🔹 Data extracted successfully")
+        logger.info(f" Data extracted successfully")
         
         new_research = Research(
             research_name=research_name,
@@ -115,7 +122,7 @@ async def save_research(
         await db.commit()
         await db.refresh(new_research)
 
-        if include_messages:
+        if include_messages and "messages" in data:
             for message in data["messages"]:
                 new_message = Message(
                     research_id=new_research.research_id,

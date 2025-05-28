@@ -23,7 +23,7 @@ import {
   analyzeNetwork,
   detectCommunities,
   fetchWikipediaData,
-  analyzeWikipediaNetwork,
+  // analyzeWikipediaNetwork,
   detectWikipediaCommunities,
 } from "../components/utils/ApiService";
 import { saveToDB } from "../components/utils/ApiService";
@@ -365,105 +365,97 @@ const ResearchWizard = () => {
       toast.error("No file selected for analysis.");
       return;
     }
-
+  
     const params = filters.buildNetworkFilterParams();
-    setLastAnalysisParams(params.toString());
-
-    const isWikipedia = formData.platform === "wikipedia";
-    const isWhatsApp = formData.platform === "whatsapp";
-
+    const platformParam = `platform=${formData.platform}`;
+    const finalParams = `${params}&${platformParam}`;
+    setLastAnalysisParams(finalParams);
+  
     try {
-      if (isWikipedia) {
-        await fetch(
-          `${import.meta.env.VITE_API_URL}/convert-wikipedia-to-txt`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              filename: formData.uploadedFileName,
-              section_title: selectedSection || "Top",
-            }),
-          }
-        );
+      if (formData.platform === "wikipedia") {
+        await fetch(`${import.meta.env.VITE_API_URL}/convert-wikipedia-to-txt`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            filename: formData.uploadedFileName,
+            section_title: selectedSection || "Top",
+          }),
+        });
+  
+        // toast.promise(analyzeWikipediaNetwork("wikipedia_data", finalParams), {
+          toast.promise(analyzeNetwork("wikipedia_data", finalParams), {
 
-        toast.promise(analyzeWikipediaNetwork("wikipedia_data", params), {
           loading: "Analyzing Wikipedia discussion...",
           success: async (data) => {
             if (data.nodes && data.links) {
               dispatch(clearImages());
-
-              const communityData = await detectWikipediaCommunities(
-                "wikipedia_data",
-                params
-              );
-
+  
+              const communityData = await detectWikipediaCommunities("wikipedia_data", finalParams);
               const nodeCommunities = communityData.node_communities || {};
               const updatedNodes = data.nodes.map((node) => {
                 const community = nodeCommunities[node.id?.toString().trim()];
                 return community !== undefined ? { ...node, community } : node;
               });
-
+  
               data.nodes = updatedNodes;
-
               setNetworkData(data);
               setOriginalNetworkData(data);
               setCommunities(communityData.communities || []);
               setCommunityMap(nodeCommunities);
-
+  
               return "Wikipedia analysis completed successfully!";
             } else {
               return "No data returned from Wikipedia analysis.";
             }
           },
-          error: (error) => {
-            return error?.message || "Error analyzing Wikipedia discussion.";
-          },
+          error: (error) => error?.message || "Error analyzing Wikipedia discussion.",
         });
-      } else if (isWhatsApp) {
+  
+      } else if (formData.platform === "whatsapp") {
         if (hasShownToastRef.current) return;
         hasShownToastRef.current = true;
-
-        toast.promise(analyzeNetwork(formData.uploadedFileName, params), {
+  
+        toast.promise(analyzeNetwork(formData.uploadedFileName, finalParams), {
           loading: "Analyzing WhatsApp network...",
           success: async (data) => {
             if (data.nodes && data.links) {
               dispatch(clearImages());
               setNetworkData(data);
               setOriginalNetworkData(data);
-
-              const communityData = await detectCommunities(
-                formData.uploadedFileName,
-                params
-              );
-
+  
+              const communityData = await detectCommunities(formData.uploadedFileName, finalParams);
               setCommunities(communityData.communities || []);
               setCommunityMap(communityData.node_communities || {});
               setShouldFetchCommunities(true);
-
+  
               return "WhatsApp analysis completed successfully!";
             } else {
               return "No data returned from server.";
             }
           },
-          error: (error) => {
-            return error?.message || "Error analyzing network.";
-          },
+          error: (error) => error?.message || "Error analyzing network.",
         });
+  
       } else {
         toast.error("Unsupported platform selected.");
       }
+  
     } catch (error) {
       console.error("Error during network analysis:", error);
       toast.error("Failed to analyze network.");
     }
   };
-
+  
   const fetchCommunityData = () => {
     if (!formData.uploadedFileName || !networkData) return;
+  
     const params = filters.buildNetworkFilterParams();
-    detectCommunities(formData.uploadedFileName, params)
+    const platformParam = `platform=${formData.platform}`;
+    const finalParams = `${params}&${platformParam}`;
+  
+    detectCommunities(formData.uploadedFileName, finalParams)
       .then((data) => {
         if (data.communities && data.nodes) {
           setCommunities(data.communities);
@@ -473,33 +465,23 @@ const ResearchWizard = () => {
               newCommunityMap[node.id.toString().trim()] = node.community;
             }
           });
-          setCommunities(data.communities || []);
           setCommunityMap(newCommunityMap);
-          if (networkData && networkData.nodes) {
-            const updatedNodes = networkData.nodes.map((node) => {
-              const normalizedId = node.id.toString().trim();
-              const community = newCommunityMap[normalizedId];
-              if (community !== undefined) {
-                return { ...node, community };
-              }
-              return node;
-            });
-            setNetworkData({
-              nodes: updatedNodes,
-              links: networkData.links,
-            });
-            setOriginalNetworkData({
-              nodes: updatedNodes,
-              links: networkData.links,
-            });
-          }
+  
+          const updatedNodes = networkData.nodes.map((node) => {
+            const normalizedId = node.id.toString().trim();
+            const community = newCommunityMap[normalizedId];
+            return community !== undefined ? { ...node, community } : node;
+          });
+  
+          setNetworkData({ nodes: updatedNodes, links: networkData.links });
+          setOriginalNetworkData({ nodes: updatedNodes, links: networkData.links });
         }
       })
       .catch((error) => {
         toast.error(error.message || "Error detecting communities.");
       });
   };
-
+  
   const handleReanalysis = () => {
     if (shouldReanalyze()) {
       setNetworkData(null);

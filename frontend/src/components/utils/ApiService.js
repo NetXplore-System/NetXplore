@@ -124,7 +124,6 @@ export const analyzeDecayingNetwork = async (filename, params) => {
 
 export const detectCommunities = async (filename, params) => {
   try {
-    params.append("algorithm", "louvain");
     const url = `${BASE_URL}/analyze/communities/${filename}?${params.toString()}`;
     console.log("Community detection URL:", url);
 
@@ -140,6 +139,8 @@ export const detectCommunities = async (filename, params) => {
     throw new Error(error || "An error occurred during community detection.");
   }
 };
+
+
 
 export const compareNetworks = async (params) => {
   try {
@@ -188,25 +189,6 @@ export const fetchWikipediaData = async (url) => {
     throw new Error(error.message || "Failed to fetch Wikipedia data.");
   }
 };
-
-export const analyzeWikipediaNetwork = async (filename, params) => {
-  try {
-    const url = `${BASE_URL}/analyze/wikipedia/${filename}?${params.toString()}`;
-    const response = await fetch(url);
-    if (!response.ok) {
-      const { detail } = await response.json();
-      console.error("Error response:", detail);
-      throw new Error(
-        detail || "An error occurred during Wikipedia network analysis."
-      );
-    }
-    return await response.json();
-  } catch (error) {
-    console.error("Error during Wikipedia network analysis:", error);
-    throw new Error("An error occurred during Wikipedia network analysis.");
-  }
-};
-
 
 export const saveToDB = async (
   id,
@@ -276,9 +258,19 @@ export const deleteResearch = async (researchId, token) => {
 }
 
 export const detectWikipediaCommunities = async (filename, params) => {
-  params.append("algorithm", "louvain");
-  const url = `${BASE_URL}/analyze/wikipedia-communities/${filename}?${params.toString()}`;
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(await response.text());
-  return await response.json();
+  try {
+    const url = `${BASE_URL}/analyze/wikipedia-communities/${filename}?${params.toString()}`;
+    console.log("Wikipedia community detection URL:", url);
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error during Wikipedia community detection:", error);
+    throw new Error("An error occurred during Wikipedia community detection.");
+  }
 };
