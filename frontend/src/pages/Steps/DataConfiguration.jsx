@@ -1,11 +1,17 @@
 import React from "react";
-import { Card, Form } from "react-bootstrap";
+import { Card, Form, OverlayTrigger, Tooltip } from "react-bootstrap";
 import { InfoCircle } from "react-bootstrap-icons";
 
-const InfoTooltip = ({ text }) => (
-  <span className="info-tooltip" title={text}>
-    <InfoCircle size={16} className="ms-2" />
-  </span>
+const InfoTooltip = ({ text, id }) => (
+  <OverlayTrigger
+    placement="top"
+    delay={{ show: 250, hide: 400 }}
+    overlay={<Tooltip id={`tooltip-${id}`}>{text}</Tooltip>}
+  >
+    <span className="info-tooltip">
+      <InfoCircle size={16} className="ms-2" />
+    </span>
+  </OverlayTrigger>
 );
 
 const DataConfiguration = ({ formData, handleInputChange }) => {
@@ -18,7 +24,10 @@ const DataConfiguration = ({ formData, handleInputChange }) => {
             <div>
               <Form.Label className="form-label mb-0">
                 Include Message Content
-                <InfoTooltip text="Enable analysis of message text content, not just communication structure" />
+                <InfoTooltip
+                  text="Enable analysis of message text content, not just communication structure"
+                  id="message-content"
+                />
               </Form.Label>
             </div>
             <Form.Check
@@ -42,7 +51,10 @@ const DataConfiguration = ({ formData, handleInputChange }) => {
             <div>
               <Form.Label className="form-label mb-0">
                 Anonymize User Data
-                <InfoTooltip text="Replace real usernames with anonymous identifiers to protect privacy" />
+                <InfoTooltip
+                  text="Replace real usernames with anonymous identifiers to protect privacy"
+                  id="anonymize-data"
+                />
               </Form.Label>
             </div>
             <Form.Check
@@ -66,7 +78,10 @@ const DataConfiguration = ({ formData, handleInputChange }) => {
             <div>
               <Form.Label className="form-label mb-0">
                 Directed Graph
-                <InfoTooltip text="A directed graph shows which user sent messages to whom. An undirected graph only shows that users communicated, without direction." />
+                <InfoTooltip
+                  text="A directed graph shows which user sent messages to whom. An undirected graph only shows that users communicated, without direction."
+                  id="directed-graph"
+                />
               </Form.Label>
             </div>
             <Form.Check
@@ -92,7 +107,10 @@ const DataConfiguration = ({ formData, handleInputChange }) => {
                 <div>
                   <Form.Label className="form-label mb-0">
                     Use History Algorithm
-                    <InfoTooltip text="This algorithm applies historical context to message exchanges, considering timing and sequence for deeper analysis." />
+                    <InfoTooltip
+                      text="This algorithm applies historical context to message exchanges, considering timing and sequence for deeper analysis."
+                      id="history-algorithm"
+                    />
                   </Form.Label>
                 </div>
                 <Form.Check
@@ -114,7 +132,10 @@ const DataConfiguration = ({ formData, handleInputChange }) => {
                 <Form.Group className="mb-4 ms-5">
                   <Form.Label className="form-label mb-0">
                     Message History Length
-                    <InfoTooltip text="Select how many messages back the algorithm should consider in the analysis." />
+                    <InfoTooltip
+                      text="Select how many messages back the algorithm should consider in the analysis."
+                      id="history-length"
+                    />
                   </Form.Label>
                   <Form.Select
                     name="historyLength"
@@ -135,7 +156,10 @@ const DataConfiguration = ({ formData, handleInputChange }) => {
                     <div>
                       <Form.Label className="form-label mb-0">
                         Normalized Algorithm
-                        <InfoTooltip text="Normalize values to account for different activity levels between users, creating a more balanced representation." />
+                        <InfoTooltip
+                          text="Normalize values to account for different activity levels between users, creating a more balanced representation."
+                          id="normalized-algorithm"
+                        />
                       </Form.Label>
                     </div>
                     <Form.Check

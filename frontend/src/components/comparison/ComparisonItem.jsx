@@ -26,6 +26,7 @@ import {
   ChatText,
 } from "react-bootstrap-icons";
 import DiscussionSectionPicker from "../filters/DiscussionSectionPicker";
+import "../../styles/ComparativeAnalysis.css";
 
 const ComparisonItem = ({
   index,
@@ -242,20 +243,6 @@ const ComparisonItem = ({
 
         const filename = `comparison_wikipedia_data_${index}`;
 
-        await fetch(
-          `${import.meta.env.VITE_API_URL}/save-wikipedia-comparison`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              filename: filename,
-              data: data,
-            }),
-          }
-        );
-
         const updatedData = {
           id: index,
           name: "Wikipedia Discussion (Please select a section)",
@@ -273,6 +260,8 @@ const ComparisonItem = ({
             selectedSection: null,
             isWikipediaData: true,
             isOriginalFile: false,
+            filename: filename,
+            rawData: data,
           };
           useOriginalFile(index, wikiData);
         }
@@ -299,9 +288,38 @@ const ComparisonItem = ({
     setComparisonSelectedSection(section);
 
     try {
-      const filename = comparisonData?.isOriginalFile
-        ? "wikipedia_data"
-        : `comparison_wikipedia_data_${index}`;
+      const isOriginalFile = comparisonData?.isOriginalFile;
+      let filename;
+
+      if (isOriginalFile) {
+        filename = "wikipedia_data";
+      } else {
+        filename = `comparison_wikipedia_data_${index}`;
+
+        const wikiContent =
+          comparisonWikiContent || comparisonData?.wikiContent;
+        if (wikiContent) {
+          const tempResponse = await fetch(
+            `${import.meta.env.VITE_API_URL}/fetch-wikipedia-data`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                url: formData.comparisonWikipediaUrl,
+                save_as: filename,
+              }),
+            }
+          );
+
+          if (!tempResponse.ok) {
+            console.warn(
+              "Could not save comparison data, using fallback method"
+            );
+          }
+        }
+      }
 
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/convert-wikipedia-to-txt`,
@@ -317,7 +335,30 @@ const ComparisonItem = ({
 
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.detail || "Failed to convert section to TXT");
+        if (data.detail && data.detail.includes("not found")) {
+          await createComparisonFileFromLocalData(filename, section);
+
+          const retryResponse = await fetch(
+            `${import.meta.env.VITE_API_URL}/convert-wikipedia-to-txt`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                filename: filename,
+                section_title: section.title,
+              }),
+            }
+          );
+
+          const retryData = await retryResponse.json();
+          if (!retryResponse.ok) {
+            throw new Error(
+              retryData.detail || "Failed to convert section to TXT"
+            );
+          }
+        } else {
+          throw new Error(data.detail || "Failed to convert section to TXT");
+        }
       }
 
       if (comparisonData) {
@@ -352,6 +393,43 @@ const ComparisonItem = ({
     } catch (error) {
       console.error("Error selecting section:", error);
       toast.error("Failed to convert section: " + error.message);
+    }
+  };
+
+  const createComparisonFileFromLocalData = async (filename, section) => {
+    try {
+      const wikiContent = comparisonWikiContent || comparisonData?.wikiContent;
+      if (!wikiContent) {
+        throw new Error("No Wikipedia content available");
+      }
+
+      const dataStructure = {
+        content: [
+          {
+            sections: wikiContent,
+          },
+        ],
+      };
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/create-temp-wikipedia-file`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            filename: filename,
+            data: dataStructure,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        console.warn("Could not create temporary file on server");
+      }
+    } catch (error) {
+      console.warn("Error creating comparison file:", error);
     }
   };
 
@@ -394,7 +472,7 @@ const ComparisonItem = ({
     >
       <Card.Body>
         <Row className="align-items-center">
-          <Col md={7}>
+          <Col md={8}>
             <div className="d-flex align-items-center">
               <h5 className="mb-0">Comparison #{index + 1}</h5>
               {hasActiveFilters && (
@@ -421,151 +499,218 @@ const ComparisonItem = ({
             </div>
             <p className="text-muted mb-0 mt-1">{getDataDisplayName()}</p>
           </Col>
-          <Col md={5} className="d-flex justify-content-end align-items-center">
+          <Col md={4} className="d-flex justify-content-end align-items-start">
             {platform === "wikipedia" ? (
-              <div className="d-flex flex-column w-100">
-                <Button
-                  variant="outline-primary"
-                  className="mb-2"
-                  onClick={handleUseOriginalFile}
-                  disabled={!wikiContent}
-                >
-                  Use Original Wikipedia Discussion
-                </Button>
+              <div className="comparison-actions-container w-100">
+                <div className="mb-2">
+                  <Button
+                    variant="light"
+                    size="sm"
+                    onClick={handleUseOriginalFile}
+                    disabled={!wikiContent}
+                    className="w-100"
+                  >
+                    Use Original Wikipedia Discussion
+                  </Button>
+                </div>
 
-                <Form.Control
-                  type="text"
-                  placeholder="Paste new Wikipedia URL"
-                  value={formData.comparisonWikipediaUrl || ""}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      comparisonWikipediaUrl: e.target.value,
-                    }))
-                  }
-                  className="mb-2"
-                />
-
-                <Button
-                  variant="secondary"
-                  onClick={handleLoadNewWikipediaUrl}
-                  disabled={isLoadingWikipedia}
-                  className="mb-2"
-                >
-                  {isLoadingWikipedia ? (
-                    <>
+                <div className="d-flex gap-2 mb-2">
+                  <Form.Control
+                    type="text"
+                    size="sm"
+                    placeholder="Paste new Wikipedia URL"
+                    value={formData.comparisonWikipediaUrl || ""}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        comparisonWikipediaUrl: e.target.value,
+                      }))
+                    }
+                    className="flex-grow-1"
+                  />
+                  <Button
+                    variant="light"
+                    size="sm"
+                    onClick={handleLoadNewWikipediaUrl}
+                    disabled={isLoadingWikipedia}
+                    style={{ minWidth: "70px" }}
+                  >
+                    {isLoadingWikipedia ? (
                       <Spinner
                         as="span"
                         animation="border"
                         size="sm"
                         role="status"
                         aria-hidden="true"
-                        className="me-1"
                       />
-                      Loading...
-                    </>
-                  ) : (
-                    <>Load New Wikipedia URL</>
-                  )}
-                </Button>
+                    ) : (
+                      "Load"
+                    )}
+                  </Button>
+                </div>
 
                 {(comparisonWikiContent ||
                   comparisonData?.wikiContent ||
                   comparisonData?.isWikipediaData) && (
-                  <Button
-                    variant="outline-info"
-                    onClick={() => setShowPicker(true)}
-                    className="mb-2"
-                  >
-                    <ChatText className="me-1" size={16} />
-                    {comparisonSelectedSection ||
-                    comparisonData?.selectedSection
-                      ? "Change Discussion Section"
-                      : "Select Discussion Section"}
-                  </Button>
+                  <div className="mb-2">
+                    <Button
+                      variant="light"
+                      size="sm"
+                      onClick={() => setShowPicker(true)}
+                      className="w-100"
+                    >
+                      <ChatText className="me-1" size={14} />
+                      {comparisonSelectedSection ||
+                      comparisonData?.selectedSection
+                        ? "Change Discussion Section"
+                        : "Select Discussion Section"}
+                    </Button>
+                  </div>
+                )}
+
+                {hasValidData() && (
+                  <div className="d-flex align-items-center gap-2">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => {
+                        const isWikipediaData =
+                          comparisonData?.isWikipediaData ||
+                          platform === "wikipedia";
+                        onAnalyzeNetwork(
+                          index,
+                          localFilterSettings,
+                          isWikipediaData
+                        );
+                      }}
+                      disabled={isAnalyzing}
+                      className="flex-grow-1"
+                    >
+                      {isAnalyzing ? (
+                        <>
+                          <Spinner
+                            as="span"
+                            animation="border"
+                            size="sm"
+                            role="status"
+                            aria-hidden="true"
+                            className="me-1"
+                          />
+                          Analyzing...
+                        </>
+                      ) : (
+                        <>
+                          <Lightning className="me-1" size={14} />
+                          Analyze
+                        </>
+                      )}
+                    </Button>
+                    <Form.Check
+                      type="switch"
+                      id={`comparison-toggle-${index}`}
+                      checked={isActive}
+                      onChange={onToggleActive}
+                      label=""
+                      title={
+                        isActive ? "Hide from comparison" : "Show in comparison"
+                      }
+                    />
+                  </div>
                 )}
               </div>
             ) : (
-              <Dropdown className="me-2">
-                <Dropdown.Toggle variant="light" id={`file-dropdown-${index}`}>
-                  <FileEarmark size={16} className="me-1" /> Select File
-                </Dropdown.Toggle>
+              <div className="comparison-actions-container w-100">
+                <div className="mb-2">
+                  <Dropdown className="w-100">
+                    <Dropdown.Toggle
+                      variant="outline-secondary"
+                      size="sm"
+                      id={`file-dropdown-${index}`}
+                      className="w-100 d-flex align-items-center justify-content-between"
+                    >
+                      <span>
+                        <FileEarmark size={14} className="me-1" />
+                        Select File
+                      </span>
+                    </Dropdown.Toggle>
 
-                <Dropdown.Menu>
-                  <Dropdown.Item
-                    onClick={() =>
-                      document.getElementById(`compFile${index}`).click()
-                    }
-                  >
-                    <Upload size={14} className="me-1" /> Upload New File
-                  </Dropdown.Item>
+                    <Dropdown.Menu className="w-100">
+                      <Dropdown.Item
+                        onClick={() =>
+                          document.getElementById(`compFile${index}`).click()
+                        }
+                      >
+                        <Upload size={14} className="me-1" /> Upload New File
+                      </Dropdown.Item>
 
-                  {originalFileName && (
-                    <Dropdown.Item onClick={handleUseOriginalFile}>
-                      <FileEarmark size={14} className="me-1" /> Use Original
-                      File: {originalFileName}
-                    </Dropdown.Item>
-                  )}
-                </Dropdown.Menu>
-              </Dropdown>
-            )}
+                      {originalFileName && (
+                        <Dropdown.Item onClick={handleUseOriginalFile}>
+                          <FileEarmark size={14} className="me-1" /> Use
+                          Original File
+                        </Dropdown.Item>
+                      )}
+                    </Dropdown.Menu>
+                  </Dropdown>
+                </div>
 
-            <input
-              type="file"
-              id={`compFile${index}`}
-              style={{ display: "none" }}
-              accept=".txt,.csv,.json"
-              onChange={(e) => onFileUpload(e, index)}
-            />
+                {hasValidData() && (
+                  <div className="d-flex align-items-center gap-2">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => {
+                        const isWikipediaData =
+                          comparisonData?.isWikipediaData ||
+                          platform === "wikipedia";
+                        onAnalyzeNetwork(
+                          index,
+                          localFilterSettings,
+                          isWikipediaData
+                        );
+                      }}
+                      disabled={isAnalyzing}
+                      className="flex-grow-1"
+                    >
+                      {isAnalyzing ? (
+                        <>
+                          <Spinner
+                            as="span"
+                            animation="border"
+                            size="sm"
+                            role="status"
+                            aria-hidden="true"
+                            className="me-1"
+                          />
+                          Analyzing...
+                        </>
+                      ) : (
+                        <>
+                          <Lightning className="me-1" size={14} />
+                          Analyze
+                        </>
+                      )}
+                    </Button>
+                    <Form.Check
+                      type="switch"
+                      id={`comparison-toggle-${index}`}
+                      checked={isActive}
+                      onChange={onToggleActive}
+                      label=""
+                      title={
+                        isActive ? "Hide from comparison" : "Show in comparison"
+                      }
+                    />
+                  </div>
+                )}
 
-            {hasValidData() && (
-              <>
-                <Button
-                  variant="primary"
-                  className="me-2"
-                  onClick={() => {
-                    const isWikipediaData =
-                      comparisonData?.isWikipediaData ||
-                      platform === "wikipedia";
-                    onAnalyzeNetwork(
-                      index,
-                      localFilterSettings,
-                      isWikipediaData
-                    );
-                  }}
-                  disabled={isAnalyzing}
-                >
-                  {isAnalyzing ? (
-                    <>
-                      <Spinner
-                        as="span"
-                        animation="border"
-                        size="sm"
-                        role="status"
-                        aria-hidden="true"
-                        className="me-1"
-                      />
-                      Analyzing...
-                    </>
-                  ) : (
-                    <>
-                      <Lightning className="me-1" /> Analyze
-                    </>
-                  )}
-                </Button>
-
-                <Form.Check
-                  type="switch"
-                  id={`comparison-toggle-${index}`}
-                  checked={isActive}
-                  onChange={onToggleActive}
-                  label=""
-                  className="ms-1"
-                  title={
-                    isActive ? "Hide from comparison" : "Show in comparison"
-                  }
+                <input
+                  type="file"
+                  id={`compFile${index}`}
+                  style={{ display: "none" }}
+                  accept=".txt,.csv,.json"
+                  onChange={(e) => onFileUpload(e, index)}
                 />
-              </>
+              </div>
             )}
           </Col>
         </Row>
@@ -588,31 +733,71 @@ const ComparisonItem = ({
                     }
                     onSelect={handleSectionSelect}
                     convertToTxt={async (title) => {
-                      const filename = comparisonData?.isOriginalFile
+                      const isOriginalFile = comparisonData?.isOriginalFile;
+                      const filename = isOriginalFile
                         ? "wikipedia_data"
                         : `comparison_wikipedia_data_${index}`;
 
-                      const response = await fetch(
-                        `${
-                          import.meta.env.VITE_API_URL
-                        }/convert-wikipedia-to-txt`,
-                        {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            filename: filename,
-                            section_title: title,
-                          }),
-                        }
-                      );
-
-                      const data = await response.json();
-                      if (!response.ok)
-                        throw new Error(
-                          data.detail || "Failed to convert section to TXT"
+                      try {
+                        const response = await fetch(
+                          `${
+                            import.meta.env.VITE_API_URL
+                          }/convert-wikipedia-to-txt`,
+                          {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              filename: filename,
+                              section_title: title,
+                            }),
+                          }
                         );
 
-                      return data;
+                        const data = await response.json();
+
+                        if (!response.ok) {
+                          if (
+                            data.detail &&
+                            data.detail.includes("not found")
+                          ) {
+                            await createComparisonFileFromLocalData(filename, {
+                              title,
+                            });
+
+                            const retryResponse = await fetch(
+                              `${
+                                import.meta.env.VITE_API_URL
+                              }/convert-wikipedia-to-txt`,
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  filename: filename,
+                                  section_title: title,
+                                }),
+                              }
+                            );
+
+                            const retryData = await retryResponse.json();
+                            if (!retryResponse.ok) {
+                              throw new Error(
+                                retryData.detail ||
+                                  "Failed to convert section to TXT"
+                              );
+                            }
+                            return retryData;
+                          } else {
+                            throw new Error(
+                              data.detail || "Failed to convert section to TXT"
+                            );
+                          }
+                        }
+
+                        return data;
+                      } catch (error) {
+                        console.error("Error in convertToTxt:", error);
+                        throw error;
+                      }
                     }}
                   />
                 ) : (

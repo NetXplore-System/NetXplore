@@ -105,7 +105,7 @@ const ComparativeAnalysis = ({
       updatedData[index] = {
         ...updatedData[index],
         ...newFilters,
-        filterUpdated: undefined, 
+        filterUpdated: undefined,
       };
       setComparisonData(updatedData);
     }
@@ -200,21 +200,43 @@ const ComparativeAnalysis = ({
 
   const useOriginalFile = (index, wikiData = null) => {
     if (platform === "wikipedia") {
-      const updatedData = {
-        id: index,
-        name: selectedSection
-          ? `Original Wikipedia: ${selectedSection.title}`
-          : "Original Wikipedia Discussion",
-        filename: "wikipedia_data",
-        isWikipediaData: true,
-        isOriginalFile: wikiData ? false : true, 
-        isAnalyzed: false,
-        wikiContent: wikiData ? wikiData.content : wikiContent,
-        selectedSection: wikiData ? wikiData.selectedSection : selectedSection,
-      };
+      let updatedData;
+
+      if (wikiData) {
+        updatedData = {
+          id: index,
+          name: wikiData.selectedSection
+            ? `Wikipedia: ${wikiData.selectedSection.title}`
+            : "Wikipedia Discussion (Please select a section)",
+          filename: wikiData.filename || `comparison_wikipedia_data_${index}`,
+          isWikipediaData: true,
+          isOriginalFile: false,
+          isAnalyzed: false,
+          wikiContent: wikiData.content,
+          selectedSection: wikiData.selectedSection,
+          rawData: wikiData.rawData, 
+        };
+
+        comparisonFiles[index] =
+          wikiData.filename || `comparison_wikipedia_data_${index}`;
+      } else {
+        updatedData = {
+          id: index,
+          name: selectedSection
+            ? `Original Wikipedia: ${selectedSection.title}`
+            : "Original Wikipedia Discussion",
+          filename: "wikipedia_data",
+          isWikipediaData: true,
+          isOriginalFile: true,
+          isAnalyzed: false,
+          wikiContent: wikiContent,
+          selectedSection: selectedSection,
+        };
+
+        comparisonFiles[index] = "wikipedia_data";
+      }
 
       comparisonData[index] = updatedData;
-      comparisonFiles[index] = "wikipedia_data";
     } else {
       const updatedData = {
         name: uploadedFileName,

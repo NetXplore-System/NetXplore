@@ -50,9 +50,7 @@ import NetworkGraph from "../../components/network/NetworkGraph";
 import NetworkDataTable from "../../components/NetworkDataTable";
 import { graphMetrics } from "../../constants/graphMetrics";
 
-import {
-  detectCommunities,
-} from "../../components/utils/ApiService";
+import { detectCommunities } from "../../components/utils/ApiService";
 
 import "../../styles/NetworkVisualization.css";
 
@@ -937,6 +935,17 @@ const NetworkVisualization = ({
                   {showDiameter ? "Hide Diameter" : "Show Diameter"}
                 </Button>
               </div>
+              <div className="section-subtitle">Analysis</div>
+              <div className="metrics-buttons">
+                <Button
+                  variant="light"
+                  className={`btn-block mb-2 ${showDataTable ? "active" : ""}`}
+                  onClick={() => setShowDataTable(!showDataTable)}
+                >
+                  <Table className="me-2" />
+                  {showDataTable ? "Hide Data Table" : "Show Data Table"}
+                </Button>
+              </div>
             </div>
           </div>
         );
@@ -1043,25 +1052,6 @@ const NetworkVisualization = ({
             </div>
           </div>
         );
-
-      case "settings":
-        return (
-          <div className="section-content">
-            <div className="section-title">Graph Tools</div>
-            <div className="settings-group">
-              <div className="settings-label mb-2">Analysis</div>
-              <Button
-                variant="light"
-                className={`btn-block mb-2 ${showDataTable ? "active" : ""}`}
-                onClick={() => setShowDataTable(!showDataTable)}
-              >
-                <Table className="me-2" />
-                {showDataTable ? "Hide Data Table" : "Show Data Table"}
-              </Button>
-            </div>
-          </div>
-        );
-
       case "help":
         return (
           <div className="section-content">
@@ -1264,20 +1254,6 @@ const NetworkVisualization = ({
                     </Button>
 
                     <Button
-                      variant={
-                        activeSection === "settings" ? "primary" : "light"
-                      }
-                      className="icon-btn"
-                      onClick={() => {
-                        setActiveSection("settings");
-                        setSidebarCollapsed(false);
-                      }}
-                      title="Settings"
-                    >
-                      <GearFill />
-                    </Button>
-
-                    <Button
                       variant={activeSection === "help" ? "primary" : "light"}
                       className="icon-btn"
                       onClick={() => {
@@ -1337,17 +1313,6 @@ const NetworkVisualization = ({
                         <Diagram3Fill className="me-1" /> Refinement
                       </Button>
 
-                      <Button
-                        variant={
-                          activeSection === "settings"
-                            ? "primary"
-                            : "outline-secondary"
-                        }
-                        className="me-1 mb-1"
-                        onClick={() => setActiveSection("settings")}
-                      >
-                        <GearFill className="me-1" /> Settings
-                      </Button>
                       <Button
                         variant={
                           activeSection === "help"
