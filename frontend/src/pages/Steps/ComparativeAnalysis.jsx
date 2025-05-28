@@ -27,6 +27,14 @@ const ComparativeAnalysis = ({
   comparison,
   filters,
   uploadedFileName,
+  platform,
+  formData,
+  setFormData,
+  wikiContent,
+  setWikiContent,
+  selectedSection,
+  setSelectedSection,
+  handleFetchWikipedia,
 }) => {
   const dispatch = useDispatch();
   const [message, setMessage] = useState("");
@@ -91,6 +99,16 @@ const ComparativeAnalysis = ({
     updatedFilterSettings[index] = newFilters;
     setLocalFilterSettings(updatedFilterSettings);
     checkActiveFilters(index, newFilters);
+
+    if (newFilters.filterUpdated) {
+      const updatedData = [...comparisonData];
+      updatedData[index] = {
+        ...updatedData[index],
+        ...newFilters,
+        filterUpdated: undefined,
+      };
+      setComparisonData(updatedData);
+    }
   };
 
   const checkActiveFilters = (index, filters) => {
@@ -107,9 +125,24 @@ const ComparativeAnalysis = ({
     }));
   };
 
-  const handleAnalyzeNetwork = (index, itemFilters) => {
+  const handleAnalyzeNetwork = (
+    index,
+    itemFilters,
+    isWikipediaData = false
+  ) => {
     setIsAnalyzing(true);
-    return analyzeComparisonNetwork(index, null, itemFilters)
+
+    const actualIsWikipediaData =
+      isWikipediaData ||
+      comparisonData[index]?.isWikipediaData ||
+      platform === "wikipedia";
+
+    return analyzeComparisonNetwork(
+      index,
+      null,
+      itemFilters,
+      actualIsWikipediaData
+    )
       .then((result) => {
         if (result && result.success) {
           setMessage(result.message || "Network analyzed successfully");
@@ -165,16 +198,56 @@ const ComparativeAnalysis = ({
     setExpandedView(!expandedView);
   };
 
-  const useOriginalFile = (index) => {
-    const updatedData = {
-      name: uploadedFileName,
-      filename: uploadedFileName,
-      isOriginalFile: true,
-      isAnalyzed: false,
-    };
+  const useOriginalFile = (index, wikiData = null) => {
+    if (platform === "wikipedia") {
+      let updatedData;
 
-    comparisonData[index] = updatedData;
-    comparisonFiles[index] = uploadedFileName;
+      if (wikiData) {
+        updatedData = {
+          id: index,
+          name: wikiData.selectedSection
+            ? `Wikipedia: ${wikiData.selectedSection.title}`
+            : "Wikipedia Discussion (Please select a section)",
+          filename: wikiData.filename || `comparison_wikipedia_data_${index}`,
+          isWikipediaData: true,
+          isOriginalFile: false,
+          isAnalyzed: false,
+          wikiContent: wikiData.content,
+          selectedSection: wikiData.selectedSection,
+          rawData: wikiData.rawData, 
+        };
+
+        comparisonFiles[index] =
+          wikiData.filename || `comparison_wikipedia_data_${index}`;
+      } else {
+        updatedData = {
+          id: index,
+          name: selectedSection
+            ? `Original Wikipedia: ${selectedSection.title}`
+            : "Original Wikipedia Discussion",
+          filename: "wikipedia_data",
+          isWikipediaData: true,
+          isOriginalFile: true,
+          isAnalyzed: false,
+          wikiContent: wikiContent,
+          selectedSection: selectedSection,
+        };
+
+        comparisonFiles[index] = "wikipedia_data";
+      }
+
+      comparisonData[index] = updatedData;
+    } else {
+      const updatedData = {
+        name: uploadedFileName,
+        filename: uploadedFileName,
+        isOriginalFile: true,
+        isAnalyzed: false,
+      };
+
+      comparisonData[index] = updatedData;
+      comparisonFiles[index] = uploadedFileName;
+    }
 
     updateComparisonFilterSettings(index, {
       timeFrame: {
@@ -195,6 +268,16 @@ const ComparativeAnalysis = ({
     setComparisonFiles([...comparisonFiles]);
   };
 
+  const handleWikipediaFetch = async (url) => {
+    try {
+      const data = await handleFetchWikipedia(url);
+      return data;
+    } catch (error) {
+      console.error("Error fetching Wikipedia data:", error);
+      throw error;
+    }
+  };
+
   return (
     <Card className="research-card">
       <Card.Body>
@@ -211,9 +294,10 @@ const ComparativeAnalysis = ({
         <Alert variant="info" className="d-flex align-items-start mb-4">
           <InfoCircle size={20} className="me-2 mt-1" />
           <div>
-            <strong>Pro tip:</strong> For time-series analysis, reuse the
-            original dataset with different time filters to compare how the
-            network evolves over time.
+            <strong>Pro tip:</strong>
+            {platform === "wikipedia"
+              ? " For Wikipedia analysis, you can compare different discussion sections from the same page or different Wikipedia pages to see how discussions vary."
+              : " For time-series analysis, reuse the original dataset with different time filters to compare how the network evolves over time."}
           </div>
         </Alert>
 
@@ -238,8 +322,9 @@ const ComparativeAnalysis = ({
               </div>
               <h5>No comparison files added yet</h5>
               <p className="text-muted mb-3">
-                Add a comparison file to start analyzing differences between
-                networks
+                {platform === "wikipedia"
+                  ? "Add a comparison to analyze different Wikipedia discussions or sections"
+                  : "Add a comparison file to start analyzing differences between networks"}
               </p>
               <Button variant="primary" onClick={handleAddComparison}>
                 <PlusCircle className="me-2" /> Add Comparison File
@@ -266,6 +351,14 @@ const ComparativeAnalysis = ({
                   hasActiveFilters={activeFilters[index]}
                   originalFileName={uploadedFileName}
                   useOriginalFile={useOriginalFile}
+                  platform={platform}
+                  formData={formData}
+                  setFormData={setFormData}
+                  wikiContent={wikiContent}
+                  setWikiContent={setWikiContent}
+                  selectedSection={selectedSection}
+                  setSelectedSection={setSelectedSection}
+                  handleFetchWikipedia={handleWikipediaFetch}
                 />
               ))}
             </div>
@@ -298,7 +391,9 @@ const ComparativeAnalysis = ({
             <h5>No active comparisons to visualize</h5>
             <p className="text-muted mb-3">
               {comparisonCount === 0
-                ? "Add and analyze comparison files first"
+                ? platform === "wikipedia"
+                  ? "Add and analyze Wikipedia discussions first"
+                  : "Add and analyze comparison files first"
                 : "Analyze files and mark them as active for comparison"}
             </p>
           </Alert>

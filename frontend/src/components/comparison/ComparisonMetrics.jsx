@@ -146,7 +146,7 @@ const ComparisonMetrics = ({
         if (data && data.nodes && data.links) {
           return (
             <Col md={12} key={index}>
-              <Card className="mt-3 mb-3">
+              <Card className="graph-card">
                 <Card.Header className="d-flex justify-content-between align-items-center">
                   <span>
                     Comparison #{index + 1}: {comparisonData[index]?.name || ""}
@@ -170,8 +170,8 @@ const ComparisonMetrics = ({
       {activeComparisonIndices.length > 0 && originalNetworkData && (
         <>
           <Row className="mt-4">
-            <Card>
-              <Card.Header>
+            <Card className="graph-card">
+              <Card.Header className="d-flex justify-content-between align-items-center">
                 <h5 className="fw-bold">Network Comparison View</h5>
               </Card.Header>
               <Card.Body>
@@ -221,36 +221,44 @@ const ComparisonMetrics = ({
                     <Card className="graph-card">
                       <Card.Header className="d-flex justify-content-between align-items-center">
                         <h5 className="mb-0">Original Network</h5>
-                        <Button
-                          variant="outline-primary"
-                          size="sm"
-                          onClick={(e) =>
-                            handleScreenshot(
-                              e,
-                              true,
-                              activeComparisonIndices.length
-                            )
+                        <OverlayTrigger
+                          placement="top"
+                          delay={{ show: 250, hide: 400 }}
+                          overlay={
+                            <Tooltip id={`capture-tooltip`}>
+                              Capture and save the current comparison
+                              visualization as an image
+                            </Tooltip>
                           }
                         >
-                          <FileEarmarkCheck className="me-1" /> Capture
-                        </Button>
+                          <Button
+                            variant="outline-primary"
+                            size="sm"
+                            onClick={(e) =>
+                              handleScreenshot(
+                                e,
+                                true,
+                                activeComparisonIndices.length
+                              )
+                            }
+                          >
+                            <FileEarmarkCheck className="me-1" /> Capture
+                          </Button>
+                        </OverlayTrigger>
                       </Card.Header>
                       <Card.Body className="p-0 position-relative">
-                        <div className="graph-container">
-                          <ComparisonGraph
-                            graphData={
-                              filteredOriginalData || originalNetworkData
-                            }
-                            title="Original Network"
-                            width={
-                              activeComparisonIndices.length > 1 ? 1000 : 600
-                            }
-                            height={500}
-                            comparisonMetrics={
-                              comparisonMetric ? [comparisonMetric] : []
-                            }
-                          />
-                        </div>
+                        <ComparisonGraph
+                          graphData={
+                            filteredOriginalData || originalNetworkData
+                          }
+                          width={
+                            activeComparisonIndices.length > 1 ? 1000 : 600
+                          }
+                          height={500}
+                          comparisonMetrics={
+                            comparisonMetric ? [comparisonMetric] : []
+                          }
+                        />
                       </Card.Body>
                     </Card>
                   </Col>
@@ -268,16 +276,30 @@ const ComparisonMetrics = ({
                             {comparisonData[index]?.name || ""}
                           </h5>
                           <div>
-                            <Button
-                              variant="outline-primary"
-                              size="sm"
-                              className="me-1"
-                              onClick={(e) =>
-                                handleScreenshot(e, false, index, i)
+                            <OverlayTrigger
+                              placement="top"
+                              delay={{ show: 250, hide: 400 }}
+                              overlay={
+                                <Tooltip id={`capture-tooltip`}>
+                                  Capture and save the current comparison
+                                  visualization as an image
+                                </Tooltip>
                               }
                             >
-                              <FileEarmarkCheck className="me-1" /> Capture
-                            </Button>
+                              <Button
+                                variant="outline-primary"
+                                size="sm"
+                                onClick={(e) =>
+                                  handleScreenshot(
+                                    e,
+                                    true,
+                                    activeComparisonIndices.length
+                                  )
+                                }
+                              >
+                                <FileEarmarkCheck className="me-1" /> Capture
+                              </Button>
+                            </OverlayTrigger>
                             <Button
                               variant="outline-secondary"
                               size="sm"
@@ -297,26 +319,23 @@ const ComparisonMetrics = ({
                           </div>
                         </Card.Header>
                         <Card.Body className="p-0 position-relative">
-                          <div className="graph-container">
-                            <ComparisonGraph
-                              graphData={
-                                filteredComparisonData &&
-                                filteredComparisonData[index]
-                                  ? filteredComparisonData[index]
-                                  : comparisonNetworkData[index]
-                              }
-                              title={`Comparison Network #${index + 1}`}
-                              width={
-                                activeComparisonIndices.length > 2 ? 600 : 600
-                              }
-                              height={500}
-                              isComparisonGraph={true}
-                              comparisonMetrics={
-                                comparisonMetric ? [comparisonMetric] : []
-                              }
-                              graphIndex={index}
-                            />
-                          </div>
+                          <ComparisonGraph
+                            graphData={
+                              filteredComparisonData &&
+                              filteredComparisonData[index]
+                                ? filteredComparisonData[index]
+                                : comparisonNetworkData[index]
+                            }
+                            width={
+                              activeComparisonIndices.length > 2 ? 600 : 600
+                            }
+                            height={500}
+                            isComparisonGraph={true}
+                            comparisonMetrics={
+                              comparisonMetric ? [comparisonMetric] : []
+                            }
+                            graphIndex={index}
+                          />
                         </Card.Body>
                       </Card>
                     </Col>
@@ -327,8 +346,8 @@ const ComparisonMetrics = ({
           </Row>
 
           <Row className="mt-4 mb-4">
-            <Card>
-              <Card.Header>
+            <Card className="graph-card">
+              <Card.Header className="d-flex justify-content-between align-items-center">
                 <h5 className="fw-bold">
                   <FileBarGraph className="me-2" /> Comparison Statistics
                 </h5>

@@ -124,7 +124,7 @@ async def analyze_network(
         raise HTTPException(status_code=404, detail=f"TXT file {txt_path} not found.")
 
     try:
-        from utils import parse_date_time  # ודא שהפונקציה קיימת ב-utils
+        from utils import parse_date_time  
         start_datetime = parse_date_time(start_date, start_time)
         end_datetime = parse_date_time(end_date, end_time)
     except Exception:
@@ -309,7 +309,6 @@ def process_wiki_talk_page(html_content):
             username, timestamp = extract_user_and_timestamp(html)
 
             if username and timestamp:
-                # comment_text = re.sub(r'\s*' + re.escape(username) + r'.*$', '', text)
                 comment_text = text  
                 opinion = analyze_comment_for_opinion(comment_text)
                 current_section["opinion_count"][opinion] += 1
@@ -690,7 +689,6 @@ def build_graph_from_txt(
 
     filtered_lines = []
 
-    # Parse date/time filters once
     start_dt = parse_date_time(start_date, start_time) if start_date or start_time else None
     end_dt = parse_date_time(end_date, end_time) if end_date or end_time else None
 
@@ -716,14 +714,13 @@ def build_graph_from_txt(
                 if (start_dt and message_dt < start_dt) or (end_dt and message_dt > end_dt):
                     continue
             except:
-                pass  # Skip invalid timestamps
+                pass   
 
             if username and username.strip().lower() != user.lower():
                 continue
 
             filtered_lines.append((user, text))
 
-    # Apply limit
     if limit and limit > 0:
         if limit_type == "last":
             filtered_lines = filtered_lines[-limit:]
@@ -731,7 +728,7 @@ def build_graph_from_txt(
             import random
             random.shuffle(filtered_lines)
             filtered_lines = filtered_lines[:limit]
-        else:  # first
+        else:  
             filtered_lines = filtered_lines[:limit]
 
     previous_user = None
@@ -751,7 +748,6 @@ def build_graph_from_txt(
             edges_counter[edge] += 1
         previous_user = user
 
-    # Apply message count filters
     if min_messages or max_messages or active_users or selected_users:
         filtered_users = {u: c for u, c in user_message_count.items()
                           if (not min_messages or c >= min_messages) and
@@ -767,7 +763,6 @@ def build_graph_from_txt(
 
         usernames = set(filtered_users.keys())
 
-    # Build graph
     G = nx.Graph()
     G.add_nodes_from(usernames)
 

@@ -23,9 +23,11 @@ const DiscussionSectionPicker = ({
 
     try {
       const result = await convertToTxt(section.title);
-      console.log("TXT file created:", result.path);
+      if (result?.filename) {
+        console.log("Created:", result.filename);
+      }
     } catch (err) {
-      console.error("Error converting JSON to TXT:", err);
+      console.error("Error converting section to TXT:", err);
     }
   };
 

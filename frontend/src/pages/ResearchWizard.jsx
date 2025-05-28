@@ -69,7 +69,6 @@ const ResearchWizard = () => {
     isAnonymized: false,
     includeMessageContent: true,
     isDirectedGraph: false,
-    useTriads: false,
     useHistoryAlgorithm: false,
     isNormalized: false,
     timeFrame: {
@@ -182,23 +181,13 @@ const ResearchWizard = () => {
       currentStepContent === ALL_STEPS.NETWORK_VISUALIZATION;
 
     if (isNetworkVisualizationStep && formData.uploadedFileName) {
-      const currentParams = filters.buildNetworkFilterParams().toString();
-
-      if (
-        !networkData ||
-        !lastAnalysisParams ||
-        currentParams !== lastAnalysisParams
-      ) {
-        handleNetworkAnalysis();
-      }
+      handleReanalysis();
     }
   }, [
     currentStep,
     formData.uploadedFileName,
     shouldShowUserFilters,
     formData.includeMessageContent,
-    networkData,
-    lastAnalysisParams,
     formData.limit.enabled,
     formData.limit.count,
     formData.limit.fromEnd,
@@ -215,7 +204,48 @@ const ResearchWizard = () => {
     formData.userFilters.activeUsers,
     formData.userFilters.usernameFilter,
     formData.isDirectedGraph,
-    formData.useTriads,
+    formData.useHistoryAlgorithm,
+    formData.isNormalized,
+  ]);
+
+  useEffect(() => {
+    const currentStepContent = getCurrentStepContent();
+
+    const visibleSteps = getVisibleSteps();
+    const networkStepIndex = visibleSteps.indexOf(
+      ALL_STEPS.NETWORK_VISUALIZATION
+    );
+    const isAfterNetworkStep = currentStep > networkStepIndex + 1;
+
+    if (
+      (currentStepContent === ALL_STEPS.NETWORK_VISUALIZATION ||
+        isAfterNetworkStep) &&
+      formData.uploadedFileName &&
+      shouldReanalyze()
+    ) {
+      const timeoutId = setTimeout(() => {
+        handleReanalysis();
+      }, 500);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [
+    formData.limit.enabled,
+    formData.limit.count,
+    formData.limit.fromEnd,
+    formData.timeFrame.startDate,
+    formData.timeFrame.endDate,
+    formData.timeFrame.startTime,
+    formData.timeFrame.endTime,
+    formData.messageCriteria.minLength,
+    formData.messageCriteria.maxLength,
+    formData.messageCriteria.keywords,
+    formData.messageCriteria.contentFilter,
+    formData.userFilters.minMessages,
+    formData.userFilters.maxMessages,
+    formData.userFilters.activeUsers,
+    formData.userFilters.usernameFilter,
+    formData.isDirectedGraph,
     formData.useHistoryAlgorithm,
     formData.isNormalized,
   ]);
@@ -436,6 +466,24 @@ const ResearchWizard = () => {
       });
   };
 
+  const handleReanalysis = () => {
+    if (shouldReanalyze()) {
+      setNetworkData(null);
+      setOriginalNetworkData(null);
+      setCommunities([]);
+      setCommunityMap({});
+      hasShownToastRef.current = false;
+      handleNetworkAnalysis();
+    }
+  };
+
+  const shouldReanalyze = () => {
+    if (!formData.uploadedFileName || !networkData) return false;
+
+    const currentParams = filters.buildNetworkFilterParams().toString();
+    return !lastAnalysisParams || currentParams !== lastAnalysisParams;
+  };
+
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
 
@@ -539,8 +587,20 @@ const ResearchWizard = () => {
       }
     }
 
-    if (currentStep < getVisibleTotalSteps()) {
-      setCurrentStep(currentStep + 1);
+    const visibleSteps = getVisibleSteps();
+    const nextStep = currentStep + 1;
+
+    if (
+      nextStep <= visibleSteps.length &&
+      visibleSteps[nextStep - 1] === ALL_STEPS.NETWORK_VISUALIZATION
+    ) {
+      if (shouldReanalyze()) {
+        handleReanalysis();
+      }
+    }
+
+    if (currentStep < visibleSteps.length) {
+      setCurrentStep(nextStep);
     }
   };
 
@@ -550,6 +610,7 @@ const ResearchWizard = () => {
       if (currentStepContent === ALL_STEPS.NETWORK_VISUALIZATION) {
         setLastAnalysisParams(null);
       }
+
       setCurrentStep(currentStep - 1);
     }
   };
@@ -660,6 +721,14 @@ const ResearchWizard = () => {
             comparison={comparison}
             filters={filters}
             uploadedFileName={formData.uploadedFileName}
+            platform={formData.platform}
+            formData={formData}
+            setFormData={setFormData}
+            wikiContent={wikiContent}
+            setWikiContent={setWikiContent}
+            selectedSection={selectedSection}
+            setSelectedSection={setSelectedSection}
+            handleFetchWikipedia={handleFetchWikipedia}
           />
         );
       case ALL_STEPS.RESEARCH_REPORT:

@@ -96,7 +96,6 @@ const useFilters = (formData = null) => {
 
     params.append("anonymize", anonymized ? "true" : "false");
     params.append("directed", directed ? "true" : "false");
-    params.append("use_triads", useTriads ? "true" : "false");
     params.append("use_history", useHistoryAlgo ? "true" : "false");
     params.append("normalize", normalized ? "true" : "false");
     params.append("include_messages", formData?.includeMessageContent ? "true" : "false");

@@ -67,14 +67,13 @@ const sections = [
   },
   {
     title: "Compare Networks & Test Scenarios",
-    text: "Compare different conversation networks, simulate the removal of users, or hide inter-community links to understand resilience and information flow. Analyze network density, diameter, and run Triad Census analysis to understand local structures.",
+    text: "Compare different conversation networks, simulate the removal of users, or hide inter-community links to understand resilience and information flow. Analyze network density and run diameter to understand local structures.",
     backgroundColor: "linear-gradient(135deg, #0c3944 0%, #11224d 100%)",
     icon: <FaChartLine size={40} />,
     imageSrc: "/images/network-comparison.webp",
     features: [
       "Network comparison tools",
       "What-if scenario testing",
-      "Triad Census analysis",
       "Structure resilience testing",
     ],
   },
