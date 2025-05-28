@@ -15,8 +15,9 @@ from pydantic import BaseModel
 
 from database import get_db
 from models import Research, Message, ResearchFilter, NetworkAnalysis, Comparisons
-from utils import parse_date_time, detect_date_format, extract_data
+from utils import  extract_data
 from auth_router import get_current_user
+from analysis_router import analyze_network
 
 UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "./uploads/")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -55,7 +56,12 @@ async def save_research(
     username: str = Query(None),
     anonymize: bool = Query(False),
     algorithm: str = Query("louvain"),
-    save_messages: bool = Query(True),
+    include_messages: bool = Query(True),
+    directed: bool = Query(False),
+    use_history: bool = Query(False),
+    normalize: bool = Query(False),
+    history_length: int = Query(3),
+    current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     try:
@@ -64,40 +70,40 @@ async def save_research(
             logger.error(f"File '{file_name}' not found.")
             raise HTTPException(status_code=404, detail=f"File '{file_name}' not found.")
         
-        with open(file_path, "r", encoding="utf-8") as f:
-            lines = f.readlines()
 
-        try:
-            start_datetime = parse_date_time(start_date, start_time)
-            end_datetime = parse_date_time(end_date, end_time)
-        except ValueError as e:
-            logger.error(f"Error parsing date/time: {e}")
-            raise HTTPException(status_code=400, detail=str(e))
-
-        date_formats = detect_date_format(lines[0])
-        
-
-        data = await extract_data(
-            lines,
-            start_datetime,
-            end_datetime,
-            limit,
-            limit_type,
-            min_length,
-            max_length,
-            keywords,
-            min_messages,
-            max_messages,
-            active_users,
-            selected_users,
-            username,
-            False,
-            date_formats,
+        data = await analyze_network(
+            filename=file_name,
+            start_date=start_date,
+            end_date=end_date,
+            start_time=start_time,
+            end_time=end_time,
+            limit=limit,
+            limit_type=limit_type,
+            min_length=min_length,
+            max_length=max_length,
+            keywords=keywords,
+            min_messages=min_messages,
+            max_messages=max_messages,
+            active_users=active_users,
+            selected_users=selected_users,
+            username=username,
+            anonymize=anonymize,
+            directed=directed,
+            use_history=use_history,
+            normalize=normalize,
+            history_length=history_length,
+            is_for_save=True
         )
-
-        # logger.info(f"🔹 Messages: {data['messages']}")
-        # return JSONResponse(content={"data": data},
-        # status_code=200)
+        
+        
+        data = json.loads(data.body)
+        logger.info(f"🔹 Data received from analysis: {data}")
+        if not data or "nodes" not in data or "links" not in data:
+            logger.error("Invalid data format received from analysis.")
+            raise HTTPException(status_code=400, detail="Invalid data format received from analysis.")
+        
+        logger.info(f"🔹 Data extracted successfully")
+        
         new_research = Research(
             research_name=research_name,
             description=description,
@@ -109,7 +115,7 @@ async def save_research(
         await db.commit()
         await db.refresh(new_research)
 
-        if save_messages:
+        if include_messages:
             for message in data["messages"]:
                 new_message = Message(
                     research_id=new_research.research_id,
@@ -138,7 +144,11 @@ async def save_research(
             selected_users=selected_users,
             filter_by_username=username,
             anonymize=anonymize,
-            algorithm=algorithm
+            algorithm=algorithm,
+            directed=directed,
+            use_history=use_history,
+            normalize=normalize,
+            history_length=history_length if use_history else None
         )
         db.add(new_filter) 
 
@@ -153,12 +163,10 @@ async def save_research(
         await db.commit()
         await db.refresh(new_analysis)
 
-        # Handle comparison data if present
         if comparison:
             try:
                 comparison_data = json.loads(comparison)
                 if isinstance(comparison_data, list):
-                    # Handle multiple comparisons
                     for comp_data in comparison_data:
                         logger.info(f"🔹 Comparison Data: {comp_data}")
                         new_comparison = Comparisons(
@@ -170,7 +178,6 @@ async def save_research(
                         )
                         db.add(new_comparison)
                 elif isinstance(comparison_data, dict):
-                    # Handle single comparison
                     new_comparison = Comparisons(
                         research_id=new_research.research_id,
                         original_analysis=new_analysis.id,
@@ -183,7 +190,6 @@ async def save_research(
                 await db.commit()
             except json.JSONDecodeError:
                 logger.error(f"Invalid comparison data format: {comparison}")
-                # Continue without saving comparison data
                 pass
 
         return {

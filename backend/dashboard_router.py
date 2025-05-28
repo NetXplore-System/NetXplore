@@ -1,24 +1,15 @@
-import os
-import json
 import logging
 import uuid
-from typing import List, Optional
-from pydantic import BaseModel
 
-import networkx as nx
-from community import community_louvain
-from networkx.algorithms import community as nx_community
-
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from database import get_db
-from models import Research, ResearchFilter, NetworkAnalysis, Comparisons
+from models import Research, NetworkAnalysis
 from auth_router import get_current_user
-from utils import apply_comparison_filters, find_common_nodes, mark_common_nodes, get_network_metrics
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -31,6 +22,9 @@ async def get_dashboard_data(
 ):
     try:
         user_uuid = uuid.UUID(user_id)
+        
+        if current_user['user_id'] != str(user_uuid):
+            raise HTTPException(status_code=403, detail="Access denied. You can only view your own dashboard.")
         
         query = select(
             Research.research_id,
@@ -90,5 +84,7 @@ async def get_dashboard_data(
         }, status_code=200)
         
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         logger.error(f"Error fetching dashboard data: {e}")
         raise HTTPException(status_code=500, detail=str(e))

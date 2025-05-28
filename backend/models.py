@@ -2,6 +2,7 @@ from sqlalchemy import Column, String, DateTime, Integer, ForeignKey, Boolean, T
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 import uuid
 from datetime import datetime
+import pytz
 from database import Base
 
 
@@ -13,14 +14,15 @@ class User(Base):
     email = Column(String, unique=True, nullable=False)
     password = Column(String, nullable=True)  # Nullable for OAuth users
     avatar = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(pytz.utc))
 
     def to_dict(self):
         return {
             "id": str(self.user_id),
             "name": self.name,
             "email": self.email,
-            "avatar": self.avatar or "https://cdn-icons-png.flaticon.com/512/64/64572.png"
+            "avatar": self.avatar or "https://cdn-icons-png.flaticon.com/512/64/64572.png",
+            "created_at": self.created_at.isoformat() if self.created_at else None
         }
 
 
@@ -31,7 +33,7 @@ class Message(Base):
     research_id = Column(UUID(as_uuid=True), ForeignKey("research.research_id"), nullable=False)
     message_text = Column(String, nullable=False)
     send_by = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(pytz.utc))
 
     def to_dict(self):
         return {
@@ -60,8 +62,8 @@ class Research(Base):
         nullable=False,
         server_default='whatsapp' 
     )
-    created_at = Column(DateTime, default=datetime.utcnow)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(pytz.utc))
 
     def to_dict(self):
         return { 
@@ -69,8 +71,8 @@ class Research(Base):
             "research_name": self.research_name,
             "description": self.description,
             "platform": self.platform,
+            "user_id": str(self.user_id) if self.user_id else None, 
             "created_at": self.created_at.isoformat() if self.created_at else None,
-            "user_id": str(self.user_id) if self.user_id else None
         }
 
 
@@ -95,7 +97,12 @@ class ResearchFilter(Base):
     filter_by_username = Column(String, nullable=True)
     anonymize = Column(Boolean, default=False)
     algorithm = Column(String, nullable=True)
-
+    directed = Column(Boolean, default=False)
+    use_history = Column(Boolean, default=False)
+    normalize = Column(Boolean, default=False)
+    history_length = Column(Integer, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(pytz.utc))
+    
     def to_dict(self):
         return {
             "filter_id": str(self.filter_id),
@@ -115,33 +122,14 @@ class ResearchFilter(Base):
             "top_active_users": self.top_active_users,
             "limit_type": self.limit_type,
             "algorithm": self.algorithm,
-            "anonymize": self.anonymize
+            "anonymize": self.anonymize,
+            "directed": self.directed,
+            "use_history": self.use_history,
+            "normalize": self.normalize,
+            "history_length": self.history_length,
+            "created_at": self.created_at.isoformat() if self.created_at else None
         }
 
-
-# class UploadedFile(Base):
-#     __tablename__ = "saved_files"
-
-#     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-#     filename = Column(String, nullable=False)
-#     original_filename = Column(String, nullable=False)
-#     file_path = Column(String, nullable=False)
-#     file_type = Column(String, nullable=False)
-#     uploaded_at = Column(DateTime, default=datetime.utcnow)
-#     user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=True)
-#     research_id = Column(UUID(as_uuid=True), ForeignKey("research.id"), nullable=True)
-
-#     def to_dict(self):
-#         return {
-#             "id": str(self.id),
-#             "filename": self.filename,
-#             "original_filename": self.original_filename,
-#             "file_path": self.file_path,
-#             "file_type": self.file_type,
-#             "uploaded_at": self.uploaded_at.isoformat() if self.uploaded_at else None,
-#             "user_id": str(self.user_id) if self.user_id else None,
-#             "research_id": str(self.research_id) if self.research_id else None
-#         }
 
 
 class NetworkAnalysis(Base):
@@ -149,12 +137,11 @@ class NetworkAnalysis(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     research_id = Column(UUID(as_uuid=True), ForeignKey("research.research_id"), nullable=True)
-    nodes = Column(JSONB, nullable=False)  # Store nodes as JSON
-    links = Column(JSONB, nullable=False)  # Store links as JSON
-    created_at = Column(DateTime, default=datetime.utcnow)
+    nodes = Column(JSONB, nullable=False)
+    links = Column(JSONB, nullable=False)
     metric_name = Column(String, nullable=True)  
     is_connected = Column(Boolean, default=True)
-    # parameters = Column(JSONB, nullable=True)  # Store analysis parameters as JSON
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(pytz.utc))
 
     def to_dict(self):
         return {
@@ -162,9 +149,8 @@ class NetworkAnalysis(Base):
             "research_id": str(self.research_id) if self.research_id else None,
             "nodes": self.nodes,
             "links": self.links,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
             "metric_name": self.metric_name,
-            # "parameters": self.parameters
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
 
@@ -174,10 +160,11 @@ class Comparisons(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     research_id = Column(UUID(as_uuid=True), ForeignKey("research.research_id"), nullable=False)
     original_analysis = Column(UUID(as_uuid=True), ForeignKey("network_analysis.id"), nullable=False)
-    nodes = Column(JSONB, nullable=False)  # Store nodes as JSON
-    links = Column(JSONB, nullable=False)  # Store links as JSON
-    created_at = Column(DateTime, default=datetime.utcnow)
+    nodes = Column(JSONB, nullable=False)
+    links = Column(JSONB, nullable=False)
     is_connected = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(pytz.utc))
+
     def to_dict(self):
         return {
             "id": str(self.id),
@@ -189,24 +176,3 @@ class Comparisons(Base):
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
 
-# class Community(Base):
-#     __tablename__ = "communities"
-
-#     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-#     analysis_id = Column(UUID(as_uuid=True), ForeignKey("network_analysis.id"), nullable=False)
-#     community_index = Column(Integer, nullable=False)
-#     size = Column(Integer, nullable=False)
-#     nodes = Column(JSONB, nullable=False)  # Store node IDs as JSON array
-#     avg_betweenness = Column(Float, nullable=True)
-#     avg_pagerank = Column(Float, nullable=True)
-
-#     def to_dict(self):
-#         return {
-#             "id": str(self.id),
-#             "analysis_id": str(self.analysis_id),
-#             "community_index": self.community_index,
-#             "size": self.size,
-#             "nodes": self.nodes,
-#             "avg_betweenness": self.avg_betweenness,
-#             "avg_pagerank": self.avg_pagerank
-#         }

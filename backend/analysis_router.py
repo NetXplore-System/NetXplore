@@ -1,8 +1,6 @@
 import os
 import json
 import logging
-import re
-from datetime import datetime
 from collections import defaultdict
 from typing import Dict
 
@@ -16,16 +14,13 @@ from fastapi.responses import JSONResponse
 from utils import (
     parse_date_time,
     detect_date_format,
-    anonymize_name,
     apply_comparison_filters,
     find_common_nodes,
     mark_common_nodes,
     get_network_metrics,
     calculate_sequential_weights,
     extract_data,
-    MEDIA_RE,
-    timestamp_pattern,
-    spam_messages
+    normalize_links_by_target
 )
 
 
@@ -37,74 +32,6 @@ router = APIRouter()
 
 @router.get("/analyze/network/{filename}")
 async def analyze_network(
-        filename: str,
-        start_date: str = Query(None),
-        start_time: str = Query(None),
-        end_date: str = Query(None),
-        end_time: str = Query(None),
-        limit: int = Query(None),
-        limit_type: str = Query("first"),
-        min_length: int = Query(None),
-        max_length: int = Query(None),
-        keywords: str = Query(None),
-        min_messages: int = Query(None),
-        max_messages: int = Query(None),
-        active_users: int = Query(None),
-        selected_users: str = Query(None),
-        username: str = Query(None),
-        anonymize: bool = Query(False)
-):
-    try:
-        logger.info(f"Analyzing file: {filename}, Anonymization: {anonymize}, Limit Type: {limit_type}")
-        file_path = os.path.join(UPLOAD_FOLDER, filename)
-        if not os.path.exists(file_path):
-            raise HTTPException(detail=f"File '{filename}' not found.", status_code=404)
-
-        start_datetime = None
-        end_datetime = None
-
-
-        try:
-            start_datetime = parse_date_time(start_date, start_time)
-            end_datetime = parse_date_time(end_date, end_time)
-        except ValueError as e:
-            logger.error(f"Error parsing date/time: {e}")
-            raise HTTPException(detail=str(e), status_code=400)
-
-            
-        logger.info(f"🔹 Converted: start_datetime={start_datetime}, end_datetime={end_datetime}")
-
-        with open(file_path, "r", encoding="utf-8") as f:
-            lines = f.readlines()
-
-        date_formats = detect_date_format(lines[0])
-        
-        result = await extract_data(
-            lines,
-            start_datetime,
-            end_datetime,
-            limit,
-            limit_type,
-            min_length,
-            max_length,
-            keywords,
-            min_messages,
-            max_messages,
-            active_users,
-            selected_users,
-            username,
-            anonymize,
-            date_formats
-        )
-        
-        return JSONResponse(content={"nodes": result["nodes"] , "links": result["links"]}, status_code=200)
-    except Exception as e:
-        logger.error("Error:", e)
-        raise HTTPException(detail=str(e), status_code=500)
-
-
-@router.get("/analyze/decaying-network/{filename}")
-async def analyze_decaying_network(
     filename: str,
     start_date: str = Query(None),
     start_time: str = Query(None),
@@ -121,33 +48,33 @@ async def analyze_decaying_network(
     selected_users: str = Query(None),
     username: str = Query(None),
     anonymize: bool = Query(False),
-    n_prev: int = Query(3)
+    directed: bool = Query(False),
+    use_history: bool = Query(False),
+    normalize: bool = Query(False),
+    history_length: int = Query(3),
+    is_for_save: bool = False,
 ):
     try:
-       
-        selected_user_list = [u.strip().lower() for u in selected_users.split(",")] if selected_users else []
-        
-        file_path = os.path.join(UPLOAD_FOLDER, filename)
-        if not os.path.exists(file_path):
-            logger.error(f"File '{filename}' not found.")
-            raise HTTPException(status_code=404, detail=f"File '{filename}' not found.")
-        
-        with open(file_path, "r", encoding="utf-8") as f:
-            lines = f.readlines()
+        logger.info(
+            f"Analyzing file: {filename}, directed={directed}, history={use_history}, normalize={normalize}"
+        )
+        path = os.path.join(UPLOAD_FOLDER, filename)
+        if not os.path.exists(path):
+            raise HTTPException(404, f"File '{filename}' not found")
 
         try:
-            start_datetime = parse_date_time(start_date, start_time)
-            end_datetime = parse_date_time(end_date, end_time)
+            start_dt = parse_date_time(start_date, start_time)
+            end_dt = parse_date_time(end_date, end_time)
         except ValueError as e:
-            logger.error(f"Error parsing date/time: {e}")
-            raise HTTPException(status_code=400, detail=str(e))
+            raise HTTPException(400, str(e))
 
-        date_formats = detect_date_format(lines[0])
-        
+        raw_lines = open(path, encoding="utf-8").readlines()
+        date_fmts = detect_date_format(raw_lines[0])
+
         result = await extract_data(
-            lines,
-            start_datetime,
-            end_datetime,
+            raw_lines,
+            start_dt,
+            end_dt,
             limit,
             limit_type,
             min_length,
@@ -159,84 +86,81 @@ async def analyze_decaying_network(
             selected_users,
             username,
             anonymize,
-            date_formats,
-            True
+            date_fmts,
+            True if directed else False,
         )
 
-        # Destructure the result
-        selected_messages = result["messages"]
-        all_messages = result["all_messages"]
-        
-        logger.info(f"found {len(selected_messages)} messages after filtering")
-        if not selected_messages:
-            logger.error("No messages found after filtering.")
-            raise HTTPException(status_code=400, detail="No messages found after filtering.")
-        
-        seq_weights = calculate_sequential_weights(selected_messages, all_messages, n_prev)
-        logger.info(f"found {(seq_weights)} edges after filtering")
-        user_counts: Dict[str, int] = defaultdict(int)
-        for sender, _ in selected_messages:
-            user_counts[sender] += 1
+        if directed and use_history:
+            selected_messages = result["messages"]
+            if not selected_messages:
+                raise HTTPException(400, "No messages found after filtering.")
 
-        filtered_users = {u: c for u, c in user_counts.items()
-                          if (not min_messages or c >= min_messages)
-                          and (not max_messages or c <= max_messages)}
-        if active_users:
-            top = sorted(filtered_users.items(), key=lambda x: x[1], reverse=True)[:active_users]
-            filtered_users = dict(top)
-        if selected_user_list:
-            filtered_users = {u: c for u, c in filtered_users.items()
-                              if u.lower() in selected_user_list}
+            seq_weights = calculate_sequential_weights(selected_messages, history_length)
+            user_counts: Dict[str, int] = defaultdict(int)
+            for sender, _ in selected_messages:
+                user_counts[sender] += 1
 
-        filtered_nodes = set(filtered_users.keys())
+            sel_user_list = [u.strip().lower() for u in selected_users.split(',')] if selected_users else []
+            filtered_users = {
+                u: c for u, c in user_counts.items()
+                if (not min_messages or c >= min_messages) and (not max_messages or c <= max_messages)
+            }
+            if active_users:
+                filtered_users = dict(sorted(filtered_users.items(), key=lambda x: x[1], reverse=True)[:active_users])
+            if sel_user_list:
+                filtered_users = {u: c for u, c in filtered_users.items() if u.lower() in sel_user_list}
 
-        G = nx.Graph()
-        G.add_nodes_from(filtered_nodes)
-        if not filtered_nodes:
-            raise HTTPException(status_code=400, detail="No data to analyze after filtering.")
+            nodes = set(filtered_users.keys())
+            if not nodes:
+                raise HTTPException(400, "No data to analyze after filtering.")
 
-        for (prev, curr), w in seq_weights.items():
-            if prev in filtered_nodes and curr in filtered_nodes:
-                G.add_edge(prev, curr, weight=round(w, 2))
+            links = [
+                {"source": prev, "target": curr, "weight": w}
+                for (prev, curr), w in seq_weights.items()
+                if prev in nodes and curr in nodes
+            ]
 
-        deg = nx.degree_centrality(G)
-        btw = nx.betweenness_centrality(G, weight="weight", normalized=True)
-        if nx.is_connected(G):
-            cls = nx.closeness_centrality(G)
-            eig = nx.eigenvector_centrality(G, max_iter=1000)
-            pr = nx.pagerank(G, alpha=0.85)
-        else:
-            comp = max(nx.connected_components(G), key=len)
-            sub = G.subgraph(comp).copy()
-            cls = nx.closeness_centrality(sub)
-            eig = nx.eigenvector_centrality(sub, max_iter=1000)
-            pr = nx.pagerank(sub, alpha=0.85)
+            if normalize:
+                links = normalize_links_by_target(links)
+                logger.info("Weights normalized by target totals")
 
-        nodes_list = [
-            {"id": u, "messages": user_counts.get(u, 0),
-             "degree": round(deg.get(u, 0), 4),
-             "betweenness": round(btw.get(u, 0), 4),
-             "closeness": round(cls.get(u, 0), 4),
-             "eigenvector": round(eig.get(u, 0), 4),
-             "pagerank": round(pr.get(u, 0), 4)}
-            for u in filtered_nodes
-        ]
+            G = nx.DiGraph()
+            G.add_nodes_from(nodes)
+            for link in links:
+                G.add_edge(link["source"], link["target"], weight=link["weight"])
 
-        links_list = [
-            {"source": prev, "target": curr, "weight": w}
-            for (prev, curr), w in seq_weights.items()
-            if prev in filtered_nodes and curr in filtered_nodes
-        ]
+            deg = nx.degree_centrality(G)
+            btw = nx.betweenness_centrality(G, weight="weight", normalized=True)
+            if nx.is_connected(G.to_undirected()):
+                cls = nx.closeness_centrality(G)
+                eig = nx.eigenvector_centrality(G, max_iter=1000)
+                pr = nx.pagerank(G, alpha=0.85)
+            else:
+                comp = max(nx.connected_components(G.to_undirected()), key=len)
+                sub = G.subgraph(comp).copy()
+                cls = nx.closeness_centrality(sub)
+                eig = nx.eigenvector_centrality(sub, max_iter=1000)
+                pr = nx.pagerank(sub, alpha=0.85)
 
-        return JSONResponse(content={"nodes": nodes_list, "links": links_list}, status_code=200)
+            nodes_out = [
+                {"id": u, "messages": user_counts[u],
+                 "degree": round(deg.get(u, 0), 4),
+                 "betweenness": round(btw.get(u, 0), 4),
+                 "closeness": round(cls.get(u, 0), 4),
+                 "eigenvector": round(eig.get(u, 0), 4),
+                 "pagerank": round(pr.get(u, 0), 4)}
+                for u in nodes
+            ]
+            return JSONResponse({"nodes": nodes_out, "links": links, "messages": selected_messages if is_for_save else None, "is_connected": nx.is_connected(G.to_undirected())}, status_code=200)
+
+     
+        return JSONResponse({"nodes": result["nodes"], "links": result["links"], "messages": result["messages"] if is_for_save else None, "is_connected": result["is_connected"]}, status_code=200)
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Error in decaying network analysis:", e)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
+        logger.error("analyze_network error", e)
+        raise HTTPException(500, str(e))
 
 
 
@@ -328,15 +252,23 @@ async def analyze_communities(
         selected_users: str = Query(None),
         username: str = Query(None),
         anonymize: bool = Query(False),
-        algorithm: str = Query("louvain")
+        algorithm: str = Query("louvain"),
+        directed: bool = Query(False),
+        use_history: bool = Query(False),
+        normalize: bool = Query(False),
+        history_length: int = Query(3),
 ):
     try:
         network_result = await analyze_network(
             filename, start_date, start_time, end_date, end_time, limit, limit_type,
             min_length, max_length, keywords, min_messages, max_messages,
-            active_users, selected_users, username, anonymize
+            active_users, selected_users, username, anonymize,
+            directed, use_history, normalize, history_length
         )
-
+        logger.info(f"Analyzing communities in file: {network_result} using algorithm: {algorithm}")
+        if not network_result:
+            logger.error("No network data found.")
+            raise HTTPException(status_code=400, detail="No network data found.")
         if hasattr(network_result, 'body'):
             network_data = json.loads(network_result.body)
         else:

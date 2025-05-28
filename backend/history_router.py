@@ -254,5 +254,7 @@ async def analyze_communities_history(
         }, status_code=200)
 
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         logger.error(f"Error in community detection: {e}")
         raise HTTPException(detail=str(e), status_code=500)

@@ -69,7 +69,7 @@ const useFilters = (formData = null) => {
     const selected = getValue(selectedUsers, ["userFilters", "selectedUsers"]);
 
     const anonymized = getValue(isAnonymized, ["isAnonymized"]);
-    const directed = getValue(true, ["isDirectedGraph"]);
+    const directed = getValue(false, ["isDirectedGraph"]);
     const useTriads = getValue(false, ["useTriads"]);
     const useHistoryAlgo = getValue(false, ["useHistoryAlgorithm"]);
     const normalized = getValue(false, ["isNormalized"]);
@@ -99,7 +99,9 @@ const useFilters = (formData = null) => {
     params.append("use_triads", useTriads ? "true" : "false");
     params.append("use_history", useHistoryAlgo ? "true" : "false");
     params.append("normalize", normalized ? "true" : "false");
-
+    params.append("include_messages", formData?.includeMessageContent ? "true" : "false");
+    useHistoryAlgo && params.append("history_length", formData?.historyLength || 3);
+   
     return params;
   };
 

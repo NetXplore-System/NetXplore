@@ -132,7 +132,6 @@ const History = () => {
                   <th>Research Name</th>
                   <th>Date Created</th>
                   <th>Platform</th>
-                  <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -142,11 +141,6 @@ const History = () => {
                     <td>{research.research_name}</td>
                     <td>{new Date(research.created_at).toLocaleDateString()}</td>
                     <td>{research.platform}</td>
-                    <td>
-                      <Badge bg="info" className="community-badge">
-                        {research.status || 'N/A'}
-                      </Badge>
-                    </td>
                     <td>
                       <ButtonGroup size="sm">
                         <Button

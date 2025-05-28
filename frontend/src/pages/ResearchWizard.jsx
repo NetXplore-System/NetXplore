@@ -36,7 +36,7 @@ const ResearchWizard = () => {
   const selectedPlatform = location.state?.platform || "whatsapp";
   const dispatch = useDispatch();
   const fileInputRef = useRef(null);
-  const { currentUser } = useSelector((state) => state.user) || { id: 1 };
+  const { currentUser, token } = useSelector((state) => state.user) || { id: 1 };
   const [currentStep, setCurrentStep] = useState(1);
   const [wikiContent, setWikiContent] = useState(null);
   const [selectedSection, setSelectedSection] = useState(null);
@@ -535,6 +535,7 @@ const ResearchWizard = () => {
     const result = await toast.promise(
       saveToDB(
         id,
+        token,
         formData.name,
         formData.description,
         formData.uploadedFileName,
@@ -548,6 +549,7 @@ const ResearchWizard = () => {
       ),
       {
         loading: "Saving research...",
+        success: "Research saved successfully!",
         error: (error) => error?.detail || "Error saving research.",
       }
     );
@@ -737,7 +739,7 @@ const ResearchWizard = () => {
                   key={index}
                   className={`wizard-step ${isCompleted ? "completed" : ""} ${
                     isActive ? "active" : ""
-                  }`}
+                    }`}
                 >
                   <div className="step-circle">{index + 1}</div>
                   <div className="step-line"></div>
@@ -794,7 +796,7 @@ const ResearchWizard = () => {
             variant="secondary"
             onClick={() => {
               setShowSaveModal(false);
-              toast("Research completed but was not saved.");
+              toast.info("Research completed but was not saved.");
             }}
           >
             No, thanks
@@ -836,7 +838,7 @@ const ResearchWizard = () => {
             variant="primary"
             onClick={() => {
               setShowLoginInvite(false);
-              navigate("/login");
+              navigate("/signin");
             }}
           >
             Sign Up / Log In
