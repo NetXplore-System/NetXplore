@@ -24,7 +24,7 @@ from utils import (
 )
 
 
-UPLOAD_FOLDER = "uploads"  # Ensure this folder exists or adjust as needed
+UPLOAD_FOLDER = "uploads"  
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

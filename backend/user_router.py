@@ -13,7 +13,7 @@ from auth_router import get_current_user
 from fastapi.security import OAuth2PasswordBearer
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
-# Constants
+
 UPLOAD_FOLDER = "Uploads"
 
 logger = logging.getLogger(__name__)
@@ -48,7 +48,6 @@ async def update_user(user_id: str, user_update: UserUpdate, db: AsyncSession = 
     """Updates a user's details."""
     try:
         async with db as session:
-            # async with session.begin():
             user = await session.get(User, user_id)
             if not user:
                 raise HTTPException(status_code=404, detail="User not found")
@@ -83,7 +82,6 @@ async def delete_user(user_id: str, db: AsyncSession = Depends(get_db)):
     """Deletes a user."""
     try:
         async with db as session:
-            # async with session.begin():
             user = await session.get(User, user_id)
             if not user:
                 raise HTTPException(status_code=404, detail="User not found")
@@ -105,9 +103,6 @@ async def upload_avatar(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Uploads a new avatar for the authenticated user.
-    """
     try:
         current_user = get_current_user(token)
         if not file.content_type.startswith("image/"):

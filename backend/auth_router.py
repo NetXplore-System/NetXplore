@@ -1,7 +1,6 @@
 import os
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 from uuid import uuid4
 
 import bcrypt
@@ -19,7 +18,6 @@ from fastapi.security import OAuth2PasswordBearer
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
 
-# Constants
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 150))
@@ -38,9 +36,6 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 
 
 def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
-    """
-    Decodes JWT token to extract current user data.
-    """
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: str = payload.get("user_id")
@@ -59,7 +54,6 @@ class OAuthUser(BaseModel):
 async def google_auth(user: OAuthUser, db: AsyncSession = Depends(get_db)):
     try:
         async with db as session:
-            # Check if user exists
             stmt = select(User).where(User.email == user.email)
             result = await session.execute(stmt)
             existing_user = result.scalars().first()
@@ -81,7 +75,7 @@ async def google_auth(user: OAuthUser, db: AsyncSession = Depends(get_db)):
                 name=user.name, 
                 email=user.email, 
                 avatar=user.avatar,
-                password=None  # OAuth users don't have passwords
+                password=None  
             )
             session.add(new_user)
             await session.commit()
@@ -115,8 +109,6 @@ class UserCreate(BaseModel):
 async def register_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
     try:
         async with db as session:
-            # async with session.begin():
-                # Check if email already exists
             stmt = select(User).where(User.email == user.email)
             result = await session.execute(stmt)
             existing_user = result.scalars().first()
@@ -124,10 +116,8 @@ async def register_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
             if existing_user:
                 raise HTTPException(status_code=400, detail="Email already exists")
 
-            # Hash the password
             hashed_password = bcrypt.hashpw(user.password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
-            # Create and save the new user
             new_user = User(name=user.name, email=user.email, password=hashed_password)
             session.add(new_user)
             await session.commit()
@@ -163,7 +153,6 @@ async def login_user(user: UserLogin, db: AsyncSession = Depends(get_db)):
     try:
         async with db as session:
             try:
-                # Query the user
                 stmt = select(User).where(User.email == user.email)
                 result = await session.execute(stmt)
                 db_user = result.scalars().first()
@@ -175,7 +164,6 @@ async def login_user(user: UserLogin, db: AsyncSession = Depends(get_db)):
                     )
 
                 try:
-                    # Verify password
                     if not bcrypt.checkpw(
                         user.password.encode("utf-8"), 
                         db_user.password.encode("utf-8")
@@ -185,7 +173,6 @@ async def login_user(user: UserLogin, db: AsyncSession = Depends(get_db)):
                             detail="Invalid email or password"
                         )
 
-                    # Generate token
                     token = create_access_token(data={"user_id": str(db_user.user_id)})
 
                     return {

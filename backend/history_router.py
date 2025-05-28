@@ -1,8 +1,6 @@
-import os
-import json
 import logging
 import uuid
-from typing import List, Optional
+from typing import List
 from pydantic import BaseModel
 
 import networkx as nx
@@ -44,12 +42,10 @@ async def analyze_network_comparison_history(
         original_result = await db.execute(analysis_query)
         original_data = original_result.scalars().first()
 
-        # Extract the comparison data
         comparison_query = select(Comparisons).where(Comparisons.research_id == research_id)
         comparison_result = await db.execute(comparison_query)
         comparison_data = comparison_result.scalars().all()
 
-        # Convert to dictionary if necessary
         if original_data:
             original_data = original_data.to_dict()
         if comparison_index < 0 or comparison_index >= len(comparison_data):
@@ -86,47 +82,39 @@ async def get_user_history(
 ):
     """Get all research history for a user including filters, analysis and comparisons."""
     try:
-        # Convert string user_id to UUID
         user_uuid = uuid.UUID(user_id)
 
-        # Ensure user_id matches current user's ID
         if str(user_uuid) != current_user["user_id"]:
             raise HTTPException(
                 status_code=403,
                 detail="Access forbidden: You can only view your own research history"
             )
         
-        # Query all research entries for the user
         query = select(Research).where(Research.user_id == user_uuid)
         result = await db.execute(query)
         researches = result.scalars().all()
         
-        # Prepare response data
         history = []
         
         for research in researches:
-            # Get research filters
             filter_query = select(ResearchFilter).where(
                 ResearchFilter.research_id == research.research_id
             )
             filter_result = await db.execute(filter_query)
             filters = filter_result.scalars().first()
             
-            # Get network analysis
             analysis_query = select(NetworkAnalysis).where(
                 NetworkAnalysis.research_id == research.research_id
             )
             analysis_result = await db.execute(analysis_query)
             analysis = analysis_result.scalars().first()
             
-            # Get comparisons if they exist
             comparison_query = select(Comparisons).where(
                 Comparisons.research_id == research.research_id
             )
             comparison_result = await db.execute(comparison_query)
             comparisons = comparison_result.scalars().all()
             
-            # Build complete research entry
             research_entry = {
                 **research.to_dict(),
                 "filters": filters.to_dict() if filters else None,

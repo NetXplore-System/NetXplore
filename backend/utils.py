@@ -62,7 +62,6 @@ def parse_date_time(date_str: str | None, time_str: str | None) -> datetime | No
 
 
 def apply_comparison_filters(network_data, node_filter, min_weight):
-    """Filter network by node filter and minimum weight."""
     if not network_data or "nodes" not in network_data or "links" not in network_data:
         return network_data
 
@@ -88,21 +87,18 @@ def apply_comparison_filters(network_data, node_filter, min_weight):
 
 
 def get_node_id(node_ref):
-    """Get node ID whether it's a string or an object."""
     if isinstance(node_ref, dict) and "id" in node_ref:
         return node_ref["id"]
     return node_ref
 
 
 def find_common_nodes(original_data, comparison_data):
-    """Find common nodes between two networks."""
     original_ids = {node["id"] for node in original_data["nodes"]}
     comparison_ids = {node["id"] for node in comparison_data["nodes"]}
     return original_ids.intersection(comparison_ids)
 
 
 def mark_common_nodes(network_data, common_node_ids):
-    """Mark common nodes in a network."""
     for node in network_data["nodes"]:
         node["isCommon"] = node["id"] in common_node_ids
     return network_data
@@ -143,11 +139,6 @@ def calculate_sequential_weights(
     sequence: List[Tuple[str, str]],
     n_prev: int = 3
 ) -> Dict[Tuple[str, str], float]:
-    """Compute decaying edge‑weights for a chronological (sender, message) sequence.
-
-    n_prev = 2  →  weights [0.7, 0.3]
-    n_prev = 3  →  weights [0.5, 0.3, 0.2]
-    """
     scheme = {2: [0.7, 0.3], 3: [0.5, 0.3, 0.2]}
     if n_prev not in scheme:
         raise ValueError("n_prev must be 2 or 3")
@@ -160,7 +151,7 @@ def calculate_sequential_weights(
         seen: set[str] = set()
         for idx, prev in enumerate(reversed(window)):
             if prev == curr or prev in seen:
-                continue  # skip self‑loops and duplicates in window
+                continue 
             edge_w[(prev, curr)] += weights[idx]
             seen.add(prev)
         window.append(curr)
@@ -345,7 +336,7 @@ async def extract_data(
         {
             "id": node,
             "messages": user_message_count.get(node, 0),
-            "degree": 0,  # Will be calculated if graph is not empty
+            "degree": 0,  
             "betweenness": 0,
             "closeness": 0,
             "eigenvector": 0,
@@ -364,7 +355,6 @@ async def extract_data(
                 "weight": weight
             })
 
-    # Only calculate network metrics if we have nodes and links
     is_connected = False
     if nodes_list and links_list:
         G = nx.Graph()
@@ -374,14 +364,12 @@ async def extract_data(
         is_connected = nx.is_connected(G)
 
         if is_connected:
-            # Calculate centrality measures
             degree_centrality = nx.degree_centrality(G)
             betweenness_centrality = nx.betweenness_centrality(G, weight="weight")
             closeness_centrality = nx.closeness_centrality(G)
             eigenvector_centrality = nx.eigenvector_centrality(G, max_iter=1000)
             pagerank = nx.pagerank(G)
 
-            # Update node metrics
             for node in nodes_list:
                 node_id = node["id"]
                 node.update({
@@ -392,18 +380,15 @@ async def extract_data(
                     "pagerank": round(pagerank.get(node_id, 0), 4)
                 })
         else:
-            # Handle disconnected graph
             largest_cc = max(nx.connected_components(G), key=len)
             G_subgraph = G.subgraph(largest_cc).copy()
 
-            # Calculate metrics for largest connected component
             degree_centrality = nx.degree_centrality(G_subgraph)
             betweenness_centrality = nx.betweenness_centrality(G_subgraph, weight="weight")
             closeness_centrality = nx.closeness_centrality(G_subgraph)
             eigenvector_centrality = nx.eigenvector_centrality(G_subgraph, max_iter=1000)
             pagerank = nx.pagerank(G_subgraph)
 
-            # Update metrics for nodes in largest component
             for node in nodes_list:
                 node_id = node["id"]
                 if node_id in largest_cc:
@@ -445,15 +430,12 @@ def delete_old_files():
     now = datetime.now()
 
     for filename in os.listdir(UPLOAD_FOLDER):
-        # Split the filename to extract the timestamp
         if "-" in filename and filename.endswith(".txt"):
             name, timestamp_str = filename.rsplit("-", 1)
             timestamp_str = timestamp_str.replace(".txt", "")
 
             try:
-                # Convert the timestamp from milliseconds to a datetime object
                 file_time = datetime.fromtimestamp(int(timestamp_str) / 1000)
-                # Check if the file is older than 20 hours
                 if now - file_time > timedelta(hours=20):
                     file_path = os.path.join(UPLOAD_FOLDER, filename)
                     os.remove(file_path)

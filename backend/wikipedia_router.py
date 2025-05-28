@@ -4,11 +4,8 @@ from bs4 import BeautifulSoup
 import logging
 import re
 import json
-from typing import List, Dict, Any
 from datetime import datetime
 import os
-from models import Research, NetworkAnalysis  
-from sqlalchemy.ext.asyncio import AsyncSession
 from collections import defaultdict
 import networkx as nx
 from fastapi import Query

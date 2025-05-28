@@ -70,7 +70,6 @@ const useFilters = (formData = null) => {
 
     const anonymized = getValue(isAnonymized, ["isAnonymized"]);
     const directed = getValue(false, ["isDirectedGraph"]);
-    const useTriads = getValue(false, ["useTriads"]);
     const useHistoryAlgo = getValue(false, ["useHistoryAlgorithm"]);
     const normalized = getValue(false, ["isNormalized"]);
 

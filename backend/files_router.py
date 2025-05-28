@@ -4,7 +4,7 @@ import logging
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
 
-UPLOAD_FOLDER = "uploads"  # Ensure this folder exists or adjust as needed
+UPLOAD_FOLDER = "uploads" 
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

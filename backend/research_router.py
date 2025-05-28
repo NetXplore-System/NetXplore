@@ -18,7 +18,6 @@ from models import Research, Message, ResearchFilter, NetworkAnalysis, Compariso
 from utils import  extract_data
 from auth_router import get_current_user
 from analysis_router import analyze_network
-from analysis_router import analyze_network
 
 UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "./uploads/")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -105,40 +104,6 @@ async def save_research(
         
         logger.info(f"🔹 Data extracted successfully")
         
-
-        data = await analyze_network(
-            filename=file_name,
-            start_date=start_date,
-            end_date=end_date,
-            start_time=start_time,
-            end_time=end_time,
-            limit=limit,
-            limit_type=limit_type,
-            min_length=min_length,
-            max_length=max_length,
-            keywords=keywords,
-            min_messages=min_messages,
-            max_messages=max_messages,
-            active_users=active_users,
-            selected_users=selected_users,
-            username=username,
-            anonymize=anonymize,
-            directed=directed,
-            use_history=use_history,
-            normalize=normalize,
-            history_length=history_length,
-            is_for_save=True
-        )
-        
-        
-        data = json.loads(data.body)
-        logger.info(f"🔹 Data received from analysis: {data}")
-        if not data or "nodes" not in data or "links" not in data:
-            logger.error("Invalid data format received from analysis.")
-            raise HTTPException(status_code=400, detail="Invalid data format received from analysis.")
-        
-        logger.info(f"🔹 Data extracted successfully")
-        
         new_research = Research(
             research_name=research_name,
             description=description,
@@ -150,7 +115,6 @@ async def save_research(
         await db.commit()
         await db.refresh(new_research)
 
-        if include_messages:
         if include_messages:
             for message in data["messages"]:
                 new_message = Message(
@@ -246,38 +210,32 @@ async def delete_research(
 ):
     """Delete a research and all its related data"""
     try:
-        # Verify research exists and belongs to current user
         research = await db.get(Research, research_id)
         if not research:
             raise HTTPException(status_code=404, detail="Research not found")
         if str(research.user_id) != current_user["user_id"]:
             raise HTTPException(status_code=403, detail="Not authorized to delete this research")
 
-        # Delete comparisons first
         await db.execute(
             delete(Comparisons)
             .where(Comparisons.research_id == research_id)
         )
 
-        # Delete network analysis
         await db.execute(
             delete(NetworkAnalysis)
             .where(NetworkAnalysis.research_id == research_id)
         )
 
-        # Delete research filters
         await db.execute(
             delete(ResearchFilter)
             .where(ResearchFilter.research_id == research_id)
         )
 
-        # Delete messages
         await db.execute(
             delete(Message)
             .where(Message.research_id == research_id)
         )
 
-        # Finally delete the research itself
         await db.execute(
             delete(Research)
             .where(Research.research_id == research_id)
@@ -311,14 +269,12 @@ async def update_research_data(
     db: AsyncSession = Depends(get_db)
 ):
     try:
-        # --- 1. Validation & permissions ---
         research = await db.get(Research, research_id)
         if not research:
             raise HTTPException(status_code=404, detail="Research not found")
         if str(research.user_id) != current_user["user_id"]:
             raise HTTPException(status_code=403, detail="Not authorized")
 
-        # --- 2. File existence check ---
         file_name = updated_data.get("file_name")
         file_path = os.path.join(UPLOAD_FOLDER, file_name)
         if not os.path.exists(file_path):
@@ -326,7 +282,6 @@ async def update_research_data(
             raise HTTPException(status_code=404, detail=f"File '{file_name}' not found.")
             
 
-        # --- 3. Extract messages and network data ---
         with open(file_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
 
@@ -350,12 +305,10 @@ async def update_research_data(
 
         new_data = await extract_data(lines, **filters_data)
 
-        # --- 4. Update Research (name, description, file_name) ---
         research.research_name = updated_data.get("research_name", research.research_name)
         research.description = updated_data.get("description", research.description)
         research.file_name = file_name or research.file_name
 
-        # --- 5. Update or Create Filters ---
         filter_query = select(ResearchFilter).where(ResearchFilter.research_id == research.research_id)
         filter_result = await db.execute(filter_query)
         filters = filter_result.scalars().first()
@@ -379,14 +332,12 @@ async def update_research_data(
             db.add(filters)
 
 
-        # --- 6. Replace all Messages ---
         await db.execute(delete(Message).where(Message.research_id == research.research_id))
         db.add_all([
             Message(research_id=research.research_id, **{"send_by": msg[0], "message_text": msg[1]})
             for msg in new_data["messages"]
         ])
 
-        # --- 7. Update or Create Analysis ---
         analysis_query = select(NetworkAnalysis).where(NetworkAnalysis.research_id == research.research_id)
         analysis_result = await db.execute(analysis_query)
         analysis = analysis_result.scalars().first()
@@ -404,14 +355,12 @@ async def update_research_data(
             )
             db.add(analysis)
 
-        # --- 8. Get Comparisons (Read only) ---
         comparisons_query = select(Comparisons).where(Comparisons.research_id == research.research_id)
         comparisons_result = await db.execute(comparisons_query)
         comparisons = comparisons_result.scalars().all()
 
         await db.commit()
 
-        # --- 9. Build final response ---
         research_entry = {
             **research.to_dict(),
             "filters": filters.to_dict() if filters else None,
