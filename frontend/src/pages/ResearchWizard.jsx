@@ -27,8 +27,10 @@ import {
   detectWikipediaCommunities,
 } from "../components/utils/ApiService";
 import { saveToDB } from "../components/utils/ApiService";
+import { ALL_STEPS, STEP_LABELS, STEP_TITLES } from "./Steps/StepsData";
 
 import "../styles/ResearchWizard.css";
+
 
 const ResearchWizard = () => {
   const location = useLocation();
@@ -37,46 +39,11 @@ const ResearchWizard = () => {
   const dispatch = useDispatch();
   const fileInputRef = useRef(null);
   const { currentUser, token } = useSelector((state) => state.user) || { id: 1 };
+  const { currentUser, token } = useSelector((state) => state.user) || { id: 1 };
   const [currentStep, setCurrentStep] = useState(1);
   const [wikiContent, setWikiContent] = useState(null);
   const [selectedSection, setSelectedSection] = useState(null);
   const hasShownToastRef = useRef(false);
-
-  const ALL_STEPS = {
-    SETUP: "Setup",
-    WIKIPEDIA: "Discussion",
-    DATA_CONFIG: "DataConfiguration",
-    TIME_FRAME: "TimeFrame",
-    MESSAGE_CONTENT: "MessageContent",
-    USER_FILTERS: "UserFilters",
-    NETWORK_VISUALIZATION: "NetworkVisualization",
-    COMPARATIVE_ANALYSIS: "ComparativeAnalysis",
-    RESEARCH_REPORT: "ResearchReport",
-  };
-
-  const STEP_LABELS = {
-    [ALL_STEPS.SETUP]: "Setup",
-    [ALL_STEPS.WIKIPEDIA]: "Discussion",
-    [ALL_STEPS.DATA_CONFIG]: "Config",
-    [ALL_STEPS.TIME_FRAME]: "Time",
-    [ALL_STEPS.MESSAGE_CONTENT]: "Content",
-    [ALL_STEPS.USER_FILTERS]: "Users",
-    [ALL_STEPS.NETWORK_VISUALIZATION]: "Network",
-    [ALL_STEPS.COMPARATIVE_ANALYSIS]: "Compare",
-    [ALL_STEPS.RESEARCH_REPORT]: "Report",
-  };
-
-  const STEP_TITLES = {
-    [ALL_STEPS.SETUP]: "New Research - Setup",
-    [ALL_STEPS.WIKIPEDIA]: "New Research - Discussion",
-    [ALL_STEPS.DATA_CONFIG]: "New Research - Data Configuration",
-    [ALL_STEPS.TIME_FRAME]: "New Research - Time Frame",
-    [ALL_STEPS.MESSAGE_CONTENT]: "New Research - Message Content",
-    [ALL_STEPS.USER_FILTERS]: "New Research - User Filters",
-    [ALL_STEPS.NETWORK_VISUALIZATION]: "New Research - Network Visualization",
-    [ALL_STEPS.COMPARATIVE_ANALYSIS]: "New Research - Comparative Analysis",
-    [ALL_STEPS.RESEARCH_REPORT]: "New Research - Research Report",
-  };
 
   const [networkData, setNetworkData] = useState(null);
   const [originalNetworkData, setOriginalNetworkData] = useState(null);
@@ -86,8 +53,7 @@ const ResearchWizard = () => {
   const [selectedMetric, setSelectedMetric] = useState(null);
   const [message, setMessage] = useState("");
   const [shouldShowUserFilters, setShouldShowUserFilters] = useState(true);
-  const [shouldShowMessageContent, setShouldShowMessageContent] =
-    useState(true);
+  const [shouldShowMessageContent, setShouldShowMessageContent] = useState(true);
   const [lastAnalysisParams, setLastAnalysisParams] = useState(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showLoginInvite, setShowLoginInvite] = useState(false);
@@ -524,17 +490,18 @@ const ResearchWizard = () => {
     }
   };
 
-  const handleSaveResearch = async () => {
+  const handleSaveResearch = () => {
     const params = filters.buildNetworkFilterParams();
     const id = currentUser?.id;
     if (!formData.name || !formData.uploadedFileName || !params || !id) {
       toast.error("Please fill in all required fields.");
-      return null;
+      return;
     }
 
-    const result = await toast.promise(
+    toast.promise(
       saveToDB(
         id,
+        token,
         token,
         formData.name,
         formData.description,
@@ -549,12 +516,15 @@ const ResearchWizard = () => {
       ),
       {
         loading: "Saving research...",
+        success: data => {
+          setTimeout(() => navigate("/history"), 1000);
+          return data;
+        },
         success: "Research saved successfully!",
         error: (error) => error?.detail || "Error saving research.",
       }
     );
 
-    return result;
   };
 
   const goToNextStep = () => {
@@ -737,6 +707,8 @@ const ResearchWizard = () => {
               return (
                 <div
                   key={index}
+                  className={`wizard-step ${isCompleted ? "completed" : ""} ${isActive ? "active" : ""
+                    }`}
                   className={`wizard-step ${isCompleted ? "completed" : ""} ${
                     isActive ? "active" : ""
                     }`}
@@ -797,20 +769,16 @@ const ResearchWizard = () => {
             onClick={() => {
               setShowSaveModal(false);
               toast.info("Research completed but was not saved.");
+              toast.info("Research completed but was not saved.");
             }}
           >
             No, thanks
           </Button>
           <Button
             variant="primary"
-            onClick={async () => {
+            onClick={() => {
               setShowSaveModal(false);
-              try {
-                await handleSaveResearch();
-                setTimeout(() => navigate("/history"), 800);
-              } catch (err) {
-                toast.error("Failed to save research.");
-              }
+              handleSaveResearch();
             }}
           >
             Yes, save it
@@ -838,6 +806,7 @@ const ResearchWizard = () => {
             variant="primary"
             onClick={() => {
               setShowLoginInvite(false);
+              navigate("/signin");
               navigate("/signin");
             }}
           >

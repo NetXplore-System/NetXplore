@@ -18,6 +18,7 @@ from models import Research, Message, ResearchFilter, NetworkAnalysis, Compariso
 from utils import  extract_data
 from auth_router import get_current_user
 from analysis_router import analyze_network
+from analysis_router import analyze_network
 
 UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "./uploads/")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -104,6 +105,40 @@ async def save_research(
         
         logger.info(f"🔹 Data extracted successfully")
         
+
+        data = await analyze_network(
+            filename=file_name,
+            start_date=start_date,
+            end_date=end_date,
+            start_time=start_time,
+            end_time=end_time,
+            limit=limit,
+            limit_type=limit_type,
+            min_length=min_length,
+            max_length=max_length,
+            keywords=keywords,
+            min_messages=min_messages,
+            max_messages=max_messages,
+            active_users=active_users,
+            selected_users=selected_users,
+            username=username,
+            anonymize=anonymize,
+            directed=directed,
+            use_history=use_history,
+            normalize=normalize,
+            history_length=history_length,
+            is_for_save=True
+        )
+        
+        
+        data = json.loads(data.body)
+        logger.info(f"🔹 Data received from analysis: {data}")
+        if not data or "nodes" not in data or "links" not in data:
+            logger.error("Invalid data format received from analysis.")
+            raise HTTPException(status_code=400, detail="Invalid data format received from analysis.")
+        
+        logger.info(f"🔹 Data extracted successfully")
+        
         new_research = Research(
             research_name=research_name,
             description=description,
@@ -115,6 +150,7 @@ async def save_research(
         await db.commit()
         await db.refresh(new_research)
 
+        if include_messages:
         if include_messages:
             for message in data["messages"]:
                 new_message = Message(
