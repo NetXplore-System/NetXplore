@@ -21,7 +21,6 @@ from utils import (
     mark_common_nodes,
     get_network_metrics,
     calculate_sequential_weights,
-    extract_data,
     normalize_links_by_target
 )
 

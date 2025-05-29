@@ -5,8 +5,19 @@ import networkx as nx
 from datetime import datetime
 from collections import defaultdict
 import logging
+from utils import calculate_sequential_weights, normalize_links_by_target,MEDIA_RE, spam_messages
+
 logger = logging.getLogger("graph_builder")
 
+from collections import defaultdict
+
+def debug_check_target_weights(links):
+    target_totals = defaultdict(float)
+    for link in links:
+        target_totals[link["target"]] += link["weight"]
+
+    for target, total in target_totals.items():
+        print(f"Target: {target}, Total Weight: {round(total, 4)}")
 
 def build_graph_from_txt(
     txt_path,
@@ -27,7 +38,6 @@ def build_graph_from_txt(
     end_time=None,
     directed=False,
     use_history=False,
-    use_triads=False,
     include_messages=False,
     normalize=False,
     history_length=None,
@@ -76,6 +86,9 @@ def build_graph_from_txt(
             except:
                 pass   
 
+            if any(spam in text for spam in spam_messages) or MEDIA_RE.search(text):
+                continue
+
             if username and username.strip().lower() != user.lower():
                 continue
 
@@ -91,22 +104,30 @@ def build_graph_from_txt(
         else:  
             filtered_lines = filtered_lines[:limit]
 
-    previous_user = None
-
+    all_messages = []
     for user, text in filtered_lines:
-        original_user = user
         if anonymize:
             if user not in anonymized_map:
                 anonymized_map[user] = f"User_{len(anonymized_map) + 1}"
             user = anonymized_map[user]
-
         usernames.add(user)
         user_message_count[user] += 1
+        all_messages.append((user, text))
 
-        if previous_user and previous_user != user:
-            edge = tuple(sorted([previous_user, user]))
-            edges_counter[edge] += 1
-        previous_user = user
+    if use_history:
+        history_n = history_length or 3
+        logger.info(f" Using sequential weights with history_length={history_n}")
+        edges = calculate_sequential_weights(all_messages, n_prev=history_n)
+        for (source, target), weight in edges.items():
+            edge = tuple(sorted([source, target]))
+            edges_counter[edge] += weight
+    else:
+        previous_user = None
+        for user, _ in all_messages:
+            if previous_user and previous_user != user:
+                edge = tuple(sorted([previous_user, user]))
+                edges_counter[edge] += 1
+            previous_user = user
 
     if min_messages or max_messages or active_users or selected_users:
         filtered_users = {u: c for u, c in user_message_count.items()
@@ -173,6 +194,12 @@ def build_graph_from_txt(
         for (a, b), w in edges_counter.items()
         if a in usernames and b in usernames
     ]
+    if normalize:
+        print(" NORMALIZE FLAG IS TRUE")
+        links_list = normalize_links_by_target(links_list)
+        debug_check_target_weights(links_list)
+
+
 
     logger.info(f"Created Wikipedia graph with {len(nodes_list)} nodes and {len(links_list)} links")
 

@@ -15,7 +15,7 @@ from pydantic import BaseModel
 
 from database import get_db
 from models import Research, Message, ResearchFilter, NetworkAnalysis, Comparisons
-from utils import  extract_data
+# from utils import  extract_data
 from auth_router import get_current_user
 from analysis_router import analyze_network
 import ast
@@ -124,7 +124,7 @@ async def save_research(
         await db.commit()
         await db.refresh(new_research)
 
-        if include_messages and "messages" in data:
+        if include_messages and isinstance(data.get("messages"), list):
             for message in data["messages"]:
                 new_message = Message(
                     research_id=new_research.research_id,
@@ -314,8 +314,14 @@ async def update_research_data(
         filters_data.pop("filter_by_username")
         filters_data.pop("algorithm")
 
-        new_data = await extract_data(lines, **filters_data)
+        analyzer = get_analyzer(research.platform)
 
+        new_data = await analyzer.analyze(
+            filename=file_name,
+            is_for_save=True,
+            include_messages=True,
+            **filters_data
+        )
         research.research_name = updated_data.get("research_name", research.research_name)
         research.description = updated_data.get("description", research.description)
         research.file_name = file_name or research.file_name
