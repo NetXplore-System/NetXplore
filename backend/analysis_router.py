@@ -63,9 +63,15 @@ async def analyze_network(
             raise HTTPException(404, f"File '{filename}' not found")
 
         try:
+            if start_time and len(start_time.split(":")) == 2:
+                start_time += ":00"
+            if end_time and len(end_time.split(":")) == 2:
+                end_time += ":00"
+
             start_dt = parse_date_time(start_date, start_time)
             end_dt = parse_date_time(end_date, end_time)
         except ValueError as e:
+            logger.error(f"Invalid date/time format: {e}")
             raise HTTPException(400, str(e))
 
         raw_lines = open(path, encoding="utf-8").readlines()
@@ -87,12 +93,13 @@ async def analyze_network(
             username,
             anonymize,
             date_fmts,
-            True if directed else False,
+            True if use_history else False,
         )
 
         if directed and use_history:
             selected_messages = result["messages"]
             if not selected_messages:
+                logger.error("No messages found after filtering.")
                 raise HTTPException(400, "No messages found after filtering.")
 
             seq_weights = calculate_sequential_weights(selected_messages, history_length)
@@ -112,6 +119,7 @@ async def analyze_network(
 
             nodes = set(filtered_users.keys())
             if not nodes:
+                logger.error("No data to analyze after filtering.")
                 raise HTTPException(400, "No data to analyze after filtering.")
 
             links = [
@@ -153,7 +161,7 @@ async def analyze_network(
             ]
             return JSONResponse({"nodes": nodes_out, "links": links, "messages": selected_messages if is_for_save else None, "is_connected": nx.is_connected(G.to_undirected())}, status_code=200)
 
-     
+        
         return JSONResponse({"nodes": result["nodes"], "links": result["links"], "messages": result["messages"] if is_for_save else None, "is_connected": result["is_connected"]}, status_code=200)
 
     except HTTPException:

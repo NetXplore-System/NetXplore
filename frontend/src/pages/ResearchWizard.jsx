@@ -579,7 +579,16 @@ const ResearchWizard = () => {
       toast.error("Please fill in all required fields.");
       return null;
     }
-
+    const comparisonData = comparison.comparisonNetworkData?.length > 0 ? {
+      data: comparison.comparisonNetworkData.map((item, index) => ({
+        nodes: item.nodes,
+        links: item.links,
+        filename: comparison.comparisonData[index].filename,
+      })),
+      filters: comparison.comparisonFilterSettings,
+    } : {};
+    
+    
     const result = await toast.promise(
       saveToDB(
         id,
@@ -589,10 +598,7 @@ const ResearchWizard = () => {
         formData.uploadedFileName,
         params,
         selectedMetric,
-        {
-          hasComparison: comparison.comparisonNetworkData?.length > 0,
-          data: comparison.comparisonNetworkData,
-        },
+        comparisonData,
         formData.platform
       ),
       {
@@ -806,9 +812,8 @@ const ResearchWizard = () => {
               return (
                 <div
                   key={index}
-                  className={`wizard-step ${isCompleted ? "completed" : ""} ${
-                    isActive ? "active" : ""
-                  }`}
+                  className={`wizard-step ${isCompleted ? "completed" : ""} ${isActive ? "active" : ""
+                    }`}
                 >
                   <div className="step-circle">{index + 1}</div>
                   <div className="step-line"></div>
@@ -873,11 +878,13 @@ const ResearchWizard = () => {
           <Button
             variant="primary"
             onClick={async () => {
+              console.log(comparison);
               setShowSaveModal(false);
               try {
                 await handleSaveResearch();
-                setTimeout(() => navigate("/history"), 800);
+                // setTimeout(() => navigate("/history"), 800);
               } catch (err) {
+                console.error("Error saving research:", err);
                 toast.error("Failed to save research.");
               }
             }}

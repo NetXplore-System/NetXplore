@@ -162,6 +162,31 @@ const useComparison = (originalNetworkData, uploadedFile) => {
       );
     }
 
+    if (filterSettings.config) {
+      if (filterSettings.config.directed)
+        params.append(
+          "directed",
+          filterSettings.config.directed ? "true" : "false"
+        );
+      if (filterSettings.config.anonymize)
+        params.append(
+          "anonymize",
+          filterSettings.config.anonymize ? "true" : "false"
+        );
+      if (filterSettings.config.history)
+        params.append(
+          "use_history",
+          filterSettings.config.history ? "true" : "false"
+        );
+      if (filterSettings.config.normalized)
+        params.append(
+          "normalize",
+          filterSettings.config.normalized ? "true" : "false"
+        );
+      if (filterSettings.config.messageCount)
+        params.append("history_length", filterSettings.config.messageCount.toString());
+    }
+
     return params;
   };
 
@@ -181,7 +206,6 @@ const useComparison = (originalNetworkData, uploadedFile) => {
         message: "Please select a comparison file first.",
       };
     }
-
     let params = new URLSearchParams(globalFilterParams?.toString() || "");
 
     if (customFilters) {
@@ -207,9 +231,8 @@ const useComparison = (originalNetworkData, uploadedFile) => {
         : "comparison_wikipedia_data";
       url = `${BASE_URL}/analyze/wikipedia/${filename}?${params.toString()}`;
     } else {
-      url = `${BASE_URL}/analyze/network/${
-        comparisonFile.filename
-      }?${params.toString()}`;
+      url = `${BASE_URL}/analyze/network/${comparisonFile.filename
+        }?${params.toString()}`;
     }
 
     try {
@@ -353,7 +376,6 @@ const useComparison = (originalNetworkData, uploadedFile) => {
     setHighlightCommonNodes(filters.highlightCommonNodes);
 
     const params = new URLSearchParams();
-
     if (filters.comparisonFilter)
       params.append("node_filter", filters.comparisonFilter);
     if (filters.minComparisonWeight)
@@ -484,15 +506,15 @@ const useComparison = (originalNetworkData, uploadedFile) => {
 
     const nodeChangePercent = originalNodeCount
       ? (
-          ((comparisonNodeCount - originalNodeCount) / originalNodeCount) *
-          100
-        ).toFixed(2)
+        ((comparisonNodeCount - originalNodeCount) / originalNodeCount) *
+        100
+      ).toFixed(2)
       : 0;
     const linkChangePercent = originalLinkCount
       ? (
-          ((comparisonLinkCount - originalLinkCount) / originalLinkCount) *
-          100
-        ).toFixed(2)
+        ((comparisonLinkCount - originalLinkCount) / originalLinkCount) *
+        100
+      ).toFixed(2)
       : 0;
 
     const originalNodeIds = new Set(originalData.nodes.map((node) => node.id));

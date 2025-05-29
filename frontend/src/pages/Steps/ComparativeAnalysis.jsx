@@ -88,6 +88,13 @@ const ComparativeAnalysis = ({
             fromEnd: false,
             type: "messages",
           },
+          config: {
+            directed: false,
+            anonymize: false,
+            history: false,
+            messageCount: 3,
+            normalized: false,
+          }
         });
       }
       setLocalFilterSettings(newFilterSettings);

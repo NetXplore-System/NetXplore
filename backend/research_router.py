@@ -15,7 +15,7 @@ from pydantic import BaseModel
 
 from database import get_db
 from models import Research, Message, ResearchFilter, NetworkAnalysis, Comparisons
-from utils import  extract_data
+from utils import  extract_data, calculate_comparison_stats
 from auth_router import get_current_user
 from analysis_router import analyze_network
 
@@ -37,7 +37,8 @@ async def save_research(
     researcher_id: str = Form(...),
     research_name: str = Form(...),
     description: Optional[str] = Form(None),
-    comparison: Optional[str] = Form(None),
+    comparison_data: Optional[str] = Form(None),
+    comparison_filters: Optional[str] = Form(None),
     platform: str = Form(...),
     selected_metric: str = Form(None),
     start_date: str = Query(None),
@@ -97,7 +98,6 @@ async def save_research(
         
         
         data = json.loads(data.body)
-        logger.info(f"🔹 Data received from analysis: {data}")
         if not data or "nodes" not in data or "links" not in data:
             logger.error("Invalid data format received from analysis.")
             raise HTTPException(status_code=400, detail="Invalid data format received from analysis.")
@@ -109,7 +109,6 @@ async def save_research(
             description=description,
             user_id=researcher_id,
             platform=platform,
-            created_at=datetime.utcnow()
         )
         db.add(new_research)
         await db.commit()
@@ -121,7 +120,6 @@ async def save_research(
                     research_id=new_research.research_id,
                     message_text=message[1],
                     send_by=message[0],
-                    created_at=datetime.utcnow()
                 )
                 db.add(new_message)
             await db.commit()
@@ -163,33 +161,59 @@ async def save_research(
         await db.commit()
         await db.refresh(new_analysis)
 
-        if comparison:
+        if comparison_data:
             try:
-                comparison_data = json.loads(comparison)
-                if isinstance(comparison_data, list):
-                    for comp_data in comparison_data:
-                        logger.info(f"🔹 Comparison Data: {comp_data}")
-                        new_comparison = Comparisons(
-                            research_id=new_research.research_id,
-                            original_analysis=new_analysis.id,
-                            nodes=comp_data.get('nodes', []),
-                            links=comp_data.get('links', []),
-                            is_connected=comp_data.get('is_connected', True)
-                        )
-                        db.add(new_comparison)
-                elif isinstance(comparison_data, dict):
+                comparison_data = json.loads(comparison_data)
+                comparison_filters = json.loads(comparison_filters)
+                
+                
+                for comp_data, comp_filter in zip(comparison_data, comparison_filters):
+
+                    messages = await analyze_network(
+                        filename=comp_data.get("file_name", file_name),
+                        start_date=comp_filter.get("timeFrame", {}).get("startDate"),
+                        end_date=comp_filter.get("timeFrame", {}).get("endDate"),
+                        start_time=comp_filter.get("timeFrame", {}).get("startTime"),
+                        end_time=comp_filter.get("timeFrame", {}).get("endTime"),
+                        limit=comp_filter.get("limit", {}).get("count"),
+                        limit_type="last" if comp_filter.get("limit", {}).get("fromEnd") else "first",
+                        min_length=comp_filter.get("messageCriteria", {}).get("minLength"),
+                        max_length=comp_filter.get("messageCriteria", {}).get("maxLength"),
+                        keywords=comp_filter.get("messageCriteria", {}).get("keywords"),
+                        min_messages=comp_filter.get("userFilters", {}).get("minMessages"),
+                        max_messages=comp_filter.get("userFilters", {}).get("maxMessages"),
+                        username=comp_filter.get("userFilters", {}).get("usernameFilter"),
+                        selected_users=comp_filter.get("userFilters", {}).get("selectedUsers", ""),
+                        active_users=comp_filter.get("userFilters", {}).get("topActiveUsers", 0),
+                        anonymize=False,
+                        directed=comp_filter.get("config", {}).get("directed", False),
+                        use_history=comp_filter.get("config", {}).get("history", False),
+                        normalize=comp_filter.get("config", {}).get("normalized", False),
+                        history_length=comp_filter.get("config", {}).get("messageCount", 0),
+                        is_for_save=True
+                    )
+
+                    messages = json.loads(messages.body).get("messages", [])
+                    logger.info(f"🔹 Comparison messages extracted successfully: {len(messages)} messages")
+
+                    comparison_stats = calculate_comparison_stats(data["nodes"], comp_data.get("nodes", []))
+
                     new_comparison = Comparisons(
                         research_id=new_research.research_id,
                         original_analysis=new_analysis.id,
-                        nodes=comparison_data.get('nodes', []),
-                        links=comparison_data.get('links', []),
-                        is_connected=comparison_data.get('is_connected', True)
+                        nodes=comp_data.get('nodes', []),
+                        links=comp_data.get('links', []),
+                        is_connected=comp_data.get('is_connected', True),
+                        messages=json.dumps(messages), 
+                        filters=json.dumps(comp_filter),
+                        statistics=json.dumps(comparison_stats), 
                     )
                     db.add(new_comparison)
                 
+                
                 await db.commit()
             except json.JSONDecodeError:
-                logger.error(f"Invalid comparison data format: {comparison}")
+                logger.error(f"Invalid comparison data format: {comparison_data}")
                 pass
 
         return {
@@ -208,7 +232,6 @@ async def delete_research(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Delete a research and all its related data"""
     try:
         research = await db.get(Research, research_id)
         if not research:

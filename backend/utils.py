@@ -407,12 +407,15 @@ async def extract_data(
     }
 
 
-def anonymize_name(name, anonymized_map):
-    if name.startswith("\u202a+972") or name.startswith("+972"):
-        name = f"Phone_{len(anonymized_map) + 1}"
-    if name not in anonymized_map:
-        anonymized_map[name] = f"User_{len(anonymized_map) + 1}"
-    return anonymized_map[name]
+def anonymize_name(name: str, mapping: dict[str, str]) -> str:
+    if name not in mapping:
+        if name.startswith('+972') or name.startswith('\u202a+972'):
+            alias = f'Phone_{sum(a.startswith("Phone_") for a in mapping.values())+1}'
+        else:
+            alias = f'User_{len(mapping)+1}'
+        mapping[name] = alias
+    return mapping[name]
+
 
 
 def clean_filter_value(key: str, value: Any):
@@ -442,3 +445,33 @@ def delete_old_files():
                     logger.info(f"Deleted old file: {file_path}")
             except ValueError:
                 logger.warning(f"Skipping file with invalid timestamp format: {filename}")
+                
+                
+                
+def calculate_comparison_stats(original_nodes, comparison_nodes):
+    if not original_nodes or not comparison_nodes:
+        return None
+
+    original_node_count = len(original_nodes)
+    comparison_node_count = len(comparison_nodes)
+
+    node_difference = comparison_node_count - original_node_count
+    node_change_percent = (
+        ((comparison_node_count - original_node_count) / original_node_count) * 100
+        if original_node_count
+        else 0
+    )
+
+    original_node_ids = {node.get("id") for node in original_nodes}
+    comparison_node_ids = {node.get("id") for node in comparison_nodes}
+
+    common_nodes = original_node_ids.intersection(comparison_node_ids)
+    common_nodes_count = len(common_nodes)
+
+    return {
+        "original_node_count": original_node_count,
+        "comparison_node_count": comparison_node_count,
+        "node_difference": node_difference,
+        "node_change_percent": round(node_change_percent, 2),
+        "common_nodes_count": common_nodes_count,
+    }
