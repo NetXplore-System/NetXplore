@@ -6,6 +6,7 @@ from datetime import datetime
 from collections import defaultdict
 import logging
 from utils import calculate_sequential_weights, normalize_links_by_target,MEDIA_RE, spam_messages
+from utils import parse_date_time
 
 logger = logging.getLogger("graph_builder")
 
@@ -45,7 +46,34 @@ def build_graph_from_txt(
     platform="wikipedia",
     algorithm="louvain"  
 ):
-    from utils import parse_date_time
+   
+
+    def parse_whatsapp_datetime(date_str, time_str):
+        timestamp_str = f"{date_str} {time_str}"
+        
+        formats_to_try = [
+            "%d.%m.%Y %H:%M:%S",    
+            "%d/%m/%Y %H:%M:%S",    
+            "%m/%d/%y, %H:%M",      
+            "%m/%d/%Y, %H:%M",      
+            "%d.%m.%Y %H:%M",       
+            "%d/%m/%Y %H:%M",       
+        ]
+        
+        for fmt in formats_to_try:
+            try:
+                return datetime.strptime(timestamp_str, fmt)
+            except ValueError:
+                continue
+        
+        if ',' in timestamp_str:
+            try:
+                date_part, time_part = timestamp_str.split(', ')
+                return datetime.strptime(f"{date_part} {time_part}", "%m/%d/%y %H:%M")
+            except ValueError:
+                pass
+        
+        return None
 
     nodes = []
     links = []
@@ -64,30 +92,38 @@ def build_graph_from_txt(
 
     for line in lines:
         match = re.match(r"\[([\d/\.]+), ([\d:]+)\] ([^:]+):(.*)", line)
+        
+        if not match:
+            match = re.match(r"([\d/]+), ([\d:]+) - ([^:]+):(.*)", line)
+            
+        if not match:
+            match = re.match(r"([\d/]+), ([\d:]+) - (.*?):(.*)", line)
+
         if match:
             date, time, user, text = match.groups()
             text = text.strip()
             user = user.strip()
 
+            user = user.lstrip('~ ')
+
             if (min_length is not None and len(text) < min_length) or (max_length is not None and len(text) > max_length):
                 continue
-
 
             if keywords:
                 keyword_list = [k.strip().lower() for k in keywords.split(",")]
                 if not any(k in text.lower() for k in keyword_list):
                     continue
 
-            timestamp_str = f"{date} {time}"
-            try:
-                message_dt = datetime.strptime(timestamp_str, "%d/%m/%Y %H:%M:%S")
+            message_dt = parse_whatsapp_datetime(date, time)
+            if message_dt:
                 if (start_dt and message_dt < start_dt) or (end_dt and message_dt > end_dt):
                     continue
-            except:
-                pass   
 
-            if any(spam in text for spam in spam_messages) or MEDIA_RE.search(text):
-                continue
+            try:
+                if any(spam in text for spam in spam_messages) or MEDIA_RE.search(text):
+                    continue
+            except NameError:
+                pass
 
             if username and username.strip().lower() != user.lower():
                 continue
@@ -116,7 +152,6 @@ def build_graph_from_txt(
 
     if use_history:
         history_n = history_length or 3
-        logger.info(f" Using sequential weights with history_length={history_n}")
         edges = calculate_sequential_weights(all_messages, n_prev=history_n)
         for (source, target), weight in edges.items():
             edge = tuple(sorted([source, target]))
@@ -144,6 +179,7 @@ def build_graph_from_txt(
 
         usernames = set(filtered_users.keys())
 
+    import networkx as nx
     G = nx.Graph()
     G.add_nodes_from(usernames)
 
@@ -167,7 +203,6 @@ def build_graph_from_txt(
             eigenvector_centrality = nx.eigenvector_centrality(subgraph, max_iter=1000)
             pagerank = nx.pagerank(subgraph)
     except Exception as e:
-        logger.warning(f"Error calculating metrics: {e}")
         degree_centrality = {}
         betweenness_centrality = {}
         closeness_centrality = {}
@@ -194,14 +229,12 @@ def build_graph_from_txt(
         for (a, b), w in edges_counter.items()
         if a in usernames and b in usernames
     ]
+    
     if normalize:
         print(" NORMALIZE FLAG IS TRUE")
         links_list = normalize_links_by_target(links_list)
         debug_check_target_weights(links_list)
 
-
-
-    logger.info(f"Created Wikipedia graph with {len(nodes_list)} nodes and {len(links_list)} links")
 
     return {
         "nodes": nodes_list,
