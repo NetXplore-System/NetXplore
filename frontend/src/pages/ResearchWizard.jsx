@@ -562,6 +562,15 @@ const ResearchWizard = () => {
       return null;
     }
 
+    const comparisonData = comparison.comparisonNetworkData?.length > 0 ? {
+      data: comparison.comparisonNetworkData.map((item, index) => ({
+        nodes: item.nodes,
+        links: item.links,
+        filename: comparison.comparisonData[index].filename,
+      })),
+      filters: comparison.comparisonFilterSettings,
+    } : {};
+
     const result = await toast.promise(
       saveToDB(
         id,
@@ -571,10 +580,7 @@ const ResearchWizard = () => {
         formData.uploadedFileName,
         params,
         selectedMetric,
-        {
-          hasComparison: comparison.comparisonNetworkData?.length > 0,
-          data: comparison.comparisonNetworkData,
-        },
+        comparisonData,
         formData.platform,
         communities
       ),
@@ -856,6 +862,7 @@ const ResearchWizard = () => {
           <Button
             variant="primary"
             onClick={async () => {
+              console.log(comparison);
               setShowSaveModal(false);
               try {
                 await handleSaveResearch();

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { toast } from 'sonner';
-import { FaEye, FaEdit, FaCopy, FaTrash } from 'react-icons/fa';
+import { FaEye, FaEdit, FaCopy, FaTrash, FaFilePdf } from 'react-icons/fa';
 import { Badge, Button, ButtonGroup, Card, Table } from 'react-bootstrap';
 
 import Loader from '../components/utils/Loader';
@@ -9,6 +9,7 @@ import Modal from '../components/utils/Modal';
 import ResearchHistory from '../components/utils/ResearcHistory';
 import UpdateResearch from '../components/utils/UpdateResearch';
 import ComparisonHistory from '../components/utils/HistoryComparison';
+import MadeReport from '../components/utils/MadeReport';
 
 import '../components/utils/history.css';
 import { deleteResearch } from '../components/utils/ApiService';
@@ -18,6 +19,7 @@ const History = () => {
   const [userHistory, setUserHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [research, setResearch] = useState(null);
+  const [showDownload, setShowDownload] = useState(false);
   const [action, setAction] = useState({
     inAction: false,
     ids: []
@@ -59,6 +61,24 @@ const History = () => {
     );
   };
 
+  const handleReportGeneration = (researchItem) => {
+    setResearch({ 
+      ...researchItem, 
+      button: 'report',
+      selectedMetric: researchItem.metric || 'default',
+      params: new Map([
+        ['platform', researchItem.platform],
+        ['created_at', researchItem.created_at]
+      ]),
+      hasComparison: researchItem.has_comparison || false
+    });
+    setShowDownload(true);
+  };
+
+  const closeModal = () => {
+    setResearch(null);
+  };
+
   useEffect(() => {
     async function getUserHistory() {
       try {
@@ -94,7 +114,7 @@ const History = () => {
   return (
     <div className="history-container">
       {research && (
-        <Modal onClose={() => setResearch(null)}>
+        <Modal onClose={closeModal}>
           {research.button === 'view' && <ResearchHistory research={research} />}
           {research.button === 'edit' && (
             <UpdateResearch
@@ -104,6 +124,15 @@ const History = () => {
             />
           )}
           {research.button === 'compare' && <ComparisonHistory research={research} />}
+          {research.button === 'report' && (
+            <MadeReport
+              selectedMetric={research.selectedMetric}
+              name={research.research_name}
+              params={research.params}
+              setShowDownload={setShowDownload}
+              hasComparison={false}
+            />
+          )}
         </Modal>
       )}
       <Card className={`history-table mt-4 ${loading ? 'h-75' : ''}`}>
@@ -170,6 +199,16 @@ const History = () => {
                         >
                           <FaCopy />
                         </Button>
+                        {/* <Button
+                          data-tooltip-id="my-tooltip"
+                          data-tooltip-content="Generate PDF report"
+                          data-tooltip-place="top"
+                          aria-label="Generate Report"
+                          variant="success"
+                          onClick={() => handleReportGeneration(research)}
+                        >
+                          <FaFilePdf />
+                        </Button> */}
                         <Button
                           data-tooltip-id="my-tooltip"
                           data-tooltip-content="Delete research"

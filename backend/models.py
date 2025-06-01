@@ -165,6 +165,9 @@ class Comparisons(Base):
     nodes = Column(JSONB, nullable=False)
     links = Column(JSONB, nullable=False)
     is_connected = Column(Boolean, default=True)
+    messages = Column(JSONB, nullable=True)
+    filters = Column(JSONB, nullable=True)
+    statistics = Column(JSONB, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(pytz.utc))
 
     def to_dict(self):
@@ -175,5 +178,8 @@ class Comparisons(Base):
             "nodes": self.nodes,
             "links": self.links,
             "is_connected": self.is_connected,
+            "messages": self.messages,
+            "filters": self.filters,
+            "statistics": self.statistics,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }

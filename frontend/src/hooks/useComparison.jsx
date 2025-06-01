@@ -161,7 +161,30 @@ const useComparison = (originalNetworkData, uploadedFile) => {
         filterSettings.limit.fromEnd ? "last" : "first"
       );
     }
-
+    if (filterSettings.config) {
+      if (filterSettings.config.directed)
+        params.append(
+          "directed",
+          filterSettings.config.directed ? "true" : "false"
+        );
+      if (filterSettings.config.anonymize)
+        params.append(
+          "anonymize",
+          filterSettings.config.anonymize ? "true" : "false"
+        );
+      if (filterSettings.config.history)
+        params.append(
+          "use_history",
+          filterSettings.config.history ? "true" : "false"
+        );
+      if (filterSettings.config.normalized)
+        params.append(
+          "normalize",
+          filterSettings.config.normalized ? "true" : "false"
+        );
+      if (filterSettings.config.messageCount)
+        params.append("history_length", filterSettings.config.messageCount);
+    }
     return params;
   };
 
