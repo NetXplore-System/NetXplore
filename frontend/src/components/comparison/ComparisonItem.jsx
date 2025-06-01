@@ -51,6 +51,7 @@ const ComparisonItem = ({
   selectedSection,
   setSelectedSection,
   handleFetchWikipedia,
+  setComparisonNetworkData
 }) => {
   const [showFilters, setShowFilters] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
