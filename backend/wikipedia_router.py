@@ -25,7 +25,6 @@ async def fetch_wikipedia_data(request: Request):
     data = await request.json()
     url = data.get("url")
     filename = data.get("save_as", "wikipedia_data")
-    is_comparison = data.get("is_comparison", False)
 
     if not url:
         raise HTTPException(status_code=400, detail="Missing Wikipedia URL")
@@ -83,7 +82,7 @@ async def fetch_wikipedia_data(request: Request):
                 node_id = node["id"]
                 node["degree"] = degree_map.get(node_id, 0)
 
-        target_dir = os.path.join("uploads", "comparisons", filename) if is_comparison else "uploads"
+        target_dir = "uploads"
         os.makedirs(target_dir, exist_ok=True)
         json_path = os.path.join(target_dir, f"{filename}.json")
 
@@ -116,7 +115,6 @@ async def analyze_network(
     username: str = Query(None),
     anonymize: bool = Query(False)
 ):
-    is_comparison = "comparison" in filename
     base_path = "uploads"
     txt_path = os.path.join(base_path, f"{filename}.txt")
 
@@ -553,7 +551,6 @@ async def convert_to_txt(request: Request):
     data = await request.json()
     filename = data.get("filename")
     section_title = data.get("section_title")
-    is_comparison = data.get("is_comparison", False)
 
     if not filename or not section_title:
         raise HTTPException(status_code=400, detail="Missing filename or section_title")
