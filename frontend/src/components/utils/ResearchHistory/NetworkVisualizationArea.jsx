@@ -51,7 +51,7 @@ const NetworkVisualizationArea = ({
                         </Button>
                     </OverlayTrigger>
 
-                    <OverlayTrigger
+                    {/* <OverlayTrigger
                         placement="bottom"
                         overlay={<Tooltip>Take Screenshot</Tooltip>}
                     >
@@ -62,7 +62,7 @@ const NetworkVisualizationArea = ({
                         >
                             <ImageFill />
                         </Button>
-                    </OverlayTrigger>
+                    </OverlayTrigger> */}
 
                     <OverlayTrigger
                         placement="bottom"
