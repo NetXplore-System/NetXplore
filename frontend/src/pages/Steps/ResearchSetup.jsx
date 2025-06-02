@@ -1,6 +1,6 @@
 import React from "react";
 import { Card, Form, Button, Row, Col, Alert } from "react-bootstrap";
-import { Upload, CheckCircle } from "react-bootstrap-icons";
+import { Upload, CheckCircle, ExclamationCircle  } from "react-bootstrap-icons";
 
 const ResearchSetup = ({
   formData,
@@ -12,6 +12,8 @@ const ResearchSetup = ({
   setOriginalNetworkData,
   setFormData,
   handleFetchWikipedia,
+  uploadError,
+  wikipediaUrlError,
 }) => {
   const handleUploadClick = () => {
     if (fileInputRef?.current) {
@@ -83,14 +85,22 @@ const ResearchSetup = ({
                 </Button>
               </Col>
             </Row>
-            {formData.uploadedFileName && (
-              <div className="upload-success mt-2">
-                <CheckCircle className="me-2 text-success" />
-                <span className="text-success">
-                  Wikipedia discussion loaded successfully!
-                </span>
-              </div>
-            )}
+             {wikipediaUrlError ? (
+  <div className="upload-error mt-2 d-flex align-items-center">
+    <ExclamationCircle className="me-2 text-danger" />
+    <span className="text-danger">{wikipediaUrlError}</span>
+  </div>
+) : (
+  formData.uploadedFileName && (
+    <div className="upload-success mt-2 d-flex align-items-center">
+      <CheckCircle className="me-2 text-success" />
+      <span className="text-success">
+        Wikipedia discussion loaded successfully!
+      </span>
+    </div>
+  )
+)}
+
             <Form.Text className="text-muted">
               This will fetch and analyze discussion data from Wikipedia.
             </Form.Text>
@@ -118,14 +128,23 @@ const ResearchSetup = ({
                 {formData.fileName || "No file selected"}
               </span>
             </div>
-            {formData.uploadedFileName && (
-              <div className="upload-success mt-2">
-                <CheckCircle className="me-2 text-success" />
-                <span className="text-success">
-                  File uploaded successfully!
-                </span>
+           
+            {uploadError ? (
+              <div className="upload-error mt-2 d-flex align-items-center">
+                <ExclamationCircle className="me-2 text-danger" />
+                <span className="text-danger">{uploadError}</span>
               </div>
+            ) : (
+              formData.uploadedFileName && (
+                <div className="upload-success mt-2 d-flex align-items-center">
+                  <CheckCircle className="me-2 text-success" />
+                  <span className="text-success">
+                    File uploaded successfully!
+                  </span>
+                </div>
+              )
             )}
+
             <Form.Text className="text-muted">
               Upload a WhatsApp chat export (.txt)
             </Form.Text>

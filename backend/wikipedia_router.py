@@ -15,6 +15,8 @@ from analyzers.factory import get_analyzer
 from typing import Optional
 import json
 from graph_builder import build_graph_from_txt
+from requests.exceptions import HTTPError, RequestException
+
 
 router = APIRouter()
 logger = logging.getLogger("wikipedia")
@@ -37,7 +39,28 @@ async def fetch_wikipedia_data(request: Request):
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
         response = requests.get(url, headers=headers)
-        response.raise_for_status()
+        response.raise_for_status()  
+
+    except HTTPError as http_err:
+        logger.error(f"HTTP error while fetching Wikipedia URL: {http_err}")
+        raise HTTPException(
+            status_code=400,
+            detail="The provided Wikipedia URL is invalid or does not exist. Please try a different link."
+        )
+    except RequestException as req_err:
+        logger.error(f"Request error: {req_err}")
+        raise HTTPException(
+            status_code=400,
+            detail="Unable to connect to Wikipedia. Please check your network or try again later."
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error fetching Wikipedia data: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while trying to fetch the Wikipedia page."
+        )
+
+    try:
         soup = BeautifulSoup(response.text, "html.parser")
         title = soup.find("h1", id="firstHeading").get_text(strip=True)
         metadata = extract_metadata(soup)
@@ -45,27 +68,19 @@ async def fetch_wikipedia_data(request: Request):
 
         discussion_graph = None
         opinions = {"for": 0, "against": 0, "neutral": 0}
+        opinion_users = {"for": [], "against": [], "neutral": []}
 
-        opinion_users = {
-            "for": [],
-            "against": [],
-            "neutral": []
-        }
-
-
-        if content_data and len(content_data) > 0 and 'discussion_graph' in content_data[0]:
+        if content_data and 'discussion_graph' in content_data[0]:
             discussion_graph = content_data[0]['discussion_graph']
             for section in content_data[0]["sections"]:
                 opinions["for"] += section["opinion_count"]["for"]
                 opinions["against"] += section["opinion_count"]["against"]
                 opinions["neutral"] += section["opinion_count"]["neutral"]
-
-            for comment in section["comments"]:
+                for comment in section["comments"]:
                     username = comment["username"]
                     opinion = comment["opinion"]
                     if username not in opinion_users[opinion]:
                         opinion_users[opinion].append(username)
-
 
         result = {
             "title": title,
@@ -91,16 +106,16 @@ async def fetch_wikipedia_data(request: Request):
                 node_id = node["id"]
                 node["degree"] = degree_map.get(node_id, 0)
 
-
         with open("wikipedia_data.json", "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
 
         logger.info(f"Successfully extracted Wikipedia content for: {title}")
         return result
+
     except Exception as e:
-        logger.error(f"Error fetching Wikipedia data: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-    
+        logger.error(f"Error processing Wikipedia data: {e}")
+        raise HTTPException(status_code=500, detail="Error processing the Wikipedia content.")
+
 @router.get("/analyze/wikipedia/{filename}")
 async def analyze_network(
     filename: str,

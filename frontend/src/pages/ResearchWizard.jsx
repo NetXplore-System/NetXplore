@@ -41,6 +41,10 @@ const ResearchWizard = () => {
   const [wikiContent, setWikiContent] = useState(null);
   const [selectedSection, setSelectedSection] = useState(null);
   const hasShownToastRef = useRef(false);
+  const [uploadError, setUploadError] = useState("");
+  const [wikipediaUrlError, setWikipediaUrlError] = useState("");
+
+
 
   const ALL_STEPS = {
     SETUP: "Setup",
@@ -297,69 +301,58 @@ const ResearchWizard = () => {
 
   const handleFileUpload = (file) => {
     if (!file) {
-      toast.error("Please select a file to upload.");
+      setUploadError("Please select a file to upload.");
       return;
     }
-    toast.promise(uploadFile(file), {
-      loading: "Uploading file...",
-      success: (data) => {
+  
+    setUploadError("");       
+    const platform = formData.platform;
+    uploadFile(file, platform)
+      .then((data) => {
         setFormData((prev) => ({
           ...prev,
           uploadedFileName: data.filename,
         }));
-        return "File uploaded successfully!";
-      },
-      error: (error) => {
-        return error?.message || "Error uploading file.";
-      },
-    });
+        setUploadError("");  
+      })
+      .catch((error) => {
+        setUploadError(error.message || "Error uploading file.");
+      });
   };
-
+  
   const handleFetchWikipedia = () => {
     if (!formData.wikipediaUrl?.trim()) {
-      toast.error("Please enter a valid Wikipedia URL.");
+      setWikipediaUrlError("Please enter a valid Wikipedia URL.");
       return;
     }
-
-    toast.promise(
-      fetchWikipediaData(formData.wikipediaUrl).then(async (data) => {
+  
+    setWikipediaUrlError("");    
+  
+    fetchWikipediaData(formData.wikipediaUrl)
+      .then((data) => {
         if (data.nodes && data.links) {
           setNetworkData(data);
           setOriginalNetworkData(data);
           setWikiContent(data.content);
-
+  
           setFormData((prev) => ({
             ...prev,
             uploadedFileName: "wikipedia_data.txt",
           }));
-
-          await fetch(
-            `${import.meta.env.VITE_API_URL}/convert-wikipedia-to-txt`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                filename: "wikipedia_data",
-                section_title: "Top",
-              }),
-            }
-          );
-
-          return data;
         } else {
-          throw new Error("No valid discussion data found.");
+          setWikipediaUrlError("No valid discussion data found.");
         }
-      }),
-      {
-        loading: "Fetching discussion...",
-        success: "Wikipedia discussion loaded and converted!",
-        error: (err) => err.message || "Error fetching Wikipedia data.",
-      }
-    );
+      })
+      .catch((err) => {
+        setWikipediaUrlError(
+          err?.message === "Failed to fetch"
+            ? "Failed to connect to server."
+            : err.message || "Could not load Wikipedia data."
+        );
+      });
   };
-
+  
+  
   const handleNetworkAnalysis = async () => {
     if (!formData.uploadedFileName) {
       toast.error("No file selected for analysis.");
@@ -644,6 +637,9 @@ const ResearchWizard = () => {
             setOriginalNetworkData={setOriginalNetworkData}
             setFormData={setFormData}
             handleFetchWikipedia={handleFetchWikipedia}
+            uploadError={uploadError}
+            wikipediaUrlError={wikipediaUrlError}
+
           />
         );
       case ALL_STEPS.WIKIPEDIA:
