@@ -205,3 +205,67 @@ def delete_old_files():
                     logger.info(f"Deleted old file: {file_path}")
             except ValueError:
                 logger.warning(f"Skipping file with invalid timestamp format: {filename}")
+                
+                
+
+def calculate_comparison_stats(original_nodes, comparison_nodes, original_links=None, comparison_links=None):
+    if not original_nodes or not comparison_nodes:
+        return None
+
+    original_node_count = len(original_nodes)
+    comparison_node_count = len(comparison_nodes)
+
+    node_difference = comparison_node_count - original_node_count
+    node_change_percent = (
+        ((comparison_node_count - original_node_count) / original_node_count) * 100
+        if original_node_count
+        else 0
+    )
+
+    original_node_ids = {node.get("id") for node in original_nodes}
+    comparison_node_ids = {node.get("id") for node in comparison_nodes}
+
+    common_nodes = original_node_ids.intersection(comparison_node_ids)
+    common_nodes_count = len(common_nodes)
+
+    # Calculate edge count if links are provided
+    original_link_count = len(original_links) if original_links else 0
+    comparison_link_count = len(comparison_links) if comparison_links else 0
+    link_difference = comparison_link_count - original_link_count
+    link_change_percent = (
+        ((comparison_link_count - original_link_count) / original_link_count) * 100
+        if original_link_count
+        else 0
+    )
+
+    # Calculate network density if links and nodes are provided
+    original_density = (
+        (original_link_count / ((original_node_count * (original_node_count - 1)) / 2))
+        if original_node_count > 1 else 0
+    )
+    comparison_density = (
+        (comparison_link_count / ((comparison_node_count * (comparison_node_count - 1)) / 2))
+        if comparison_node_count > 1 else 0
+    )
+    density_difference = comparison_density - original_density
+    density_change_percent = (
+        ((comparison_density - original_density) / original_density) * 100
+        if original_density
+        else 0
+    )
+
+    return {
+        "original_node_count": original_node_count,
+        "comparison_node_count": comparison_node_count,
+        "node_difference": node_difference,
+        "node_change_percent": round(node_change_percent, 2),
+        "common_nodes_count": common_nodes_count,
+        "original_link_count": original_link_count,
+        "comparison_link_count": comparison_link_count,
+        "link_difference": link_difference,
+        "link_change_percent": round(link_change_percent, 2),
+        "original_density": round(original_density, 4),
+        "comparison_density": round(comparison_density, 4),
+        "density_difference": round(density_difference, 4),
+        "density_change_percent": round(density_change_percent, 2)
+    }

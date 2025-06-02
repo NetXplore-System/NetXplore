@@ -15,12 +15,9 @@ from pydantic import BaseModel
 
 from database import get_db
 from models import Research, Message, ResearchFilter, NetworkAnalysis, Comparisons
-# from utils import  extract_data
 from auth_router import get_current_user
-from analysis_router import analyze_network
-import ast
-
 from analyzers.factory import get_analyzer
+from utils import calculate_comparison_stats
 
 
 UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "./uploads/")
@@ -41,7 +38,8 @@ async def save_research(
     researcher_id: str = Form(...),
     research_name: str = Form(...),
     description: Optional[str] = Form(None),
-    comparison: Optional[str] = Form(None),
+    comparison_data: Optional[str] = Form(None),
+    comparison_filters: Optional[str] = Form(None),
     platform: str = Form(...),
     selected_metric: str = Form(None),
     start_date: str = Query(None),
@@ -81,44 +79,40 @@ async def save_research(
         analyzer = get_analyzer(platform)
         data = await analyzer.analyze(
             filename=file_name,
-            limit=limit,
+            limit=int(limit) if limit is not None else None,
             limit_type=limit_type,
-            min_length=min_length,
-            max_length=max_length,
+            min_length=int(min_length) if min_length is not None else None,
+            max_length=int(max_length) if max_length is not None else None,
             keywords=keywords,
-            min_messages=min_messages,
-            max_messages=max_messages,
-            active_users=active_users,
+            min_messages=int(min_messages) if min_messages is not None else None,
+            max_messages=int(max_messages) if max_messages is not None else None,
+            active_users=int(active_users) if active_users is not None else None,
             selected_users=selected_users,
             username=username,
-            anonymize=anonymize,
+            anonymize=False,
             directed=directed,
             use_history=use_history,
             normalize=normalize,
-            include_messages=include_messages,
             start_date=start_date,
             end_date=end_date,
             start_time=start_time,
             end_time=end_time,
-            history_length=history_length,
+            history_length=int(history_length) if history_length is not None else 3,
             is_for_save=True
         )
         
         data = data if isinstance(data, dict) else json.loads(data.body)
 
-        logger.info(f" Data received from analysis: {data}")
         if not data or "nodes" not in data or "links" not in data:
             logger.error("Invalid data format received from analysis.")
             raise HTTPException(status_code=400, detail="Invalid data format received from analysis.")
         
-        logger.info(f" Data extracted successfully")
         
         new_research = Research(
             research_name=research_name,
             description=description,
             user_id=researcher_id,
             platform=platform,
-            created_at=datetime.utcnow()
         )
         db.add(new_research)
         await db.commit()
@@ -130,7 +124,6 @@ async def save_research(
                     research_id=new_research.research_id,
                     message_text=message[1],
                     send_by=message[0],
-                    created_at=datetime.utcnow()
                 )
                 db.add(new_message)
             await db.commit()
@@ -174,33 +167,58 @@ async def save_research(
         await db.commit()
         await db.refresh(new_analysis)
 
-        if comparison:
+        if comparison_data:
             try:
-                comparison_data = json.loads(comparison)
-                if isinstance(comparison_data, list):
-                    for comp_data in comparison_data:
-                        logger.info(f"🔹 Comparison Data: {comp_data}")
-                        new_comparison = Comparisons(
-                            research_id=new_research.research_id,
-                            original_analysis=new_analysis.id,
-                            nodes=comp_data.get('nodes', []),
-                            links=comp_data.get('links', []),
-                            is_connected=comp_data.get('is_connected', True)
-                        )
-                        db.add(new_comparison)
-                elif isinstance(comparison_data, dict):
+                comparison_data = json.loads(comparison_data)
+                comparison_filters = json.loads(comparison_filters)
+                
+                for comp_data, comp_filter in zip(comparison_data, comparison_filters):
+                    
+                    messages = await analyzer.analyze(
+                        filename=comp_data.get("file_name", file_name),
+                        start_date=comp_filter.get("timeFrame", {}).get("startDate"),
+                        end_date=comp_filter.get("timeFrame", {}).get("endDate"),
+                        start_time=comp_filter.get("timeFrame", {}).get("startTime"),
+                        end_time=comp_filter.get("timeFrame", {}).get("endTime"),
+                        limit=comp_filter.get("limit", {}).get("count"),
+                        limit_type="last" if comp_filter.get("limit", {}).get("fromEnd") else "first",
+                        min_length=comp_filter.get("messageCriteria", {}).get("minLength"),
+                        max_length=comp_filter.get("messageCriteria", {}).get("maxLength"),
+                        keywords=comp_filter.get("messageCriteria", {}).get("keywords"),
+                        min_messages=comp_filter.get("userFilters", {}).get("minMessages"),
+                        max_messages=comp_filter.get("userFilters", {}).get("maxMessages"),
+                        username=comp_filter.get("userFilters", {}).get("usernameFilter"),
+                        selected_users=comp_filter.get("userFilters", {}).get("selectedUsers", ""),
+                        active_users=comp_filter.get("userFilters", {}).get("topActiveUsers", 0),
+                        anonymize=False,
+                        directed=comp_filter.get("config", {}).get("directed", False),
+                        use_history=comp_filter.get("config", {}).get("history", False),
+                        normalize=comp_filter.get("config", {}).get("normalized", False),
+                        history_length=int(comp_filter.get("config", {}).get("messageCount", 3)),
+                        is_for_save=True
+                    )
+
+                    messages = json.loads(messages.body).get("messages", [])
+                    
+                    logger.info(f"🔹 Comparison messages extracted successfully: {len(messages)} messages")
+
+                    comparison_stats = calculate_comparison_stats(data["nodes"], comp_data.get("nodes", []), data["links"], comp_data.get("links", []))
+
                     new_comparison = Comparisons(
                         research_id=new_research.research_id,
                         original_analysis=new_analysis.id,
-                        nodes=comparison_data.get('nodes', []),
-                        links=comparison_data.get('links', []),
-                        is_connected=comparison_data.get('is_connected', True)
+                        nodes=comp_data.get('nodes', []),
+                        links=comp_data.get('links', []),
+                        is_connected=comp_data.get('is_connected', True),
+                        messages=json.dumps(messages), 
+                        filters=json.dumps(comp_filter),
+                        statistics=json.dumps(comparison_stats), 
                     )
                     db.add(new_comparison)
                 
                 await db.commit()
             except json.JSONDecodeError:
-                logger.error(f"Invalid comparison data format: {comparison}")
+                logger.error(f"Invalid comparison data format: {comparison_data}")
                 pass
 
         return {
@@ -219,7 +237,6 @@ async def delete_research(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Delete a research and all its related data"""
     try:
         research = await db.get(Research, research_id)
         if not research:
@@ -287,14 +304,30 @@ async def update_research_data(
             raise HTTPException(status_code=403, detail="Not authorized")
 
         file_name = updated_data.get("file_name")
+        if not file_name:
+            if "research_name" in updated_data or "description" in updated_data:
+                research.research_name = updated_data.get("research_name", research.research_name)
+                research.description = updated_data.get("description", research.description)
+                await db.commit()
+                await db.refresh(research)
+                return JSONResponse(
+                    content={
+                        "status": "success",
+                        "message": "Research name and/or description updated successfully",
+                        "data": research.to_dict()
+                    },
+                    status_code=200
+                )
+            else:
+                raise HTTPException(status_code=400, detail="No updates provided for research name or description.")
+        
         file_path = os.path.join(UPLOAD_FOLDER, file_name)
         if not os.path.exists(file_path):
             logger.error(f"File '{file_name}' not found.")
             raise HTTPException(status_code=404, detail=f"File '{file_name}' not found.")
-            
+    
 
-        with open(file_path, "r", encoding="utf-8") as f:
-            lines = f.readlines()
+        logger.info(f"🔹 Lines: {updated_data.get('filters', {})}")
 
         filters_data = {
             **updated_data.get("filters", {}), 
@@ -304,24 +337,33 @@ async def update_research_data(
             "active_users": int(updated_data.get("filters", {}).get("top_active_users") or 0),
             "min_messages": int(updated_data.get("filters", {}).get("min_messages") or 0),
             "max_messages": int(updated_data.get("filters", {}).get("max_messages") or 0),
+            "history_length": int(updated_data.get("filters", {}).get("history_length") or 3),
             "username": updated_data.get("filters", {}).get("filter_by_username"),
+            "selected_users": updated_data.get("filters", {}).get("specific_users"),
         }
 
-        filters_data.pop("message_limit")
-        filters_data.pop("min_message_length")
-        filters_data.pop("max_message_length")
-        filters_data.pop("top_active_users")
-        filters_data.pop("filter_by_username")
-        filters_data.pop("algorithm")
-
+        filters_data.pop("message_limit", None)
+        filters_data.pop("min_message_length", None) 
+        filters_data.pop("max_message_length", None)
+        filters_data.pop("top_active_users", None)
+        filters_data.pop("filter_by_username", None)
+        filters_data.pop("algorithm", None)
+        filters_data.pop("specific_users", None)
         analyzer = get_analyzer(research.platform)
 
         new_data = await analyzer.analyze(
             filename=file_name,
             is_for_save=True,
-            include_messages=True,
             **filters_data
         )
+
+        if isinstance(new_data, JSONResponse):
+            new_data = new_data.body
+            if isinstance(new_data, bytes):
+                new_data = json.loads(new_data.decode('utf-8'))
+            else:
+                new_data = json.loads(new_data)
+                
         research.research_name = updated_data.get("research_name", research.research_name)
         research.description = updated_data.get("description", research.description)
         research.file_name = file_name or research.file_name
@@ -332,7 +374,7 @@ async def update_research_data(
 
         INT_FIELDS = [
             "message_limit", "min_message_length", "max_message_length",
-            "min_messages", "max_messages", "top_active_users"
+            "min_messages", "max_messages", "top_active_users", "history_length"
         ]
 
         if filters:

@@ -41,7 +41,7 @@ def build_graph_from_txt(
     use_history=False,
     include_messages=False,
     normalize=False,
-    history_length=None,
+    history_length=3,
     is_for_save=False,
     platform="wikipedia",
     algorithm="louvain"  
@@ -106,7 +106,7 @@ def build_graph_from_txt(
 
             user = user.lstrip('~ ')
 
-            if (min_length is not None and len(text) < min_length) or (max_length is not None and len(text) > max_length):
+            if (min_length is not None and min_length != '' and len(text) < int(min_length)) or (max_length is not None and max_length != '' and len(text) > int(max_length)):
                 continue
 
             if keywords:
@@ -130,15 +130,15 @@ def build_graph_from_txt(
 
             filtered_lines.append((user, text))
 
-    if limit and limit > 0:
+    if limit and limit != '' and int(limit) > 0:
         if limit_type == "last":
-            filtered_lines = filtered_lines[-limit:]
+            filtered_lines = filtered_lines[-int(limit):]
         elif limit_type == "random":
             import random
             random.shuffle(filtered_lines)
-            filtered_lines = filtered_lines[:limit]
+            filtered_lines = filtered_lines[:int(limit)]
         else:  
-            filtered_lines = filtered_lines[:limit]
+            filtered_lines = filtered_lines[:int(limit)]
 
     all_messages = []
     for user, text in filtered_lines:
@@ -151,7 +151,7 @@ def build_graph_from_txt(
         all_messages.append((user, text))
 
     if use_history:
-        history_n = history_length or 3
+        history_n = int(history_length) if history_length else 3
         edges = calculate_sequential_weights(all_messages, n_prev=history_n)
         for (source, target), weight in edges.items():
             edge = tuple(sorted([source, target]))
@@ -166,12 +166,12 @@ def build_graph_from_txt(
 
     if min_messages or max_messages or active_users or selected_users:
         filtered_users = {u: c for u, c in user_message_count.items()
-                          if (not min_messages or c >= min_messages) and
-                             (not max_messages or c <= max_messages)}
+                          if (not min_messages or min_messages == '' or c >= int(min_messages)) and
+                             (not max_messages or max_messages == '' or c <= int(max_messages))}
 
-        if active_users:
+        if active_users and active_users != '':
             sorted_users = sorted(filtered_users.items(), key=lambda x: x[1], reverse=True)
-            filtered_users = dict(sorted_users[:active_users])
+            filtered_users = dict(sorted_users[:int(active_users)])
 
         if selected_users:
             selected_set = set([u.strip().lower() for u in selected_users.split(",")])
@@ -239,5 +239,6 @@ def build_graph_from_txt(
     return {
         "nodes": nodes_list,
         "links": links_list,
-        "is_connected": is_connected
+        "is_connected": is_connected,
+        "messages": all_messages
     }

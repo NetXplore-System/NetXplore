@@ -223,7 +223,8 @@ export const saveToDB = async (
     formData.append("research_name", name);
     formData.append("researcher_id", id);
     formData.append("description", description);
-    comparison.hasComparison && formData.append("comparison", JSON.stringify(comparison.data));
+    comparison?.data && formData.append("comparison_data", JSON.stringify(comparison.data));
+    comparison?.filters && formData.append("comparison_filters", JSON.stringify(comparison.filters));
     formData.append("file_name", file);
     formData.append("selected_metric", selectedMetric);
     formData.append("platform", platform);
