@@ -26,6 +26,7 @@ logging.basicConfig(level=logging.INFO)
 async def fetch_wikipedia_data(request: Request):
     data = await request.json()
     url = data.get("url")
+    filename = data.get("save_as", "wikipedia_data")
 
     if not url:
         raise HTTPException(status_code=400, detail="Missing Wikipedia URL")
@@ -70,7 +71,7 @@ async def fetch_wikipedia_data(request: Request):
         opinions = {"for": 0, "against": 0, "neutral": 0}
         opinion_users = {"for": [], "against": [], "neutral": []}
 
-        if content_data and 'discussion_graph' in content_data[0]:
+        if content_data and len(content_data) > 0 and 'discussion_graph' in content_data[0]:
             discussion_graph = content_data[0]['discussion_graph']
             for section in content_data[0]["sections"]:
                 opinions["for"] += section["opinion_count"]["for"]
@@ -94,28 +95,31 @@ async def fetch_wikipedia_data(request: Request):
         if discussion_graph:
             result["nodes"] = discussion_graph["nodes"]
             result["links"] = discussion_graph["links"]
-
             degree_map = {}
             for link in discussion_graph["links"]:
                 source = link["source"]
                 target = link["target"]
                 degree_map[source] = degree_map.get(source, 0) + 1
                 degree_map[target] = degree_map.get(target, 0) + 1
-
             for node in discussion_graph["nodes"]:
                 node_id = node["id"]
                 node["degree"] = degree_map.get(node_id, 0)
 
-        with open("wikipedia_data.json", "w", encoding="utf-8") as f:
+        target_dir = "uploads"
+        os.makedirs(target_dir, exist_ok=True)
+        json_path = os.path.join(target_dir, f"{filename}.json")
+
+        with open(json_path, "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
 
         logger.info(f"Successfully extracted Wikipedia content for: {title}")
         return result
 
     except Exception as e:
-        logger.error(f"Error processing Wikipedia data: {e}")
-        raise HTTPException(status_code=500, detail="Error processing the Wikipedia content.")
+        logger.error(f"Error fetching Wikipedia data: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
+    
 @router.get("/analyze/wikipedia/{filename}")
 async def analyze_network(
     filename: str,
@@ -135,12 +139,15 @@ async def analyze_network(
     username: str = Query(None),
     anonymize: bool = Query(False)
 ):
-    txt_path = f"uploads/{filename}.txt"
+    base_path = "uploads"
+    txt_path = os.path.join(base_path, f"{filename}.txt")
+
+
     if not os.path.exists(txt_path):
         raise HTTPException(status_code=404, detail=f"TXT file {txt_path} not found.")
 
     try:
-        from utils import parse_date_time  
+        from utils import parse_date_time
         start_datetime = parse_date_time(start_date, start_time)
         end_datetime = parse_date_time(end_date, end_time)
     except Exception:
@@ -568,110 +575,84 @@ async def convert_to_txt(request: Request):
     data = await request.json()
     filename = data.get("filename")
     section_title = data.get("section_title")
+
     if not filename or not section_title:
         raise HTTPException(status_code=400, detail="Missing filename or section_title")
-    
-    json_path = f"{filename}.json"
+
+    base_path = "uploads"
+    json_path = os.path.join(base_path, f"{filename}.json")
+    txt_path = os.path.join(base_path, f"{filename}.txt")
+
     if not os.path.exists(json_path):
         raise HTTPException(status_code=404, detail=f"File {json_path} not found")
-    
+
     with open(json_path, "r", encoding="utf-8") as f:
         content = json.load(f)
-    
+
     selected_section = next((s for s in content["content"][0]["sections"] if s["title"] == section_title), None)
     if not selected_section:
         raise HTTPException(status_code=404, detail="Section not found")
-    
+
     txt_lines = []
     for comment in selected_section["comments"]:
         try:
-            timestamp_match_he = re.match(r"(\d+):(\d+), (\d+) ב([א-ת]+) (\d+)", comment['timestamp'])
-            
-            timestamp_match_en = re.match(r"(\d+):(\d+), (\d+) ([A-Za-z]+) (\d+)", comment['timestamp'])
-            
-            timestamp_match_alt = re.match(r"(\d+):(\d+), (\d+)/(\d+)/(\d+)", comment['timestamp'])
-            
+            timestamp = comment["timestamp"]
+            timestamp_match_he = re.match(r"(\d+):(\d+), (\d+) ב([א-ת]+) (\d+)", timestamp)
+            timestamp_match_en = re.match(r"(\d+):(\d+), (\d+) ([A-Za-z]+) (\d+)", timestamp)
+            timestamp_match_alt = re.match(r"(\d+):(\d+), (\d+)/(\d+)/(\d+)", timestamp)
+
             if timestamp_match_he:
                 hour, minute, day, month_he, year = timestamp_match_he.groups()
-                
                 month_map_he = {
-                    "ינואר": "01", "פברואר": "02", "מרץ": "03", "אפריל": "04",
-                    "מאי": "05", "יוני": "06", "יולי": "07", "אוגוסט": "08",
-                    "ספטמבר": "09", "אוקטובר": "10", "נובמבר": "11", "דצמבר": "12"
+                    "ינואר": "01", "פברואר": "02", "מרץ": "03", "אפריל": "04", "מאי": "05", "יוני": "06",
+                    "יולי": "07", "אוגוסט": "08", "ספטמבר": "09", "אוקטובר": "10", "נובמבר": "11", "דצמבר": "12"
                 }
                 month = month_map_he.get(month_he, "01")
-                
                 whatsapp_date = f"{day.zfill(2)}/{month}/{year}"
-                whatsapp_time = f"{hour.zfill(2)}:{minute.zfill(2)}:00"
-                whatsapp_timestamp = f"[{whatsapp_date}, {whatsapp_time}]"
-                
             elif timestamp_match_en:
                 hour, minute, day, month_en, year = timestamp_match_en.groups()
-                
                 month_map_en = {
                     "January": "01", "February": "02", "March": "03", "April": "04",
-                    "May": "05", "June": "06", "July": "07", "August": "08",
-                    "September": "09", "October": "10", "November": "11", "December": "12",
-                    "Jan": "01", "Feb": "02", "Mar": "03", "Apr": "04", "May": "05",
-                    "Jun": "06", "Jul": "07", "Aug": "08", "Sep": "09", "Sept": "09",
-                    "Oct": "10", "Nov": "11", "Dec": "12"
+                    "May": "05", "June": "06", "July": "07", "August": "08", "September": "09",
+                    "October": "10", "November": "11", "December": "12"
                 }
                 month = month_map_en.get(month_en, "01")
-                
                 whatsapp_date = f"{day.zfill(2)}/{month}/{year}"
-                whatsapp_time = f"{hour.zfill(2)}:{minute.zfill(2)}:00"
-                whatsapp_timestamp = f"[{whatsapp_date}, {whatsapp_time}]"
-                
             elif timestamp_match_alt:
                 hour, minute, day, month, year = timestamp_match_alt.groups()
-                
                 whatsapp_date = f"{day.zfill(2)}/{month.zfill(2)}/{year}"
-                whatsapp_time = f"{hour.zfill(2)}:{minute.zfill(2)}:00"
-                whatsapp_timestamp = f"[{whatsapp_date}, {whatsapp_time}]"
-                
             else:
-                all_numbers = re.findall(r'\d+', comment['timestamp'])
-                if len(all_numbers) >= 5: 
-                    hour = all_numbers[0]
-                    minute = all_numbers[1]
-                    day = all_numbers[2]
-                    month = all_numbers[3]
-                    year = all_numbers[4]
-                    
+                all_numbers = re.findall(r'\d+', timestamp)
+                if len(all_numbers) >= 5:
+                    hour, minute, day, month, year = all_numbers[:5]
                     whatsapp_date = f"{day.zfill(2)}/{month.zfill(2)}/{year}"
-                    whatsapp_time = f"{hour.zfill(2)}:{minute.zfill(2)}:00"
-                    whatsapp_timestamp = f"[{whatsapp_date}, {whatsapp_time}]"
                 else:
-                    print(f"Could not parse timestamp format: {comment['timestamp']}")
-                    whatsapp_timestamp = "[01/01/2000, 12:00:00]"
-            
+                    whatsapp_date = "01/01/2000"
+                    hour, minute = "12", "00"
+
+            whatsapp_time = f"{hour.zfill(2)}:{minute.zfill(2)}:00"
+            whatsapp_timestamp = f"[{whatsapp_date}, {whatsapp_time}]"
             line = f"{whatsapp_timestamp} {comment['username']}: {comment['text']}"
-            txt_lines.append(line)
-            
-        except Exception as e:
-            print(f"Error processing comment: {e}, timestamp: {comment.get('timestamp', 'No timestamp')}")
-            whatsapp_timestamp = "[01/01/2000, 12:00:00]"
-            line = f"{whatsapp_timestamp} {comment.get('username', 'Unknown')}: {comment.get('text', '')}"
-            txt_lines.append(line)
-    
+        except Exception:
+            line = f"[01/01/2000, 12:00:00] {comment.get('username', 'Unknown')}: {comment.get('text', '')}"
+
+        txt_lines.append(line)
+
+    os.makedirs(base_path, exist_ok=True)
     txt_content = "\n".join(txt_lines)
-    
-    os.makedirs("uploads", exist_ok=True)
-    
-    filename = filename.replace(".txt", "")
-    txt_path = f"uploads/{filename}.txt"
 
     with open(txt_path, "w", encoding="utf-8") as txt_file:
         txt_file.write(txt_content)
-    
+
     graph_data = build_graph_from_txt(txt_path)
-    
+
     return {
-            "message": "TXT created",
-            "path": txt_path,
-            "nodes": graph_data["nodes"],
-            "links": graph_data["links"]
-        }
+        "message": "TXT created",
+        "path": txt_path,
+        "nodes": graph_data["nodes"],
+        "links": graph_data["links"]
+    }
+
 
 def extract_massages(file_content, platform="whatsapp", limit_type="first", limit=None, min_length=1, max_length=10000):
 
