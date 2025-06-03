@@ -74,44 +74,42 @@ const useComparison = (originalNetworkData, uploadedFile) => {
     });
   };
 
-  const handleComparisonFileChange = async (event, index) => {
+  const handleComparisonFileChange = async (event, index, platform) => {
     const selectedFile = event.target.files[0];
     if (!selectedFile) return;
-
+  
     const updatedFiles = [...comparisonFiles];
     updatedFiles[index] = selectedFile;
     setComparisonFiles(updatedFiles);
-
+  
     if (!comparisonFilterSettings[index]) {
       updateComparisonFilterSettings(index, getDefaultFilterSettings());
     }
-
+  
     const formData = new FormData();
     formData.append("file", selectedFile);
-
+    formData.append("platform", platform); 
+  
     try {
       const response = await fetch(`${BASE_URL}/upload`, {
         method: "POST",
         body: formData,
-        headers: { Accept: "application/json" },
       });
+  
       if (!response.ok) {
-        console.error(`Error: ${response.status} - ${response.statusText}`);
-        return {
-          success: false,
-          message: `Server error: ${response.statusText}`,
-        };
+        const err = await response.json();
+        throw new Error(err.error || response.statusText);
       }
-
+  
       const data = await response.json();
-
+  
       if (data.filename) {
         const updatedData = [...comparisonData];
         updatedData[index] = {
           id: index,
           filename: data.filename,
           name: selectedFile.name,
-          isWikipediaData: false,
+          isWikipediaData: platform === "wikipedia",
           isOriginalFile: false,
         };
         setComparisonData(updatedData);
@@ -129,6 +127,7 @@ const useComparison = (originalNetworkData, uploadedFile) => {
       };
     }
   };
+  
 
   const toggleComparisonActive = (index) => {
     setActiveComparisonIndices((prev) => {

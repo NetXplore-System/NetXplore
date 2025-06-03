@@ -101,7 +101,17 @@ async def save_research(
             is_for_save=True
         )
         
-        data = data if isinstance(data, dict) else json.loads(data.body)
+        # data = data if isinstance(data, dict) else json.loads(data.body)
+        if isinstance(data, dict):
+            pass  
+        elif hasattr(data, "body"):
+            data = json.loads(data.body)
+        elif isinstance(data, str):
+            data = json.loads(data)
+        else:
+            logger.error("Unsupported response type from analyzer.analyze()")
+            raise HTTPException(status_code=500, detail="Invalid response from analyzer")
+
 
         if not data or "nodes" not in data or "links" not in data:
             logger.error("Invalid data format received from analysis.")
@@ -198,7 +208,17 @@ async def save_research(
                         is_for_save=True
                     )
 
-                    messages = json.loads(messages.body).get("messages", [])
+                    # messages = json.loads(messages.body).get("messages", [])
+                    if isinstance(messages, dict):
+                        messages = messages.get("messages", [])
+                    elif hasattr(messages, "body"):
+                        messages = json.loads(messages.body).get("messages", [])
+                    elif isinstance(messages, str):
+                        messages = json.loads(messages).get("messages", [])
+                    else:
+                        logger.warning("Unsupported response type for comparison messages.")
+                        messages = []
+
                     
                     logger.info(f"🔹 Comparison messages extracted successfully: {len(messages)} messages")
 
