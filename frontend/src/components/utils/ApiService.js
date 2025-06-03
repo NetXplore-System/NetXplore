@@ -26,10 +26,11 @@ export const fetchWithAuth = async (url, options = {}) => {
 };
 
 
-export const uploadFile = async (file) => {
+export const uploadFile = async (file, platform) => {
   try {
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("platform", platform);
 
     const response = await fetch(`${BASE_URL}/upload`, {
       method: "POST",
@@ -39,16 +40,27 @@ export const uploadFile = async (file) => {
       },
     });
 
-    if (!response.ok) {
-      throw new Error(response.statusText);
+    const text = await response.text();
+    let data;
+
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { error: text };
     }
 
-    return await response.json();
+    if (!response.ok) {
+      throw new Error(data?.details || data?.error || response.statusText);
+    }
+
+    return data;
   } catch (error) {
     console.error("Error uploading file:", error);
-    throw Error(error || "An error occurred during the upload.");
+    throw new Error(error.message || "An error occurred during the upload.");
   }
 };
+
+
 
 export const deleteFile = async (filename) => {
   try {
@@ -164,11 +176,12 @@ export const fetchWikipediaData = async (url) => {
       body: JSON.stringify({ url }),
     });
 
-    if (!response.ok) {
-      throw new Error(`Server error: ${response.status}`);
-    }
+    const data = await response.json(); 
 
-    const data = await response.json();
+    if (!response.ok) {
+
+      throw new Error(data?.detail || `Server error: ${response.status}`);
+    }
 
     if (data.nodes && data.links && data.content) {
       return {
@@ -189,6 +202,7 @@ export const fetchWikipediaData = async (url) => {
     throw new Error(error.message || "Failed to fetch Wikipedia data.");
   }
 };
+
 
 export const saveToDB = async (
   id,

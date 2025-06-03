@@ -321,7 +321,7 @@ const ResearchWizard = () => {
         setUploadError(error.message || "Error uploading file.");
       });
   };
-
+  
   const handleFetchWikipedia = () => {
     if (!formData.wikipediaUrl?.trim()) {
       setWikipediaUrlError("Please enter a valid Wikipedia URL.");
@@ -336,7 +336,7 @@ const ResearchWizard = () => {
           setNetworkData(data);
           setOriginalNetworkData(data);
           setWikiContent(data.content);
-
+  
           setFormData((prev) => ({
             ...prev,
             uploadedFileName: "wikipedia_data.txt",

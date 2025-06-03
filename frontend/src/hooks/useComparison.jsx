@@ -74,44 +74,42 @@ const useComparison = (originalNetworkData, uploadedFile) => {
     });
   };
 
-  const handleComparisonFileChange = async (event, index) => {
+  const handleComparisonFileChange = async (event, index, platform) => {
     const selectedFile = event.target.files[0];
     if (!selectedFile) return;
-
+  
     const updatedFiles = [...comparisonFiles];
     updatedFiles[index] = selectedFile;
     setComparisonFiles(updatedFiles);
-
+  
     if (!comparisonFilterSettings[index]) {
       updateComparisonFilterSettings(index, getDefaultFilterSettings());
     }
-
+  
     const formData = new FormData();
     formData.append("file", selectedFile);
-
+    formData.append("platform", platform); 
+  
     try {
       const response = await fetch(`${BASE_URL}/upload`, {
         method: "POST",
         body: formData,
-        headers: { Accept: "application/json" },
       });
+  
       if (!response.ok) {
-        console.error(`Error: ${response.status} - ${response.statusText}`);
-        return {
-          success: false,
-          message: `Server error: ${response.statusText}`,
-        };
+        const err = await response.json();
+        throw new Error(err.error || response.statusText);
       }
-
+  
       const data = await response.json();
-
+  
       if (data.filename) {
         const updatedData = [...comparisonData];
         updatedData[index] = {
           id: index,
           filename: data.filename,
           name: selectedFile.name,
-          isWikipediaData: false,
+          isWikipediaData: platform === "wikipedia",
           isOriginalFile: false,
         };
         setComparisonData(updatedData);
@@ -129,6 +127,7 @@ const useComparison = (originalNetworkData, uploadedFile) => {
       };
     }
   };
+  
 
   const toggleComparisonActive = (index) => {
     setActiveComparisonIndices((prev) => {
@@ -210,7 +209,6 @@ const useComparison = (originalNetworkData, uploadedFile) => {
     if (customFilters) {
       updateComparisonFilterSettings(index, customFilters);
       const customParams = buildFilterParamsFromSettings(customFilters);
-
       for (const [key, value] of customParams.entries()) {
         params.set(key, value);
       }
@@ -225,9 +223,7 @@ const useComparison = (originalNetworkData, uploadedFile) => {
 
     let url;
     if (isWikipediaData || comparisonFile.isWikipediaData) {
-      const filename = comparisonFile.isOriginalFile
-        ? "wikipedia_data"
-        : "comparison_wikipedia_data";
+      const filename = comparisonFile.filename;
       url = `${BASE_URL}/analyze/wikipedia/${filename}?${params.toString()}`;
     } else {
       url = `${BASE_URL}/analyze/network/${
@@ -240,32 +236,6 @@ const useComparison = (originalNetworkData, uploadedFile) => {
       const data = await response.json();
 
       if (data.nodes && data.links) {
-        if (isWikipediaData || comparisonFile.isWikipediaData) {
-          try {
-            const filename = comparisonFile.isOriginalFile
-              ? "wikipedia_data"
-              : "comparison_wikipedia_data";
-            const communityResponse = await fetch(
-              `${BASE_URL}/analyze/wikipedia-communities/${filename}?${params.toString()}`
-            );
-            const communityData = await communityResponse.json();
-
-            if (communityData.node_communities) {
-              const nodeCommunities = communityData.node_communities || {};
-              const updatedNodes = data.nodes.map((node) => {
-                const community = nodeCommunities[node.id?.toString().trim()];
-                return community !== undefined ? { ...node, community } : node;
-              });
-
-              data.nodes = updatedNodes;
-              data.communities = communityData.communities || [];
-              data.communityMap = nodeCommunities;
-            }
-          } catch (communityError) {
-            console.warn("Failed to fetch community data:", communityError);
-          }
-        }
-
         const updatedComparisonData = [...comparisonNetworkData];
         updatedComparisonData[index] = data;
         setComparisonNetworkData(updatedComparisonData);
