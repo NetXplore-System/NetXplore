@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { toast } from "sonner";
-import { FaEye, FaEdit, FaCopy, FaTrash, FaFilePdf } from "react-icons/fa";
-import { Badge, Button, ButtonGroup, Card, Table } from "react-bootstrap";
+import { FaEye, FaEdit, FaCopy, FaTrash } from "react-icons/fa";
+import { Button, ButtonGroup, Card, Table } from "react-bootstrap";
 
 import Loader from "../components/utils/Loader";
 import Modal from "../components/utils/Modal";

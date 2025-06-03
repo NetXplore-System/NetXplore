@@ -32,7 +32,8 @@ const NetworkVisualizationArea = ({
     handleResetAll,
     strongConnectionsActive,
     activityFilterEnabled,
-    showOnlyIntraCommunityLinks
+    showOnlyIntraCommunityLinks,
+    isDirectedGraph
 }) => {
     return (
         <div className="graph-box">
@@ -143,6 +144,7 @@ const NetworkVisualizationArea = ({
                 handleNodeClick={handleNodeClick}
                 networkWasRestored={networkWasRestored}
                 forceGraphRef={forceGraphRef}
+                isDirectedGraph={isDirectedGraph}
             />
 
             {showDataTable && networkData && (

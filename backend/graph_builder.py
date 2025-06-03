@@ -1,6 +1,4 @@
-import os
 import re
-import json
 import networkx as nx
 from datetime import datetime
 from collections import defaultdict
@@ -42,6 +40,7 @@ def build_graph_from_txt(
     include_messages=False,
     normalize=False,
     history_length=3,
+    message_weights=None,
     is_for_save=False,
     platform="wikipedia",
     algorithm="louvain"  
@@ -75,8 +74,6 @@ def build_graph_from_txt(
         
         return None
 
-    nodes = []
-    links = []
     usernames = set()
     user_message_count = defaultdict(int)
     edges_counter = defaultdict(int)
@@ -152,15 +149,15 @@ def build_graph_from_txt(
 
     if use_history:
         history_n = int(history_length) if history_length else 3
-        edges = calculate_sequential_weights(all_messages, n_prev=history_n)
+        edges = calculate_sequential_weights(all_messages, n_prev=history_n, message_weights=message_weights)
         for (source, target), weight in edges.items():
-            edge = tuple(sorted([source, target]))
+            edge = (source, target)
             edges_counter[edge] += weight
     else:
         previous_user = None
         for user, _ in all_messages:
             if previous_user and previous_user != user:
-                edge = tuple(sorted([previous_user, user]))
+                edge = (user, previous_user) if directed else tuple(sorted([user, previous_user]))
                 edges_counter[edge] += 1
             previous_user = user
 
@@ -179,15 +176,18 @@ def build_graph_from_txt(
 
         usernames = set(filtered_users.keys())
 
-    import networkx as nx
-    G = nx.Graph()
+
+    G = nx.DiGraph() if directed else nx.Graph()
     G.add_nodes_from(usernames)
 
     for edge, weight in edges_counter.items():
         if edge[0] in usernames and edge[1] in usernames:
             G.add_edge(edge[0], edge[1], weight=weight)
 
-    is_connected = nx.is_connected(G) if len(G.nodes()) > 0 else False
+    if directed:
+        is_connected = nx.is_weakly_connected(G) if len(G.nodes()) > 0 else False
+    else:
+        is_connected = nx.is_connected(G) if len(G.nodes()) > 0 else False
 
     try:
         degree_centrality = nx.degree_centrality(G)
@@ -197,12 +197,14 @@ def build_graph_from_txt(
             eigenvector_centrality = nx.eigenvector_centrality(G, max_iter=1000)
             pagerank = nx.pagerank(G)
         else:
-            largest_cc = max(nx.connected_components(G), key=len)
+            
+            largest_cc = max(nx.weakly_connected_components(G), key=len) if directed else max(nx.connected_components(G), key=len)
             subgraph = G.subgraph(largest_cc).copy()
             closeness_centrality = nx.closeness_centrality(subgraph)
             eigenvector_centrality = nx.eigenvector_centrality(subgraph, max_iter=1000)
             pagerank = nx.pagerank(subgraph)
     except Exception as e:
+        logger.error(f"Error calculating centrality measures: {e}")
         degree_centrality = {}
         betweenness_centrality = {}
         closeness_centrality = {}
@@ -225,7 +227,7 @@ def build_graph_from_txt(
     ]
 
     links_list = [
-        {"source": a, "target": b, "weight": w}
+        {"source": a, "target": b, "weight": round(w, 3)}
         for (a, b), w in edges_counter.items()
         if a in usernames and b in usernames
     ]
@@ -236,6 +238,7 @@ def build_graph_from_txt(
         debug_check_target_weights(links_list)
 
 
+    print(f"links_list: {links_list}")
     return {
         "nodes": nodes_list,
         "links": links_list,

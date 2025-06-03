@@ -1,4 +1,4 @@
-from typing import List, Tuple, Any
+from typing import List, Tuple, Any, Dict, Union
 from datetime import datetime
 from collections import defaultdict, deque
 import networkx as nx
@@ -137,46 +137,66 @@ def get_network_metrics(original_data, comparison_data, metrics_list):
 
 def calculate_sequential_weights(
     sequence: List[Tuple[str, str]],
-    n_prev: int = 3
+    n_prev: int = 3,
+    message_weights: List[float] = None
 ) -> Dict[Tuple[str, str], float]:
-    scheme = {2: [0.7, 0.3], 3: [0.5, 0.3, 0.2]}
-    if n_prev not in scheme:
-        raise ValueError("n_prev must be 2 or 3")
-    weights = scheme[n_prev]
+    
+    if n_prev < 1:
+        raise ValueError("n_prev must be at least 1")
+    
+    if message_weights is None:
+        message_weights = [1.0] * n_prev
+    elif len(message_weights) != n_prev:
+        message_weights = message_weights[:n_prev]
+    
+    print(f"Using weights: {message_weights}")
+   
 
     window: deque = deque(maxlen=n_prev)
-    edge_w: Dict[Tuple[str, str], float] = defaultdict(float)
+    edge_weights: Dict[Tuple[str, str], float] = defaultdict(float)
 
-    for curr, _ in sequence:
-        seen: set[str] = set()
-        for idx, prev in enumerate(reversed(window)):
-            if prev == curr or prev in seen:
+    for current_sender, _ in sequence:
+        for idx, previous_sender in enumerate(reversed(window)):
+            if previous_sender == current_sender:  
                 continue 
-            edge_w[(prev, curr)] += weights[idx]
-            seen.add(prev)
-        window.append(curr)
+            
+            edge_weights[(previous_sender, current_sender)] += message_weights[idx]
+        
+        window.append(current_sender)
 
-    return dict(edge_w)
+    return dict(edge_weights)
 
 
-def normalize_links_by_target(links: List[Dict[str, object]]) -> List[Dict[str, object]]:
-    """Divide each link weight by the sum of incoming weights of its *target* node."""
+
+def normalize_links_by_target(
+    links: List[Dict[str, Union[str, float]]], 
+    debug: bool = False
+) -> List[Dict[str, Union[str, float]]]:
+    
+    if not links:
+        return []
+    
     totals: Dict[str, float] = defaultdict(float)
     for link in links:
+        if "target" not in link or "weight" not in link:
+            raise ValueError(f"Invalid link structure: {link}")
         totals[link["target"]] += link["weight"]
+    
+    normalized_links = []
     for link in links:
+        new_link = link.copy()
         denom = totals[link["target"]]
-        if denom:
-            link["weight"] = round(link["weight"] / denom, 4)
-    return links
-
-def anonymize_name(name, anonymized_map):
-    if name.startswith("\u202a+972") or name.startswith("+972"):
-        name = f"Phone_{len(anonymized_map) + 1}"
-    if name not in anonymized_map:
-        anonymized_map[name] = f"User_{len(anonymized_map) + 1}"
-    return anonymized_map[name]
-
+        if denom > 0:
+            new_link["weight"] = round(link["weight"] / denom, 4)
+        else:
+            new_link["weight"] = 0.0
+        normalized_links.append(new_link)
+    
+    if debug:
+        for link in normalized_links:
+            print(f"Normalized link: {link}")
+    
+    return normalized_links
 
 def clean_filter_value(key: str, value: Any):
     if key in ["min_messages", "max_messages", "active_users"]:
