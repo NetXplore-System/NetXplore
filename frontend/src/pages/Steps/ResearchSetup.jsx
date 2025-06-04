@@ -129,6 +129,27 @@ const ResearchSetup = ({
             <Form.Text className="text-muted">
               Upload a WhatsApp chat export (.txt)
             </Form.Text>
+
+            <Alert variant="info" className="mt-4">
+              <strong>Note:</strong> Media (images, videos, audio, GIFs) is{" "}
+              <u>not included</u>. Only text messages from the exported chat
+              will be analyzed.
+              <Button
+                variant="link"
+                style={{
+                  fontSize: "0.90rem",
+                  color: "#1565c0",
+                }}
+                onClick={() =>
+                  window.open(
+                    "https://faq.whatsapp.com/1180414079177245",
+                    "_blank"
+                  )
+                }
+              >
+                How to export a WhatsApp chat?
+              </Button>
+            </Alert>
           </Form.Group>
         )}
       </Card.Body>
