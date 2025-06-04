@@ -110,21 +110,75 @@ const NetworkGraph = ({
         }}
         linkCanvasObject={(link, ctx, globalScale) => {
           if (!link.source || !link.target) return;
+          
           ctx.beginPath();
           ctx.moveTo(link.source.x, link.source.y);
           ctx.lineTo(link.target.x, link.target.y);
           ctx.strokeStyle = "gray";
           ctx.lineWidth = Math.sqrt(link.weight || 1);
           ctx.stroke();
-          const midX = (link.source.x + link.target.x) / 2;
-          const midY = (link.source.y + link.target.y) / 2;
+          
+          // Calculate positions for weight label
+          let labelX, labelY;
+          
+          if (isDirectedGraph) {
+            // For directed graphs, place label near the arrowhead
+            const dx = link.target.x - link.source.x;
+            const dy = link.target.y - link.source.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance > 0) {
+              // Calculate target radius for arrow positioning
+              const targetRadius =
+                link.target.size ||
+                (selectedMetric === "PageRank Centrality"
+                  ? Math.max(10, link.target.pagerank * 500)
+                  : selectedMetric === "Eigenvector Centrality"
+                  ? Math.max(10, link.target.eigenvector * 60)
+                  : selectedMetric === "Closeness Centrality"
+                  ? Math.max(10, link.target.closeness * 50)
+                  : selectedMetric === "Betweenness Centrality"
+                  ? Math.max(10, link.target.betweenness * 80)
+                  : selectedMetric === "Degree Centrality"
+                  ? Math.max(10, link.target.degree * 80)
+                  : 20);
+              
+              // Position label at 75% of the way to target, offset from the line
+              const t = 0.75;
+              const baseX = link.source.x + (dx * t);
+              const baseY = link.source.y + (dy * t);
+              
+              // Create perpendicular offset for the label
+              const offsetDistance = 15 / globalScale;
+              const perpX = (-dy / distance) * offsetDistance;
+              const perpY = (dx / distance) * offsetDistance;
+              
+              labelX = baseX + perpX;
+              labelY = baseY + perpY;
+            } else {
+              // Fallback to midpoint if distance is 0
+              labelX = (link.source.x + link.target.x) / 2;
+              labelY = (link.source.y + link.target.y) / 2;
+            }
+          } else {
+            // For undirected graphs, use the center as before
+            labelX = (link.source.x + link.target.x) / 2;
+            labelY = (link.source.y + link.target.y) / 2;
+          }
+          
+          // Draw weight label
           const fontSize = 10 / globalScale;
           ctx.save();
-          ctx.font = `${fontSize}px Sans-Serif`;
-          ctx.fillStyle = "black";
+          ctx.font = `bold ${fontSize}px Sans-Serif`;
+          ctx.fillStyle = "#333";
+          ctx.strokeStyle = "white";
+          ctx.lineWidth = 2;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.fillText(link.weight || "1", midX, midY);
+          
+          // Draw text with white outline for better visibility
+          ctx.strokeText(link.weight || "1", labelX, labelY);
+          ctx.fillText(link.weight || "1", labelX, labelY);
           ctx.restore();
 
           if (isDirectedGraph) {

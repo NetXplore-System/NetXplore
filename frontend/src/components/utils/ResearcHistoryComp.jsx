@@ -4,8 +4,8 @@ import { toast } from "sonner";
 import { useDispatch } from "react-redux";
 import { addToMain } from "../../redux/images/imagesSlice";
 
-import { useNetworkData } from './hooks/useNetworkData';
-import { useNetworkFilters } from './hooks/useNetworkFilters';
+import { useNetworkData } from '../../hooks/useNetworkData';
+import { useNetworkFilters } from '../../hooks/useNetworkFilters';
 import ResearchInfo from './ResearchInfo';
 import NetworkVisualizationLayout from './ResearchHistory/NetworkVisualizationLayout';
 import { networkUtils } from './ResearchHistory/utils';
@@ -56,6 +56,32 @@ const ResearchHistory = ({ research }) => {
         handleToggleCommunitiesFilter
     } = useNetworkFilters(networkData, setNetworkData, originalNetworkData, setOriginalNetworkData, communityMap);
 
+    // Add function to reverse link direction for directed graphs
+    const reverseLinksDirection = (links) => {
+        return links.map(link => ({
+            ...link,
+            source: link.target,
+            target: link.source
+        }));
+    };
+
+    // Add function to get processed network data with correct arrow direction
+    const getProcessedNetworkData = () => {
+        if (!networkData) return null;
+        
+        let processedData = { ...networkData };
+        
+        // Reverse arrow direction if it's a directed graph (from target to source)
+        if (research.filters?.directed) {
+            processedData = {
+                ...networkData,
+                links: reverseLinksDirection(networkData.links)
+            };
+        }
+        
+        return processedData;
+    };
+
     const handleToggleMetric = (metric) => {
         setSelectedMetric(selectedMetric === metric ? null : metric);
     };
@@ -80,7 +106,9 @@ const ResearchHistory = ({ research }) => {
         setVisualizationSettings(settings);
         if (!networkData) return;
 
-        const customizedData = networkUtils.applyCustomization(networkData, settings);
+        // Use processed data (with reversed arrows if directed) for customization
+        const dataToCustomize = getProcessedNetworkData();
+        const customizedData = networkUtils.applyCustomization(dataToCustomize, settings);
         setCustomizedNetworkData(customizedData);
     };
 
@@ -115,9 +143,11 @@ const ResearchHistory = ({ research }) => {
         }
     };
 
-    const filteredNodes = networkData ? networkData.nodes : [];
-    const filteredLinks = networkData
-        ? networkData.links.filter(
+    // Use processed network data for filtered nodes and links
+    const processedNetworkData = getProcessedNetworkData();
+    const filteredNodes = processedNetworkData ? processedNetworkData.nodes : [];
+    const filteredLinks = processedNetworkData
+        ? processedNetworkData.links.filter(
             (link) =>
                 filteredNodes.some((node) => node.id === link.source) &&
                 filteredNodes.some((node) => node.id === link.target)
@@ -155,7 +185,7 @@ const ResearchHistory = ({ research }) => {
     };
 
     const visualizationProps = {
-        networkData,
+        networkData: processedNetworkData,
         filteredNodes,
         filteredLinks,
         customizedNetworkData,
@@ -175,7 +205,8 @@ const ResearchHistory = ({ research }) => {
         handleResetAll,
         strongConnectionsActive,
         activityFilterEnabled,
-        showOnlyIntraCommunityLinks
+        showOnlyIntraCommunityLinks,
+        isDirectedGraph: research.filters?.directed || false
     };
 
     useEffect(() => {

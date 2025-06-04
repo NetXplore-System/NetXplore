@@ -20,7 +20,6 @@ const useFilters = (formData = null) => {
   const [isAnonymized, setIsAnonymized] = useState(false);
   const [weightCalculationDepth, setWeightCalculationDepth] = useState(3);
 
-
   const [showFilters, setShowFilters] = useState(true);
   const [filter, setFilter] = useState("");
 
@@ -72,6 +71,9 @@ const useFilters = (formData = null) => {
     const directed = getValue(false, ["isDirectedGraph"]);
     const useHistoryAlgo = getValue(false, ["useHistoryAlgorithm"]);
     const normalized = getValue(false, ["isNormalized"]);
+    
+    // Get messageWeight array
+    const messageWeight = get([0.2, 0.3, 0.5], ["messageWeight"]);
 
     if (start) params.append("start_date", start);
     if (end) params.append("end_date", end);
@@ -98,11 +100,19 @@ const useFilters = (formData = null) => {
     params.append("use_history", useHistoryAlgo ? "true" : "false");
     params.append("normalize", normalized ? "true" : "false");
     params.append("include_messages", formData?.includeMessageContent ? "true" : "false");
-    useHistoryAlgo && params.append("history_length", formData?.historyLength || 3);
+    
+    if (useHistoryAlgo) {
+      params.append("history_length", formData?.historyLength || 3);
+      
+      if (messageWeight && Array.isArray(messageWeight)) {
+        params.append("message_weights", JSON.stringify(messageWeight));
+      }
+    }
    
     return params;
   };
 
+  
   const resetFilters = () => {
     setStartDate("");
     setEndDate("");

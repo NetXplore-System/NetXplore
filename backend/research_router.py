@@ -138,7 +138,6 @@ async def save_research(
                 db.add(new_message)
             await db.commit()
 
-
         new_filter = ResearchFilter(
             research_id=new_research.research_id,
             start_date=start_date,
@@ -235,6 +234,7 @@ async def save_research(
                         statistics=json.dumps(comparison_stats), 
                     )
                     db.add(new_comparison)
+                
                 
                 await db.commit()
             except json.JSONDecodeError:
