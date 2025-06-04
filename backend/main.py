@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware  # type: ignore
 from fastapi.staticfiles import StaticFiles
 import logging
 from dotenv import load_dotenv
-import os
+import os 
 
 from database import verify_connection, engine, Base
 from wikipedia_router import router as wikipedia_router
@@ -42,7 +42,7 @@ app.add_middleware(
 )
 
 
-app.mount("/static", StaticFiles(directory="backend/uploads"), name="static")
+app.mount("/static", StaticFiles(directory="./uploads"), name="static")
 
 app.include_router(user_router)
 app.include_router(analysis_router)
