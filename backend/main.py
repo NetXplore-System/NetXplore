@@ -42,7 +42,7 @@ app.add_middleware(
 )
 
 
-app.mount("/static", StaticFiles(directory="uploads"), name="static")
+app.mount("/static", StaticFiles(directory="backend/uploads"), name="static")
 
 app.include_router(user_router)
 app.include_router(analysis_router)
