@@ -86,7 +86,29 @@ const Dashboard = () => {
     );
   };
 
-  return (
+  return isLoading ? (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="dashboard-loading-container"
+    >
+      <motion.div
+        className="dashboard-spinner"
+        initial={{ scale: 0.7, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      />
+      <motion.h4
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3, duration: 0.5 }}
+        className="dashboard-loading-text"
+      >
+        Loading your dashboard...
+      </motion.h4>
+    </motion.div>
+  ) : (
     <Container fluid className="dashboard-container">
       <div className="dashboard-div">
         <Row className="mb-4">
@@ -166,7 +188,7 @@ const Dashboard = () => {
             <Card className="dashboard-card">
               <Card.Header className="d-flex justify-content-between align-items-center">
                 <h2 className="mb-0">
-                  <FaChartBar className="header-icon" /> My Researches
+                  <FaChartBar className="d-header-icon" /> My Researches
                 </h2>
                 <Button
                   variant="primary"
@@ -181,7 +203,7 @@ const Dashboard = () => {
                   <div className="text-center p-4">Loading researches...</div>
                 ) : researches.length > 0 ? (
                   <div className="research-list">
-                    {researches.map((research) => (
+                    {researches.slice(0, 3).map((research) => (
                       <div key={research.id} className="research-item">
                         <div className="research-header">
                           <ResearchTypeIcon type={research.type} />
@@ -214,6 +236,15 @@ const Dashboard = () => {
                         </div>
                       </div>
                     ))}
+                    <div className="d-flex justify-content-center">
+                      <Button
+                        variant="primary"
+                        className="dashboard-action-button"
+                        onClick={() => navigate("/history")}
+                      >
+                        View all researches
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   <div className="empty-state">
@@ -228,7 +259,7 @@ const Dashboard = () => {
                       className="dashboard-action-button"
                       onClick={() => navigate("/choose-platform")}
                     >
-                      <FaPlus className="me-2" /> Start New Research
+                      Start New Research
                     </Button>
                   </div>
                 )}
