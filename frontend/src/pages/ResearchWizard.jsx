@@ -352,7 +352,7 @@ const ResearchWizard = () => {
       });
   };
   
-  
+
   const handleNetworkAnalysis = async () => {
     if (!formData.uploadedFileName) {
       toast.error("No file selected for analysis.");
@@ -366,20 +366,7 @@ const ResearchWizard = () => {
   
     try {
       if (formData.platform === "wikipedia") {
-        await fetch(`${import.meta.env.VITE_API_URL}/convert-wikipedia-to-txt`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            filename: formData.uploadedFileName,
-            section_title: selectedSection || "Top",
-          }),
-        });
-  
-        // toast.promise(analyzeWikipediaNetwork("wikipedia_data", finalParams), {
-          toast.promise(analyzeNetwork("wikipedia_data", finalParams), {
-
+        toast.promise(analyzeNetwork("wikipedia_data", finalParams), {
           loading: "Analyzing Wikipedia discussion...",
           success: async (data) => {
             if (data.nodes && data.links) {
@@ -405,7 +392,6 @@ const ResearchWizard = () => {
           },
           error: (error) => error?.message || "Error analyzing Wikipedia discussion.",
         });
-  
       } else if (formData.platform === "whatsapp") {
         if (hasShownToastRef.current) return;
         hasShownToastRef.current = true;
@@ -430,11 +416,9 @@ const ResearchWizard = () => {
           },
           error: (error) => error?.message || "Error analyzing network.",
         });
-  
       } else {
         toast.error("Unsupported platform selected.");
       }
-  
     } catch (error) {
       console.error("Error during network analysis:", error);
       toast.error("Failed to analyze network.");

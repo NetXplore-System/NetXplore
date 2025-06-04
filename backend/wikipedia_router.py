@@ -20,7 +20,11 @@ from requests.exceptions import HTTPError, RequestException
 
 router = APIRouter()
 logger = logging.getLogger("wikipedia")
-logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
+logger.setLevel(logging.DEBUG)
+
+
 
 @router.post("/fetch-wikipedia-data")
 async def fetch_wikipedia_data(request: Request):
@@ -190,49 +194,103 @@ def extract_metadata(soup):
 
 
 def count_indent_colons(text):
-    match = re.match(r'^(:+)', text)
-    return len(match.group(1)) if match else 0
+   
+    text = text.strip()
+    
+    colon_count = 0
+    for char in text:
+        if char == ':':
+            colon_count += 1
+        else:
+            break
+    
+    return colon_count
 
+
+
+def split_by_signatures(text):
+    """
+    פיצול טקסט ארוך לתגובות לפי חתימות משתמשים מסוג ויקיפדיה.
+    """
+    pattern = r'(?=\s*[א-תA-Za-z0-9_\-\'\" ]{2,50}\s*[-–—]\s*שיחה\s+\d{1,2}[:\.]\d{2},?\s+\d{1,2}\s+[א-ת]+\s+\d{4}\s+\(IDT\))'
+    return [part.strip() for part in re.split(pattern, text) if part.strip()]
 
 def extract_user_and_timestamp(html_content):
+    from bs4 import BeautifulSoup
+    import re
+
     soup = BeautifulSoup(html_content, 'html.parser')
 
     timestamp_link = soup.select_one('a.ext-discussiontools-init-timestamplink')
     if timestamp_link:
         timestamp = timestamp_link.get_text(strip=True)
-        user_links = timestamp_link.find_parent().select('a[title^="User:"], a[title^="משתמש:"]')
-        if user_links:
-            username = user_links[0].get_text(strip=True)
-            return username, timestamp
-
-    user_links = soup.find_all("a", title=re.compile(r"^(User|משתמש):"))
-    for user_link in user_links:
-        username = user_link.get_text(strip=True)
-        parent = user_link.find_parent()
-        if not parent:
-            continue
-        siblings = parent.find_all_next(["a", "span", "time", "bdi"], limit=5)
-        for sib in siblings:
-            text = sib.get_text(strip=True)
-            if re.search(r'\d{1,2}[:\.]\d{2}.*?\d{4}', text):
-                return username, text
-
-    html_text = str(soup)
-    match = re.search(
-        r'<a[^>]+title="(?:User|משתמש):([^"]+)"[^>]*>.*?</a>.*?(?:שיחה|talk|discussion).*?(\d{1,2}[:\.]\d{2}.*?\d{4})',
-        html_text,
-        re.DOTALL
-    )
-    if match:
-        return match.group(1).strip(), match.group(2).strip()
+        parent = timestamp_link.find_parent()
+        if parent:
+            user_links = parent.select('a[title^="User:"], a[title^="משתמש:"]')
+            if user_links:
+                parent_text = parent.get_text()
+                ts_pos = parent_text.find(timestamp)
+                best_user, best_dist = None, float('inf')
+                for link in user_links:
+                    name = link.get_text(strip=True)
+                    name_pos = parent_text.find(name)
+                    dist = abs(ts_pos - name_pos)
+                    if dist < best_dist:
+                        best_user, best_dist = name, dist
+                if best_user:
+                    return best_user, timestamp
 
     text = soup.get_text(separator=" ", strip=True)
-    match_text_signature = re.search(
-        r'([א-תA-Za-z0-9_\-\'\" ]{2,40})\s*-\s*(?:שיחה|talk)\s+(\d{1,2}[:\.]\d{2},?\s+\d{1,2}\s+[א-ת]+\s+\d{4})',
-        text
-    )
-    if match_text_signature:
-        return match_text_signature.group(1).strip(), match_text_signature.group(2).strip()
+
+    patterns = [
+        r'([א-תA-Za-z0-9_\-\s\'\"\.]{2,50})\s*[-–—]\s*שיחה\s*‏?\s*(\d{1,2}[:\.]\d{2}.*?\d{4})',
+        r'([א-תA-Za-z0-9_\-\s\'\"\.]{2,50})\s*שיחה\s*‏?\s*(\d{1,2}[:\.]\d{2}.*?\d{4})',
+        r'([a-zA-Z0-9_\-\s\'\"\.]{2,50})\s*[-–—]?\s*talk\s*‏?\s*(\d{1,2}[:\.]\d{2}.*?\d{4})',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text)
+        if match:
+            username = match.group(1).strip()
+            timestamp = match.group(2).strip()
+            username = re.sub(r'[\u200F\u200E\u202D\u202C]', '', username)
+            return username, timestamp
+
+    time_matches = list(re.finditer(r'(\d{1,2}[:\.]\d{2}.*?\d{4})', text))
+    for time_match in reversed(time_matches):
+        timestamp = time_match.group(1).strip()
+        before_time = text[:time_match.start()].strip()
+        search_area = before_time[-100:]
+
+        user_patterns = [
+            r'([א-תA-Za-z0-9_\-\s\'\"\.]{2,50})\s*[-–—]?\s*שיחה\s*$',
+            r'([a-zA-Z0-9_\-\s\'\"\.]{2,50})\s*[-–—]?\s*talk\s*$',
+            r'([א-תA-Za-z0-9_\-\s\'\"\.]{2,50})\s*$',
+        ]
+        for up in user_patterns:
+            user_match = re.search(up, search_area)
+            if user_match:
+                username = user_match.group(1).strip()
+                username = re.sub(r'[\u200F\u200E\u202D\u202C]', '', username)
+                if not any(w in username.lower() for w in ['המידע', 'תגובה', 'ערך', 'מקור']):
+                    return username, timestamp
+
+    html = str(soup)
+    user_links = list(re.finditer(r'<a[^>]+title="(?:User|משתמש):([^"]+)"[^>]*>([^<]+)</a>', html))
+    time_matches = list(re.finditer(r'(\d{1,2}[:\.]\d{2}.*?\d{4})', html))
+    if user_links and time_matches:
+        best_user, best_time, best_dist = None, None, float('inf')
+        for ul in user_links:
+            user = ul.group(2).strip()
+            upos = ul.end()
+            for tm in time_matches:
+                tpos = tm.start()
+                dist = abs(tpos - upos)
+                if dist < best_dist and dist < 200:
+                    best_user = user
+                    best_time = tm.group(1).strip()
+                    best_dist = dist
+        if best_user and best_time:
+            return best_user, best_time
 
     return None, None
 
@@ -290,23 +348,26 @@ def extract_reply_to_from_id(element_id: str) -> str:
 
     return None
 
+
 def process_wiki_talk_page(html_content):
     soup = BeautifulSoup(html_content, 'html.parser')
-    seen_ids = set()
 
-    content_div = soup.find("div", class_="mw-parser-output")
-    if not content_div:
-        content_div = soup.find("div", id="mw-content-text")
+    content_div = soup.find("div", class_="mw-parser-output") or soup.find("div", id="mw-content-text")
     if not content_div:
         logger.warning("Could not find any suitable content div")
         return []
 
-    all_elements = content_div.find_all(
-        ['h1', 'h2', 'h3', 'h4', 'li', 'p', 'div', 'dl', 'dd', 'dt', 'strong', 'b', 'span']
-    )
+    all_elements = content_div.find_all([
+        'h1', 'h2', 'h3', 'h4', 'li', 'p', 'div', 'dl', 'dd', 'dt', 'strong', 'b', 'span'
+    ])
 
     sections = []
-    current_section = {"title": "Top", "comments": [], "participants": set(), "opinion_count": {"for": 0, "against": 0, "neutral": 0}}
+    current_section = {
+        "title": "Top",
+        "comments": [],
+        "participants": set(),
+        "opinion_count": {"for": 0, "against": 0, "neutral": 0}
+    }
 
     for element in all_elements:
         if element.name.startswith('h'):
@@ -314,6 +375,7 @@ def process_wiki_talk_page(html_content):
                 current_section["participants"] = list(current_section["participants"])
                 current_section["participant_count"] = len(current_section["participants"])
                 sections.append(current_section)
+
             section_title = element.get_text(strip=True)
             current_section = {
                 "title": section_title,
@@ -328,24 +390,29 @@ def process_wiki_talk_page(html_content):
                 continue
 
             html = str(element)
-            indentation = count_indent_colons(text)
+
+            indentation_from_colons = count_indent_colons(text)
+            indentation_from_html = 0
+            parent = element.parent
+            while parent:
+                if parent.name in ['dd', 'dt']:
+                    indentation_from_html += 1
+                parent = parent.parent
+            indentation = max(indentation_from_colons, indentation_from_html)
+
             username, timestamp = extract_user_and_timestamp(html)
 
             if username and timestamp:
-                comment_text = text  
-                opinion = analyze_comment_for_opinion(comment_text)
+                opinion = analyze_comment_for_opinion(text)
                 current_section["opinion_count"][opinion] += 1
-                
-                element_id = element.get('id', "")
-                reply_to_username = extract_reply_to_from_id(element_id)
 
                 comment = {
                     "indentation": indentation,
                     "username": username,
                     "timestamp": timestamp,
-                    "text": comment_text.strip(),
+                    "text": text.strip(),
                     "opinion": opinion,
-                    "reply_to": reply_to_username
+                    "reply_to": None  
                 }
 
                 current_section["participants"].add(username)
@@ -357,35 +424,29 @@ def process_wiki_talk_page(html_content):
         sections.append(current_section)
 
     for section in sections:
-        tree = build_conversation_tree(section["comments"])
-        for idx, node in tree.items():
-            if node["parent"] is not None:
-                parent_username = section["comments"][node["parent"]]["username"]
-                section["comments"][idx]["reply_to"] = parent_username
-        
-        indentation_groups = {}
-        for i, comment in enumerate(section["comments"]):
+        comments = section["comments"]
+        stack = []
+
+        for i, comment in enumerate(comments):
             indent = comment["indentation"]
-            if indent not in indentation_groups:
-                indentation_groups[indent] = []
-            indentation_groups[indent].append(i)
-        
-        for indent, comment_indices in indentation_groups.items():
-            if indent == 0 and len(comment_indices) > 1:
-                try:
-                    sorted_indices = sorted(comment_indices, 
-                                        key=lambda i: section["comments"][i]["timestamp"])
-                    
-                    for j in range(1, len(sorted_indices)):
-                        current_idx = sorted_indices[j]
-                        prev_idx = sorted_indices[j-1]
-                        
-                        if section["comments"][current_idx].get("reply_to") is None:
-                            section["comments"][current_idx]["reply_to"] = section["comments"][prev_idx]["username"]
-                except Exception as e:
-                    logger.warning(f"Error sorting comments by timestamp: {e}")
-                    
+
+            while stack and comments[stack[-1]]["indentation"] >= indent:
+                stack.pop()
+
+            if stack:
+                parent_index = stack[-1]
+                comment["reply_to"] = comments[parent_index]["username"]
+            else:
+                comment["reply_to"] = None
+
+            stack.append(i)
+
+            logger.debug(f"[{i}] {comment['username']} (indent={indent}) -> {comment['reply_to']}")
+
     return sections
+
+
+
 
 
 def build_discussion_graph_from_sections(sections):
