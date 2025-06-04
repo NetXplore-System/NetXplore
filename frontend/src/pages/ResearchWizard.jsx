@@ -108,6 +108,8 @@ const ResearchWizard = () => {
     includeMessageContent: true,
     isDirectedGraph: false,
     useHistoryAlgorithm: false,
+    messageWeight: [0.2, 0.3, 0.5],
+    historyLength: 3,
     isNormalized: false,
     timeFrame: {
       startDate: "",
@@ -304,8 +306,8 @@ const ResearchWizard = () => {
       setUploadError("Please select a file to upload.");
       return;
     }
-  
-    setUploadError("");       
+
+    setUploadError("");
     const platform = formData.platform;
     uploadFile(file, platform)
       .then((data) => {
@@ -313,7 +315,7 @@ const ResearchWizard = () => {
           ...prev,
           uploadedFileName: data.filename,
         }));
-        setUploadError("");  
+        setUploadError("");
       })
       .catch((error) => {
         setUploadError(error.message || "Error uploading file.");
@@ -325,9 +327,9 @@ const ResearchWizard = () => {
       setWikipediaUrlError("Please enter a valid Wikipedia URL.");
       return;
     }
-  
-    setWikipediaUrlError("");    
-  
+
+    setWikipediaUrlError("");
+
     fetchWikipediaData(formData.wikipediaUrl)
       .then((data) => {
         if (data.nodes && data.links) {
@@ -351,19 +353,19 @@ const ResearchWizard = () => {
         );
       });
   };
-  
+
 
   const handleNetworkAnalysis = async () => {
     if (!formData.uploadedFileName) {
       toast.error("No file selected for analysis.");
       return;
     }
-  
+
     const params = filters.buildNetworkFilterParams();
     const platformParam = `platform=${formData.platform}`;
     const finalParams = `${params}&${platformParam}`;
     setLastAnalysisParams(finalParams);
-  
+
     try {
       if (formData.platform === "wikipedia") {
         toast.promise(analyzeNetwork("wikipedia_data", finalParams), {
@@ -371,20 +373,20 @@ const ResearchWizard = () => {
           success: async (data) => {
             if (data.nodes && data.links) {
               dispatch(clearImages());
-  
+
               const communityData = await detectWikipediaCommunities("wikipedia_data", finalParams);
               const nodeCommunities = communityData.node_communities || {};
               const updatedNodes = data.nodes.map((node) => {
                 const community = nodeCommunities[node.id?.toString().trim()];
                 return community !== undefined ? { ...node, community } : node;
               });
-  
+
               data.nodes = updatedNodes;
               setNetworkData(data);
               setOriginalNetworkData(data);
               setCommunities(communityData.communities || []);
               setCommunityMap(nodeCommunities);
-  
+
               return "Wikipedia analysis completed successfully!";
             } else {
               return "No data returned from Wikipedia analysis.";
@@ -395,7 +397,7 @@ const ResearchWizard = () => {
       } else if (formData.platform === "whatsapp") {
         if (hasShownToastRef.current) return;
         hasShownToastRef.current = true;
-  
+
         toast.promise(analyzeNetwork(formData.uploadedFileName, finalParams), {
           loading: "Analyzing WhatsApp network...",
           success: async (data) => {
@@ -403,12 +405,12 @@ const ResearchWizard = () => {
               dispatch(clearImages());
               setNetworkData(data);
               setOriginalNetworkData(data);
-  
+
               const communityData = await detectCommunities(formData.uploadedFileName, finalParams);
               setCommunities(communityData.communities || []);
               setCommunityMap(communityData.node_communities || {});
               setShouldFetchCommunities(true);
-  
+
               return "WhatsApp analysis completed successfully!";
             } else {
               return "No data returned from server.";
@@ -419,19 +421,20 @@ const ResearchWizard = () => {
       } else {
         toast.error("Unsupported platform selected.");
       }
+
     } catch (error) {
       console.error("Error during network analysis:", error);
       toast.error("Failed to analyze network.");
     }
   };
-  
+
   const fetchCommunityData = () => {
     if (!formData.uploadedFileName || !networkData) return;
-  
+
     const params = filters.buildNetworkFilterParams();
     const platformParam = `platform=${formData.platform}`;
     const finalParams = `${params}&${platformParam}`;
-  
+
     detectCommunities(formData.uploadedFileName, finalParams)
       .then((data) => {
         if (data.communities && data.nodes) {
@@ -443,13 +446,13 @@ const ResearchWizard = () => {
             }
           });
           setCommunityMap(newCommunityMap);
-  
+
           const updatedNodes = networkData.nodes.map((node) => {
             const normalizedId = node.id.toString().trim();
             const community = newCommunityMap[normalizedId];
             return community !== undefined ? { ...node, community } : node;
           });
-  
+
           setNetworkData({ nodes: updatedNodes, links: networkData.links });
           setOriginalNetworkData({ nodes: updatedNodes, links: networkData.links });
         }
@@ -458,7 +461,7 @@ const ResearchWizard = () => {
         toast.error(error.message || "Error detecting communities.");
       });
   };
-  
+
   const handleReanalysis = () => {
     if (shouldReanalyze()) {
       setNetworkData(null);
@@ -477,8 +480,31 @@ const ResearchWizard = () => {
     return !lastAnalysisParams || currentParams !== lastAnalysisParams;
   };
 
+  // Update the handleInputChange function
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
+
+    console.log("target", e.target, formData);
+
+    // Handle messageWeight array updates
+    if (name.startsWith('messageWeight')) {
+      const index = parseInt(name.replace('messageWeight', '')) - 1;
+      const newValue = parseFloat(value);
+
+      const newMessageWeight = [...formData.messageWeight];
+      newMessageWeight[index] = newValue;
+
+      // Normalize to sum to 1
+      const sum = newMessageWeight.reduce((acc, val) => acc + val, 0);
+      if (sum > 0) {
+        const normalizedWeights = newMessageWeight.map(weight => weight / sum);
+        setFormData({
+          ...formData,
+          messageWeight: normalizedWeights
+        });
+      }
+      return;
+    }
 
     if (name.includes(".")) {
       const [parent, child] = name.split(".");
@@ -506,6 +532,7 @@ const ResearchWizard = () => {
       });
     }
 
+    // Rest of the existing logic...
     if (name === "isDirectedGraph" || name === "useHistoryAlgorithm") {
       const currentStepContent = getCurrentStepContent();
 
@@ -531,6 +558,22 @@ const ResearchWizard = () => {
     }
   };
 
+  // Add this helper function for the increase/decrease buttons
+  const handleMessageWeightChange = (index, delta) => {
+    const newMessageWeight = [...formData.messageWeight];
+    newMessageWeight[index] = Math.max(0.1, Math.min(1.0, newMessageWeight[index] + delta));
+
+    // Normalize to sum to 1
+    const sum = newMessageWeight.reduce((acc, val) => acc + val, 0);
+    if (sum > 0) {
+      const normalizedWeights = newMessageWeight.map(weight => weight / sum);
+      setFormData({
+        ...formData,
+        messageWeight: normalizedWeights
+      });
+    }
+  };
+
   const handleSaveResearch = async () => {
     const params = filters.buildNetworkFilterParams();
     const id = currentUser?.id;
@@ -538,7 +581,6 @@ const ResearchWizard = () => {
       toast.error("Please fill in all required fields.");
       return null;
     }
-
     const comparisonData = comparison.comparisonNetworkData?.length > 0 ? {
       data: comparison.comparisonNetworkData.map((item, index) => ({
         nodes: item.nodes,
@@ -547,7 +589,6 @@ const ResearchWizard = () => {
       })),
       filters: comparison.comparisonFilterSettings,
     } : {};
-
     const result = await toast.promise(
       saveToDB(
         id,
@@ -667,6 +708,8 @@ const ResearchWizard = () => {
           <DataConfiguration
             formData={formData}
             handleInputChange={handleInputChange}
+            handleMessageWeightChange={handleMessageWeightChange}
+            setFormData={setFormData}
           />
         );
       case ALL_STEPS.TIME_FRAME:
@@ -775,9 +818,8 @@ const ResearchWizard = () => {
               return (
                 <div
                   key={index}
-                  className={`wizard-step ${isCompleted ? "completed" : ""} ${
-                    isActive ? "active" : ""
-                  }`}
+                  className={`wizard-step ${isCompleted ? "completed" : ""} ${isActive ? "active" : ""
+                    }`}
                 >
                   <div className="step-circle">{index + 1}</div>
                   <div className="step-line"></div>
@@ -846,8 +888,9 @@ const ResearchWizard = () => {
               setShowSaveModal(false);
               try {
                 await handleSaveResearch();
-                setTimeout(() => navigate("/history"), 800);
+                // setTimeout(() => navigate("/history"), 800);
               } catch (err) {
+                console.error("Error saving research:", err);
                 toast.error("Failed to save research.");
               }
             }}

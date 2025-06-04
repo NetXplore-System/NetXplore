@@ -139,6 +139,14 @@ const NetworkVisualization = ({
     importantNodesThreshold: 0.5,
   });
 
+  const reverseLinksDirection = (links) => {
+    return links.map(link => ({
+      ...link,
+      source: link.target,
+      target: link.source
+    }));
+  };
+
   useEffect(() => {
     if (!networkData && uploadedFileName) {
       handleNetworkAnalysis();
@@ -161,14 +169,21 @@ const NetworkVisualization = ({
 
   const updateFilteredData = () => {
     if (!networkData) return;
-
+  
     const filtered = networkData.nodes.filter((node) =>
       node.id.toLowerCase().includes(filters.filter.toLowerCase())
     );
-
+  
     setFilteredNodes(filtered);
-
-    const filteredEdges = networkData.links.filter(
+  
+    let linksToFilter = networkData.links;
+    
+    // Reverse arrow direction for directed graphs
+    if (isDirectedGraph) {
+      linksToFilter = reverseLinksDirection(networkData.links);
+    }
+  
+    const filteredEdges = linksToFilter.filter(
       (link) =>
         filtered.some(
           (node) =>
@@ -181,7 +196,7 @@ const NetworkVisualization = ({
             (typeof link.target === "object" && node.id === link.target.id)
         )
     );
-
+  
     setFilteredLinks(filteredEdges);
   };
 
