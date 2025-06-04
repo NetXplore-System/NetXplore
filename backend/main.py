@@ -1,8 +1,10 @@
 from fastapi import FastAPI # type: ignore      
 from fastapi.middleware.cors import CORSMiddleware  # type: ignore
+from fastapi.staticfiles import StaticFiles
 import logging
 from dotenv import load_dotenv
 import os
+
 from database import verify_connection, engine, Base
 from wikipedia_router import router as wikipedia_router
 from user_router import router as user_router
@@ -19,6 +21,7 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 origins = os.getenv("ALLOWED_ORIGINS", "").split(",") 
 os.makedirs("./uploads/", exist_ok=True) 
+os.makedirs("uploads/avatars", exist_ok=True)
 
 
 app = FastAPI()
@@ -38,9 +41,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(wikipedia_router)
+
+app.mount("/static", StaticFiles(directory="uploads"), name="static")
+
 app.include_router(user_router)
 app.include_router(analysis_router)
+app.include_router(wikipedia_router)
 app.include_router(history_router)
 app.include_router(files_router)
 app.include_router(auth_router)
