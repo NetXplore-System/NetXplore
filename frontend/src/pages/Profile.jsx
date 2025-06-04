@@ -13,6 +13,9 @@ const Profile = () => {
   const baseURL = import.meta.env.VITE_API_URL;
   const isFullUrl = (url) =>
     url?.startsWith("http://") || url?.startsWith("https://");
+  console.log("currentUser.avatar:", currentUser.avatar);
+  console.log("baseURL (VITE_API_URL):", baseURL);
+  console.log("Avatar URL:", imageUrl);
 
   useEffect(() => {
     if (!currentUser || !token) {
