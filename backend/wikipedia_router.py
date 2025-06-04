@@ -20,11 +20,8 @@ from requests.exceptions import HTTPError, RequestException
 
 router = APIRouter()
 logger = logging.getLogger("wikipedia")
-# logging.basicConfig(level=logging.INFO)
 logging.basicConfig(level=logging.DEBUG)
 logger.setLevel(logging.DEBUG)
-
-
 
 @router.post("/fetch-wikipedia-data")
 async def fetch_wikipedia_data(request: Request):
@@ -488,7 +485,6 @@ def build_discussion_graph_from_sections(sections):
                         "target": reply_to,
                         "value": 1
                     })
-
     nodes = [{"id": user, "name": user, "group": 1} for user in users]
     
     logger.info(f"Created discussion graph with {len(nodes)} nodes and {len(links)} links")
