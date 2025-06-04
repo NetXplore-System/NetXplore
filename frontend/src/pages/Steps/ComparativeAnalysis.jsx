@@ -61,6 +61,7 @@ const ComparativeAnalysis = ({
     updateComparisonFilterSettings,
     setComparisonData,
     setComparisonFiles,
+    comparisonFilterSettings,
   } = comparison;
 
   const graphMetrics = [
@@ -388,6 +389,9 @@ const ComparativeAnalysis = ({
               filteredOriginalData={filteredOriginalData}
               filteredComparisonData={filteredComparisonData}
               onResetComparisonFilters={resetComparisonFilters}
+              comparisonFilterSettings={comparisonFilterSettings}
+              originalFilters={filters}
+              formData={formData}
             />
           </div>
         ) : (

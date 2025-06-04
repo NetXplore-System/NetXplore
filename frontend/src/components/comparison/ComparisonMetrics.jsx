@@ -32,6 +32,8 @@ const ComparisonMetrics = ({
   filteredComparisonData,
   onResetComparisonFilters,
   onApplyComparisonFilters,
+  comparisonFilterSettings,
+  formData,
 }) => {
   const dispatch = useDispatch();
   const [comparisonMetric, setComparisonMetric] = useState(null);
@@ -258,7 +260,7 @@ const ComparisonMetrics = ({
                           comparisonMetrics={
                             comparisonMetric ? [comparisonMetric] : []
                           }
-                          directed={false}
+                          directed={formData?.isDirectedGraph || false}
                         />
                       </Card.Body>
                     </Card>
@@ -336,7 +338,7 @@ const ComparisonMetrics = ({
                               comparisonMetric ? [comparisonMetric] : []
                             }
                             graphIndex={index}
-                            directed={comparisonData[index]?.filterSettings?.config?.directed || false}
+                            directed={comparisonFilterSettings[index]?.config?.directed || false}
                           />
                         </Card.Body>
                       </Card>

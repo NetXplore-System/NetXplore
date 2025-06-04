@@ -409,19 +409,20 @@ const ComparisonGraph = ({
 
             // Draw arrow if directed
             if (directed) {
-              const arrowLength = 12;
+              const arrowLength = 6;
               
-              // Calculate arrow position (back from target node to account for node radius)
-              const nodeRadius = 25; // Approximate node radius
+              // Calculate arrow position at the edge of the target node
+              const nodeRadius = 22; // Approximate node radius
               const arrowTipX = targetX - (dx / length) * nodeRadius;
               const arrowTipY = targetY - (dy / length) * nodeRadius;
               
-              // Arrow head - make it more visible
+              // Arrow head - make it more pointed with narrower angle
               const angle = Math.atan2(dy, dx);
-              const arrowX1 = arrowTipX - arrowLength * Math.cos(angle - Math.PI / 6);
-              const arrowY1 = arrowTipY - arrowLength * Math.sin(angle - Math.PI / 6);
-              const arrowX2 = arrowTipX - arrowLength * Math.cos(angle + Math.PI / 6);
-              const arrowY2 = arrowTipY - arrowLength * Math.sin(angle + Math.PI / 6);
+              const arrowAngle = Math.PI / 8; // Narrower arrow angle for smaller head
+              const arrowX1 = arrowTipX - arrowLength * Math.cos(angle - arrowAngle);
+              const arrowY1 = arrowTipY - arrowLength * Math.sin(angle - arrowAngle);
+              const arrowX2 = arrowTipX - arrowLength * Math.cos(angle + arrowAngle);
+              const arrowY2 = arrowTipY - arrowLength * Math.sin(angle + arrowAngle);
 
               ctx.beginPath();
               ctx.moveTo(arrowTipX, arrowTipY);
@@ -439,19 +440,23 @@ const ComparisonGraph = ({
               ctx.strokeStyle = isComparisonGraph
                 ? currentPalette.links.replace('0.6', '1')
                 : "rgba(128, 128, 128, 1)";
-              ctx.lineWidth = 2;
+              ctx.lineWidth = 1.5;
               ctx.stroke();
             }
 
             // Position weight label close to target node
             let labelX, labelY;
             if (directed) {
-              // Position weight very close to the target node
-              const offsetDistance = 35; // Distance from target node
-              labelX = targetX - (dx / length) * offsetDistance;
-              labelY = targetY - (dy / length) * offsetDistance;
+              // Position weight at the arrow head location
+              const nodeRadius = 22; // Same as arrow positioning
+              const arrowTipX = targetX - (dx / length) * nodeRadius;
+              const arrowTipY = targetY - (dy / length) * nodeRadius;
               
-              // Add small perpendicular offset to avoid overlapping with line
+              // Position label at arrow tip with small perpendicular offset
+              labelX = arrowTipX;
+              labelY = arrowTipY;
+              
+              // Add small perpendicular offset to avoid overlapping with arrow
               const perpX = -dy / length;
               const perpY = dx / length;
               labelX += perpX * 8;

@@ -53,6 +53,14 @@ const useComparison = (originalNetworkData, uploadedFile) => {
       maxMessages: "",
       usernameFilter: "",
     },
+    config: {
+      directed: false,
+      anonymize: false,
+      history: false,
+      messageCount: 3,
+      normalized: false,
+      messageWeights: [0.2, 0.3, 0.5],
+    },
   });
 
   const addComparison = () => {
@@ -183,6 +191,12 @@ const useComparison = (originalNetworkData, uploadedFile) => {
         );
       if (filterSettings.config.messageCount)
         params.append("history_length", filterSettings.config.messageCount);
+      
+      if (filterSettings.config.history) {
+        const messageWeights = filterSettings.config.messageWeights || [0.2, 0.3, 0.5];
+        const formattedWeights = messageWeights.map(weight => parseFloat(weight.toFixed(1)));
+        params.append("message_weights", JSON.stringify(formattedWeights));
+      }
     }
     return params;
   };
