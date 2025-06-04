@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import {
   Button,
@@ -79,6 +79,7 @@ const ComparisonItem = ({
       history: false,
       messageCount: 3,
       normalized: false,
+      messageWeights: [0.2, 0.3, 0.5], // Default weights for 3 messages
     }
   });
 
@@ -90,7 +91,8 @@ const ComparisonItem = ({
     }
   }, [filterSettings]);
 
-  const handleFilterChange = (e) => {
+  // Memoize the filter change handler to prevent unnecessary re-renders
+  const handleFilterChange = useCallback((e) => {
     const { name, value, type, checked } = e.target;
 
     if (name.includes(".")) {
@@ -112,6 +114,26 @@ const ComparisonItem = ({
             directed: newValue,
             history: false,
             normalized: false,
+          },
+        };
+      } else if (name === "config.messageCount") {
+        // Update message weights array when messageCount changes
+        const messageCount = Number(newValue);
+        let newWeights;
+        if (messageCount === 2) {
+          newWeights = [0.4, 0.6]; // Default weights for 2 messages
+        } else if (messageCount === 3) {
+          newWeights = [0.2, 0.3, 0.5]; // Default weights for 3 messages
+        } else {
+          newWeights = localFilterSettings.config?.messageWeights || [0.2, 0.3, 0.5];
+        }
+        
+        updatedSettings = {
+          ...localFilterSettings,
+          [parent]: {
+            ...localFilterSettings[parent],
+            [child]: newValue,
+            messageWeights: newWeights,
           },
         };
       } else {
@@ -141,13 +163,63 @@ const ComparisonItem = ({
         onFilterChange(index, updatedSettings);
       }
     }
-  };
+  }, [localFilterSettings, onFilterChange, index]);
 
-  const toggleFilters = () => {
+  // Memoize message weight change handler and optimize calculations
+  const handleMessageWeightChange = useCallback((weightIndex, delta) => {
+    const currentWeights = [...(localFilterSettings.config?.messageWeights || [0.2, 0.3, 0.5])];
+    
+    // Apply delta to the specific weight
+    currentWeights[weightIndex] = Math.max(0.1, Math.min(1.0, currentWeights[weightIndex] + delta));
+    
+    let finalWeights;
+    
+    if (weightIndex === 0) {
+      // If we're changing the first weight, normalize all weights
+      const sum = currentWeights.reduce((acc, val) => acc + val, 0);
+      if (sum > 0) {
+        finalWeights = currentWeights.map(weight => weight / sum);
+      } else {
+        finalWeights = currentWeights;
+      }
+    } else {
+      // If changing other weights, keep the first weight fixed and normalize only the remaining weights
+      const firstWeight = currentWeights[0];
+      const remainingWeights = currentWeights.slice(1);
+      const remainingSum = remainingWeights.reduce((acc, val) => acc + val, 0);
+      
+      if (remainingSum > 0) {
+        const targetRemainingSum = 1.0 - firstWeight;
+        const normalizedRemainingWeights = remainingWeights.map(weight => 
+          (weight / remainingSum) * targetRemainingSum
+        );
+        
+        finalWeights = [firstWeight, ...normalizedRemainingWeights];
+      } else {
+        finalWeights = currentWeights;
+      }
+    }
+    
+    const updatedSettings = {
+      ...localFilterSettings,
+      config: {
+        ...localFilterSettings.config,
+        messageWeights: finalWeights,
+      },
+    };
+    
+    setLocalFilterSettings(updatedSettings);
+    
+    if (onFilterChange) {
+      onFilterChange(index, updatedSettings);
+    }
+  }, [localFilterSettings, onFilterChange, index]);
+
+  const toggleFilters = useCallback(() => {
     setShowFilters(!showFilters);
-  };
+  }, [showFilters]);
 
-  const applyFilters = () => {
+  const applyFilters = useCallback(() => {
     if (
       comparisonData?.filename ||
       comparisonFile ||
@@ -158,9 +230,9 @@ const ComparisonItem = ({
         comparisonData?.isWikipediaData || platform === "wikipedia";
       onAnalyzeNetwork(index, localFilterSettings, isWikipediaData);
     }
-  };
+  }, [comparisonData, comparisonFile, platform, onAnalyzeNetwork, index, localFilterSettings]);
 
-  const resetFilters = () => {
+  const resetFilters = useCallback(() => {
     const defaultSettings = {
       timeFrame: {
         startDate: "",
@@ -191,6 +263,7 @@ const ComparisonItem = ({
         history: false,
         messageCount: 3,
         normalized: false,
+        messageWeights: [0.2, 0.3, 0.5],
       },
     };
 
@@ -199,7 +272,7 @@ const ComparisonItem = ({
     if (onFilterChange) {
       onFilterChange(index, defaultSettings);
     }
-  };
+  }, [onFilterChange, index]);
 
   const handleUseOriginalFile = () => {
     if (platform === "wikipedia") {
@@ -461,7 +534,52 @@ const ComparisonItem = ({
     }
   };
 
-  const getDataDisplayName = () => {
+  // Memoize expensive computations
+  const currentWeights = useMemo(() => 
+    localFilterSettings.config?.messageWeights || [0.2, 0.3, 0.5], 
+    [localFilterSettings.config?.messageWeights]
+  );
+
+  const messageCount = useMemo(() => 
+    localFilterSettings.config?.messageCount || 3, 
+    [localFilterSettings.config?.messageCount]
+  );
+
+  const isHistoryEnabled = useMemo(() => 
+    localFilterSettings.config?.history && localFilterSettings.config?.directed, 
+    [localFilterSettings.config?.history, localFilterSettings.config?.directed]
+  );
+
+  const weightDistributionSummary = useMemo(() => 
+    currentWeights
+      .slice(0, messageCount)
+      .map((w, i) => `Message ${i + 1}: ${w.toFixed(1)}`)
+      .join(", "),
+    [currentWeights, messageCount]
+  );
+
+  // Check if weight sum is valid (should be close to 1.0)
+  const weightSum = useMemo(() => 
+    currentWeights.slice(0, messageCount).reduce((acc, val) => acc + val, 0),
+    [currentWeights, messageCount]
+  );
+
+  const isWeightSumValid = useMemo(() => 
+    Math.abs(weightSum - 1.0) < 0.01, // Allow small floating point errors
+    [weightSum]
+  );
+
+  const weightSumWarning = useMemo(() => {
+    if (weightSum < 0.99) {
+      return `⚠️ Warning: Weight sum is ${weightSum.toFixed(3)} (should be 1.0)`;
+    }
+    if (weightSum > 1.01) {
+      return `⚠️ Warning: Weight sum is ${weightSum.toFixed(3)} (should be 1.0)`;
+    }
+    return null;
+  }, [weightSum]);
+
+  const getDataDisplayName = useMemo(() => {
     if (platform === "wikipedia") {
       if (comparisonData?.isOriginalFile) {
         return selectedSection
@@ -478,9 +596,15 @@ const ComparisonItem = ({
       }
     }
     return comparisonData?.name || "No file selected";
-  };
+  }, [
+    platform,
+    comparisonData,
+    selectedSection,
+    comparisonSelectedSection,
+    comparisonWikiContent
+  ]);
 
-  const hasValidData = () => {
+  const hasValidData = useMemo(() => {
     if (platform === "wikipedia") {
       return (
         comparisonWikiContent ||
@@ -493,7 +617,13 @@ const ComparisonItem = ({
       comparisonFile ||
       comparisonData?.isOriginalFile
     );
-  };
+  }, [
+    platform,
+    comparisonWikiContent,
+    comparisonData,
+    comparisonFile
+  ]);
+
   return (
     <Card
       className={`comparison-file-card mb-3 ${isActive ? "active-card" : ""}`}
@@ -525,7 +655,7 @@ const ComparisonItem = ({
                 </Badge>
               )}
             </div>
-            <p className="text-muted mb-0 mt-1">{getDataDisplayName()}</p>
+            <p className="text-muted mb-0 mt-1">{getDataDisplayName}</p>
           </Col>
           <Col md={4} className="d-flex justify-content-end align-items-start">
             {platform === "wikipedia" ? (
@@ -596,7 +726,7 @@ const ComparisonItem = ({
                     </div>
                   )}
 
-                {hasValidData() && (
+                {hasValidData && (
                   <div className="d-flex align-items-center gap-2">
                     <Button
                       variant="primary"
@@ -681,7 +811,7 @@ const ComparisonItem = ({
                   </Dropdown>
                 </div>
 
-                {hasValidData() && (
+                {hasValidData && (
                   <div className="d-flex align-items-center gap-2">
                     <Button
                       variant="primary"
@@ -847,7 +977,7 @@ const ComparisonItem = ({
           </Accordion>
         )}
 
-        {hasValidData() && (
+        {hasValidData && (
           <Accordion
             className="mt-3"
             defaultActiveKey={comparisonData?.isOriginalFile ? "0" : ""}
@@ -1029,7 +1159,7 @@ const ComparisonItem = ({
                     <Form.Check
                       type="checkbox"
                       id={`config-history-${index}`}
-                      label="Use History Algorithm"
+                      label="Use Distance Weighted Ranking Algorithm"
                       name="config.history"
                       checked={localFilterSettings.config?.history || false}
                       onChange={handleFilterChange}
@@ -1039,7 +1169,7 @@ const ComparisonItem = ({
                   </Col>
                   <Col md={2}>
                     <Form.Group className="mb-2">
-                      <Form.Label>Message History Length</Form.Label>
+                      <Form.Label>Number Of Previous Messages</Form.Label>
                       <Form.Select
                         name="config.messageCount"
                         value={(
@@ -1075,83 +1205,72 @@ const ComparisonItem = ({
                   </Col>
                 </Row>
 
-                <Row className="mb-3">
-                  <Col md={12}>
-                    <h6 className="filter-section-title">
-                      <GrConfigure className="me-2" /> Config
-                    </h6>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Check
-                      type="checkbox"
-                      id={`config-anonymize-${index}`}
-                      label="Use Anonymization"
-                      name="config.anonymize"
-                      checked={localFilterSettings.config?.anonymize || false}
-                      onChange={handleFilterChange}
-                      className="mb-2"
-                    />
-                  </Col>
-                  <Col md={2}>
-                    <Form.Check
-                      type="checkbox"
-                      id={`config-directed-${index}`}
-                      label="Directed Graph"
-                      name="config.directed"
-                      checked={localFilterSettings.config?.directed || false}
-                      onChange={handleFilterChange}
-                      className="mb-2"
-                    />
-                  </Col>
-                  <Col md={2}>
-                    <Form.Check
-                      type="checkbox"
-                      id={`config-history-${index}`}
-                      label="Use History Algorithm"
-                      name="config.history"
-                      checked={localFilterSettings.config?.history || false}
-                      onChange={handleFilterChange}
-                      className="mb-2"
-                      disabled={!localFilterSettings.config?.directed}
-                    />
-                  </Col>
-                  <Col md={2}>
-                    <Form.Group className="mb-2">
-                      <Form.Label>Message History Length</Form.Label>
-                      <Form.Select
-                        name="config.messageCount"
-                        value={(
-                          localFilterSettings.config?.messageCount || 3
-                        ).toString()}
-                        onChange={(e) =>
-                          handleFilterChange({
-                            target: {
-                              name: "config.messageCount",
-                              value: e.target.value,
-                              type: "select",
-                            },
-                          })
-                        }
-                        disabled={!localFilterSettings.config?.history || !localFilterSettings?.config?.directed}
-                      >
-                        <option value="3">3</option>
-                        <option value="2">2</option>
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
-                  <Col md={2}>
-                    <Form.Check
-                      type="checkbox"
-                      id={`config-normalized-${index}`}
-                      label="Normalized Algorithm"
-                      name="config.normalized"
-                      checked={localFilterSettings.config?.normalized || false}
-                      onChange={handleFilterChange}
-                      className="mb-2"
-                      disabled={!localFilterSettings.config?.directed}
-                    />
-                  </Col>
-                </Row>
+                {/* Message Weight Controls */}
+                {isHistoryEnabled && (
+                  <Row className="mb-3">
+                    <Col md={12}>
+                      <h6 className="filter-section-title">
+                        <GrConfigure className="me-2" /> Message Weight Distribution
+                      </h6>
+                      <small className="text-muted">
+                        Adjust the influence of each previous message in the ranking algorithm. 
+                        Weights are automatically normalized to sum to 1.0.
+                      </small>
+                    </Col>
+                    {currentWeights
+                      .slice(0, messageCount)
+                      .map((weight, weightIndex) => (
+                        <Col md={4} key={weightIndex}>
+                          <Form.Group className="mb-3">
+                            <Form.Label>
+                              {weightIndex === 0 
+                                ? "Most Recent Message"
+                                : weightIndex === 1 
+                                ? "2nd Previous Message"
+                                : "3rd Previous Message"} Weight
+                            </Form.Label>
+                            <div className="d-flex align-items-center">
+                              <Button
+                                variant="outline-secondary"
+                                size="sm"
+                                onClick={() => handleMessageWeightChange(weightIndex, -0.05)}
+                                disabled={weight <= 0.1}
+                              >
+                                -
+                              </Button>
+                              <div className="mx-3 text-center" style={{ minWidth: "60px" }}>
+                                <strong>{weight.toFixed(1)}</strong>
+                              </div>
+                              <Button
+                                variant="outline-secondary"
+                                size="sm"
+                                onClick={() => handleMessageWeightChange(weightIndex, 0.05)}
+                                disabled={weight >= 0.9}
+                              >
+                                +
+                              </Button>
+                            </div>
+                          </Form.Group>
+                        </Col>
+                      ))}
+                    <Col md={12}>
+                      <div className={`alert ${isWeightSumValid ? 'alert-info' : 'alert-warning'}`}>
+                        <InfoCircle size={16} className="me-2" />
+                        <strong>Weight Distribution:</strong> {weightDistributionSummary}
+                        <br />
+                        <small>
+                          Sum: {weightSum.toFixed(3)}
+                          {!isWeightSumValid && (
+                            <span className="text-danger ms-2">
+                              {weightSumWarning}
+                            </span>
+                          )}
+                        </small>
+                      </div>
+                    </Col>
+                  </Row>
+                )}
+
                 {(comparisonData?.isOriginalFile ||
                   comparisonData?.isWikipediaData) && (
                     <div className="alert alert-info mt-3">

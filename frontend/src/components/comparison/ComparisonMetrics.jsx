@@ -258,6 +258,7 @@ const ComparisonMetrics = ({
                           comparisonMetrics={
                             comparisonMetric ? [comparisonMetric] : []
                           }
+                          directed={false}
                         />
                       </Card.Body>
                     </Card>
@@ -335,6 +336,7 @@ const ComparisonMetrics = ({
                               comparisonMetric ? [comparisonMetric] : []
                             }
                             graphIndex={index}
+                            directed={comparisonData[index]?.filterSettings?.config?.directed || false}
                           />
                         </Card.Body>
                       </Card>

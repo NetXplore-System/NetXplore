@@ -181,7 +181,7 @@ const DataConfiguration = ({ formData, handleInputChange, setFormData }) => {
               <div className="d-flex justify-content-between align-items-center">
                 <div>
                   <Form.Label className="form-label mb-0">
-                    Use History Algorithm
+                    Use Distance Weighted Ranking Algorithm
                     <InfoTooltip
                       text="This algorithm applies historical context to message exchanges, considering timing and sequence for deeper analysis."
                       id="history-algorithm"

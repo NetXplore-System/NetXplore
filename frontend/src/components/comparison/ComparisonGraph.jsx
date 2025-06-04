@@ -13,6 +13,7 @@ const ComparisonGraph = ({
   comparisonMetrics = [],
   buttonElement = null,
   graphIndex = 0,
+  directed = false,
 }) => {
   const [nodesFixed, setNodesFixed] = useState(false);
   const forceGraphRef = useRef(null);
@@ -390,6 +391,13 @@ const ComparisonGraph = ({
             )
               return;
 
+            const dx = targetX - sourceX;
+            const dy = targetY - sourceY;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            
+            if (length === 0) return;
+
+            // Draw the link line
             ctx.beginPath();
             ctx.moveTo(sourceX, sourceY);
             ctx.lineTo(targetX, targetY);
@@ -399,15 +407,78 @@ const ComparisonGraph = ({
             ctx.lineWidth = Math.sqrt(link.weight || 1);
             ctx.stroke();
 
-            const midX = (sourceX + targetX) / 2;
-            const midY = (sourceY + targetY) / 2;
-            const fontSize = 10 / globalScale;
+            // Draw arrow if directed
+            if (directed) {
+              const arrowLength = 12;
+              
+              // Calculate arrow position (back from target node to account for node radius)
+              const nodeRadius = 25; // Approximate node radius
+              const arrowTipX = targetX - (dx / length) * nodeRadius;
+              const arrowTipY = targetY - (dy / length) * nodeRadius;
+              
+              // Arrow head - make it more visible
+              const angle = Math.atan2(dy, dx);
+              const arrowX1 = arrowTipX - arrowLength * Math.cos(angle - Math.PI / 6);
+              const arrowY1 = arrowTipY - arrowLength * Math.sin(angle - Math.PI / 6);
+              const arrowX2 = arrowTipX - arrowLength * Math.cos(angle + Math.PI / 6);
+              const arrowY2 = arrowTipY - arrowLength * Math.sin(angle + Math.PI / 6);
+
+              ctx.beginPath();
+              ctx.moveTo(arrowTipX, arrowTipY);
+              ctx.lineTo(arrowX1, arrowY1);
+              ctx.lineTo(arrowX2, arrowY2);
+              ctx.closePath();
+              
+              // Fill the arrow for better visibility
+              ctx.fillStyle = isComparisonGraph
+                ? currentPalette.links.replace('0.6', '1')
+                : "rgba(128, 128, 128, 1)";
+              ctx.fill();
+              
+              // Also stroke the arrow
+              ctx.strokeStyle = isComparisonGraph
+                ? currentPalette.links.replace('0.6', '1')
+                : "rgba(128, 128, 128, 1)";
+              ctx.lineWidth = 2;
+              ctx.stroke();
+            }
+
+            // Position weight label close to target node
+            let labelX, labelY;
+            if (directed) {
+              // Position weight very close to the target node
+              const offsetDistance = 35; // Distance from target node
+              labelX = targetX - (dx / length) * offsetDistance;
+              labelY = targetY - (dy / length) * offsetDistance;
+              
+              // Add small perpendicular offset to avoid overlapping with line
+              const perpX = -dy / length;
+              const perpY = dx / length;
+              labelX += perpX * 8;
+              labelY += perpY * 8;
+            } else {
+              // Position weight at midpoint for undirected graphs
+              labelX = (sourceX + targetX) / 2;
+              labelY = (sourceY + targetY) / 2;
+            }
+
+            // Draw weight label with white text outline (no background square)
+            const fontSize = 11 / globalScale;
+            const weightText = (link.weight || "1").toString();
+            
             ctx.save();
-            ctx.font = `${fontSize}px Sans-Serif`;
-            ctx.fillStyle = "black";
+            ctx.font = `bold ${fontSize}px Sans-Serif`;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
-            ctx.fillText(link.weight || "1", midX, midY);
+            
+            // Draw white outline for better visibility
+            ctx.strokeStyle = "white";
+            ctx.lineWidth = 3;
+            ctx.strokeText(weightText, labelX, labelY);
+            
+            // Draw black text on top
+            ctx.fillStyle = "black";
+            ctx.fillText(weightText, labelX, labelY);
             ctx.restore();
           }}
         />
