@@ -20,6 +20,21 @@ const Profile = () => {
     }
   }, [currentUser, token, navigate]);
 
+  if (!currentUser || !token) {
+    return <p>Loading your profile...</p>;
+  }
+
+  const imageUrl =
+    currentUser.avatar && currentUser.avatar.trim() !== ""
+      ? isFullUrl(currentUser.avatar)
+        ? currentUser.avatar
+        : `${baseURL}${currentUser.avatar}`
+      : null;
+
+  console.log("currentUser.avatar:", currentUser.avatar);
+  console.log("baseURL (VITE_API_URL):", baseURL);
+  console.log("Avatar URL:", imageUrl);
+
   const handleLogout = () => {
     dispatch(logoutUser());
     localStorage.removeItem("user");
@@ -60,10 +75,6 @@ const Profile = () => {
     }
   };
 
-  if (!currentUser || !token) {
-    return <p>Loading your profile...</p>;
-  }
-
   return (
     <Container
       className="d-flex justify-content-center align-items-center"
@@ -74,13 +85,9 @@ const Profile = () => {
         style={{ maxWidth: "600px", borderRadius: "20px" }}
       >
         <div className="text-center mb-4">
-          {currentUser.avatar && currentUser.avatar.trim() !== "" ? (
+          {imageUrl ? (
             <img
-              src={
-                isFullUrl(currentUser.avatar)
-                  ? currentUser.avatar
-                  : `${baseURL}${currentUser.avatar}`
-              }
+              src={imageUrl}
               alt="Profile"
               className="rounded-circle border"
               style={{ width: "120px", height: "120px", objectFit: "cover" }}

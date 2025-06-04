@@ -1,13 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, Button, Container, Row, Col } from "react-bootstrap";
-import { FaSearch, FaRegCalendarAlt, FaArrowLeft, FaNetworkWired } from "react-icons/fa";
+import {
+  FaSearch,
+  FaRegCalendarAlt,
+  FaArrowLeft,
+  FaNetworkWired,
+} from "react-icons/fa";
 import { toast } from "sonner";
 import { useSelector } from "react-redux";
-import "../styles/Dashboard.css"; // להשתמש באותו עיצוב של דשבורד
+import "../styles/Dashboard.css";
 
 const FilteredResearches = () => {
-  const { type } = useParams(); 
+  const { type } = useParams();
   const navigate = useNavigate();
   const user = useSelector((state) => state.user);
   const [researches, setResearches] = useState([]);
@@ -32,9 +37,7 @@ const FilteredResearches = () => {
           }
         );
         const data = await response.json();
-        const filtered = (data.researches || []).filter(
-          (r) => r.type === type
-        );
+        const filtered = (data.researches || []).filter((r) => r.type === type);
         setResearches(filtered);
       } catch (error) {
         console.error("Error fetching filtered researches:", error);
@@ -54,7 +57,6 @@ const FilteredResearches = () => {
       <div className="dashboard-div">
         <Row className="mb-4">
           <Col>
-         
             <h2 className="dashboard-welcome text-capitalize">
               {type} Researches
             </h2>
@@ -79,13 +81,14 @@ const FilteredResearches = () => {
                     <Card.Text>{research.description}</Card.Text>
                     <div className="mb-2">
                       <strong>Nodes:</strong> {research.nodes} <br />
-                      <strong>Communities:</strong> {research.communities} <br />
+                      <strong>Communities:</strong> {research.communities}{" "}
+                      <br />
                       <FaRegCalendarAlt className="me-2" />
                       {research.date}
                     </div>
                     <Button
                       variant="primary"
-                      onClick={() => navigate(`/explore?research=${research.id}`)}
+                      onClick={() => navigate(`/history?view=${research.id}`)}
                     >
                       <FaSearch className="me-1" /> View
                     </Button>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
+import { useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { FaEye, FaEdit, FaCopy, FaTrash } from "react-icons/fa";
 import { Button, ButtonGroup, Card, Table } from "react-bootstrap";
@@ -18,6 +19,9 @@ const History = () => {
   const user = useSelector((state) => state.user);
   const [userHistory, setUserHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const viewResearchId = queryParams.get("view");
   const [research, setResearch] = useState(null);
   const [showDownload, setShowDownload] = useState(false);
   const [action, setAction] = useState({
@@ -137,6 +141,14 @@ const History = () => {
           return;
         }
         setUserHistory(data.history);
+        if (viewResearchId) {
+          const target = data.history.find(
+            (item) => item.id === viewResearchId
+          );
+          if (target) {
+            setResearch({ ...target, button: "view" });
+          }
+        }
       } catch (error) {
         console.error("Error fetching user history:", error);
         toast.error("Error fetching user history");
