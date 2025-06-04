@@ -428,15 +428,6 @@ const Welcome = () => {
                 text="Wikipedia Data"
               />
             </div>
-
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8, filter: "blur(8px)" }}
-              animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-              transition={{ duration: 1.6, ease: "easeOut", delay: 1.2 }}
-              className="hero-highlight"
-            >
-              <p>See what your networks reveal.</p>
-            </motion.div>
           </motion.div>
 
           <div className="hero-buttons">
@@ -453,9 +444,9 @@ const Welcome = () => {
               </AnimatedButton>
               <AnimatedButton
                 variant="outline-light"
-                onClick={() => navigate("/register")}
+                onClick={() => navigate("/signin")}
               >
-                Create Account
+                Log In
               </AnimatedButton>
             </motion.div>
           </div>
@@ -599,9 +590,9 @@ const Welcome = () => {
               <div className="footer-buttons">
                 <AnimatedButton
                   variant="outline-light"
-                  onClick={() => navigate("/contact")}
+                  onClick={() => navigate("/register")}
                 >
-                  Contact Us
+                  Create Account
                 </AnimatedButton>
                 <AnimatedButton
                   variant="primary"

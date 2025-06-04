@@ -12,24 +12,27 @@ export default function UpdateResearch({
   const user = useSelector((state) => state.user);
   const [researchData, setResearchData] = useState({
     research_name: research.research_name || "",
-    description: research.description || "",
+    description: research.description || null,
     filters: {
-      start_date: research.filters?.start_date || "",
-      end_date: research.filters?.end_date || "",
-      start_time: research.filters?.start_time || "",
-      end_time: research.filters?.end_time || "",
-      message_limit: research.filters?.message_limit || "",
+      start_date: research.filters?.start_date || null,
+      end_date: research.filters?.end_date || null,
+      start_time: research.filters?.start_time || null,
+      end_time: research.filters?.end_time || null,
+      message_limit: research.filters?.message_limit || null,
       limit_type: research.filters?.limit_type || "first",
-      min_message_length: research.filters?.min_message_length || "",
-      max_message_length: research.filters?.max_message_length || "",
-      keywords: research.filters?.keywords || "",
-      min_messages: research.filters?.min_messages || "",
-      max_messages: research.filters?.max_messages || "",
-      top_active_users: research.filters?.top_active_users || "",
-      selected_users: research.filters?.selected_users || "",
-      filter_by_username: research.filters?.filter_by_username || "",
+      min_message_length: research.filters?.min_message_length || null,
+      max_message_length: research.filters.max_message_length || null,
+      keywords: research.filters?.keywords || null,
+      min_messages: research.filters?.min_messages || null,
+      max_messages: research.filters?.max_messages || null,
+      top_active_users: research.filters?.top_active_users || null,
+      specific_users: research.filters?.specific_users || null,
+      filter_by_username: research.filters?.filter_by_username || null,
       anonymize: research.filters?.anonymize || false,
-      algorithm: research.filters?.algorithm || "louvain",
+      directed: research.filters?.directed || false,
+      use_history: research.filters?.use_history || false,
+      normalize: research.filters?.normalize || false,
+      history_length: research.filters?.history_length || null,
     },
   });
   const [loading, setLoading] = useState(false);
@@ -42,13 +45,28 @@ export default function UpdateResearch({
 
     setResearchData((prevData) => {
       if (name in prevData.filters) {
-        return {
-          ...prevData,
-          filters: {
-            ...prevData.filters,
-            [name]: newValue,
-          },
-        };
+        if (name === "directed") {
+          return {
+            ...prevData,
+            filters: {
+              ...prevData.filters,
+              [name]: newValue,
+              use_history: newValue ? prevData.filters.use_history : false,
+            },
+          };
+        } else if (name === "use_history" && !prevData.filters.directed) {
+          return prevData;
+        } else if (name === "history_length" && (!prevData.filters.directed || !prevData.filters.use_history)) {
+          return prevData;
+        } else {
+          return {
+            ...prevData,
+            filters: {
+              ...prevData.filters,
+              [name]: newValue,
+            },
+          };
+        }
       } else {
         return {
           ...prevData,
@@ -65,21 +83,33 @@ export default function UpdateResearch({
   const handleSave = async () => {
     setLoading(true);
     try {
-      if (!file) {
-        toast.error("Please upload the file the you used for the research");
+      const originalFilters = research.filters || {};
+      const currentFilters = researchData.filters;
+      const filtersChanged = Object.keys(currentFilters).some(
+        (key) => { currentFilters[key] !== originalFilters[key] && console.log(key, currentFilters, originalFilters); return currentFilters[key] !== originalFilters[key] }
+      );
+
+      if (filtersChanged && !file) {
+        toast.error("Please upload a file if you change the filters.");
+        setLoading(false);
         return;
       }
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/upload`, {
-        method: "POST",
-        body: formData,
-      });
-      if (!res.ok) {
-        toast.error("Error uploading file");
-        console.error("Error uploading file:", res);
-        return;
+
+      if (file) {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/upload`, {
+          method: "POST",
+          body: formData,
+        });
+        if (!res.ok) {
+          toast.error("Error uploading file");
+          console.error("Error uploading file:", res);
+          setLoading(false);
+          return;
+        }
       }
+
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/research/${research.id}`,
         {
@@ -88,9 +118,13 @@ export default function UpdateResearch({
             "Content-Type": "application/json",
             Authorization: `Bearer ${user.token}`,
           },
-          body: JSON.stringify({ ...researchData, file_name: file.name }),
+          body: JSON.stringify({
+            ...researchData,
+            file_name: filtersChanged ? file.name : undefined,
+          }),
         }
       );
+
       if (response.ok) {
         setResearch(researchData);
         setResearch(null);
@@ -152,35 +186,59 @@ export default function UpdateResearch({
         </div>
         <div className="row">
           {Object.keys(researchData.filters).map((key) =>
-            key === "anonymize" ? null : (
-              <Form.Group className="column" key={key}>
-                <Form.Label className="research-label">
-                  {key.replace(/_/g, " ")}:
-                </Form.Label>
-                <Form.Control
-                  type={
-                    key.split("_")?.[1] === "date" ||
-                    key.split("_")?.[1] === "time"
-                      ? key.split("_")[1] === "date"
-                        ? "date"
-                        : "time"
-                      : "text"
-                  }
-                  name={key}
-                  value={researchData.filters[key]}
-                  onChange={handleChange}
-                />
-              </Form.Group>
-            )
+            key === "anonymize" ||
+              key === "directed" ||
+              key === "use_history" ||
+              key === "history_length"
+              ? null
+              : (
+                <Form.Group className="column" key={key}>
+                  <Form.Label className="research-label">
+                    {key.replace(/_/g, " ")}:
+                  </Form.Label>
+                  <Form.Control
+                    type={
+                      key.split("_")?.[1] === "date" ||
+                        key.split("_")?.[1] === "time"
+                        ? key.split("_")[1] === "date"
+                          ? "date"
+                          : "time"
+                        : "text"
+                    }
+                    name={key}
+                    value={researchData.filters[key]}
+                    onChange={handleChange}
+                  />
+                </Form.Group>
+              )
           )}
           <Form.Check
             type={"checkbox"}
-            label={"anonymize"}
-            checked={researchData.filters["anonymize"]}
-            name={"anonymize"}
+            label={"directed"}
+            checked={researchData.filters["directed"]}
+            name={"directed"}
             onChange={handleChange}
             className="column input-checkbox"
           />
+          <Form.Check
+            type={"checkbox"}
+            label={"use_history"}
+            checked={researchData.filters["use_history"]}
+            name={"use_history"}
+            onChange={handleChange}
+            disabled={!researchData.filters.directed}
+            className="column input-checkbox"
+          />
+          <Form.Group className="column">
+            <Form.Label className="research-label">Message Count:</Form.Label>
+            <Form.Control
+              type="number"
+              name="history_length"
+              value={researchData.filters.history_length || ""}
+              onChange={handleChange}
+              disabled={!researchData.filters.directed || !researchData.filters.use_history}
+            />
+          </Form.Group>
           <div className="column full-width">
             <button className="generic-button" onClick={handleFileClick}>
               Upload File
@@ -189,7 +247,7 @@ export default function UpdateResearch({
               {file ? file.name : "No file selected"}
             </span>
             <p className="file-description">
-              Please upload the file you used for the research
+              Please upload the file you used for the research if filters have changed.
             </p>
             <input
               className="d-none"

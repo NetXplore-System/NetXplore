@@ -23,7 +23,7 @@ import {
   analyzeNetwork,
   detectCommunities,
   fetchWikipediaData,
-  analyzeWikipediaNetwork,
+  // analyzeWikipediaNetwork,
   detectWikipediaCommunities,
 } from "../components/utils/ApiService";
 import { saveToDB } from "../components/utils/ApiService";
@@ -41,6 +41,10 @@ const ResearchWizard = () => {
   const [wikiContent, setWikiContent] = useState(null);
   const [selectedSection, setSelectedSection] = useState(null);
   const hasShownToastRef = useRef(false);
+  const [uploadError, setUploadError] = useState("");
+  const [wikipediaUrlError, setWikipediaUrlError] = useState("");
+
+
 
   const ALL_STEPS = {
     SETUP: "Setup",
@@ -104,6 +108,8 @@ const ResearchWizard = () => {
     includeMessageContent: true,
     isDirectedGraph: false,
     useHistoryAlgorithm: false,
+    messageWeight: [0.2, 0.3, 0.5],
+    historyLength: 3,
     isNormalized: false,
     timeFrame: {
       startDate: "",
@@ -297,68 +303,57 @@ const ResearchWizard = () => {
 
   const handleFileUpload = (file) => {
     if (!file) {
-      toast.error("Please select a file to upload.");
+      setUploadError("Please select a file to upload.");
       return;
     }
-    toast.promise(uploadFile(file), {
-      loading: "Uploading file...",
-      success: (data) => {
+
+    setUploadError("");
+    const platform = formData.platform;
+    uploadFile(file, platform)
+      .then((data) => {
         setFormData((prev) => ({
           ...prev,
           uploadedFileName: data.filename,
         }));
-        return "File uploaded successfully!";
-      },
-      error: (error) => {
-        return error?.message || "Error uploading file.";
-      },
-    });
+        setUploadError("");
+      })
+      .catch((error) => {
+        setUploadError(error.message || "Error uploading file.");
+      });
   };
-
+  
   const handleFetchWikipedia = () => {
     if (!formData.wikipediaUrl?.trim()) {
-      toast.error("Please enter a valid Wikipedia URL.");
+      setWikipediaUrlError("Please enter a valid Wikipedia URL.");
       return;
     }
 
-    toast.promise(
-      fetchWikipediaData(formData.wikipediaUrl).then(async (data) => {
+    setWikipediaUrlError("");
+
+    fetchWikipediaData(formData.wikipediaUrl)
+      .then((data) => {
         if (data.nodes && data.links) {
           setNetworkData(data);
           setOriginalNetworkData(data);
           setWikiContent(data.content);
-
+  
           setFormData((prev) => ({
             ...prev,
             uploadedFileName: "wikipedia_data.txt",
           }));
-
-          await fetch(
-            `${import.meta.env.VITE_API_URL}/convert-wikipedia-to-txt`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                filename: "wikipedia_data",
-                section_title: "Top",
-              }),
-            }
-          );
-
-          return data;
         } else {
-          throw new Error("No valid discussion data found.");
+          setWikipediaUrlError("No valid discussion data found.");
         }
-      }),
-      {
-        loading: "Fetching discussion...",
-        success: "Wikipedia discussion loaded and converted!",
-        error: (err) => err.message || "Error fetching Wikipedia data.",
-      }
-    );
+      })
+      .catch((err) => {
+        setWikipediaUrlError(
+          err?.message === "Failed to fetch"
+            ? "Failed to connect to server."
+            : err.message || "Could not load Wikipedia data."
+        );
+      });
   };
+
 
   const handleNetworkAnalysis = async () => {
     if (!formData.uploadedFileName) {
@@ -367,38 +362,32 @@ const ResearchWizard = () => {
     }
 
     const params = filters.buildNetworkFilterParams();
-    setLastAnalysisParams(params.toString());
-
-    const isWikipedia = formData.platform === "wikipedia";
-    const isWhatsApp = formData.platform === "whatsapp";
+    const platformParam = `platform=${formData.platform}`;
+    const finalParams = `${params}&${platformParam}`;
+    setLastAnalysisParams(finalParams);
 
     try {
-      if (isWikipedia) {
-        await fetch(
-          `${import.meta.env.VITE_API_URL}/convert-wikipedia-to-txt`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              filename: formData.uploadedFileName,
-              section_title: selectedSection || "Top",
-            }),
-          }
-        );
+      if (formData.platform === "wikipedia") {
+        await fetch(`${import.meta.env.VITE_API_URL}/convert-wikipedia-to-txt`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            filename: formData.uploadedFileName,
+            section_title: selectedSection || "Top",
+          }),
+        });
 
-        toast.promise(analyzeWikipediaNetwork("wikipedia_data", params), {
+        
+        toast.promise(analyzeNetwork("wikipedia_data", finalParams), {
+
           loading: "Analyzing Wikipedia discussion...",
           success: async (data) => {
             if (data.nodes && data.links) {
               dispatch(clearImages());
 
-              const communityData = await detectWikipediaCommunities(
-                "wikipedia_data",
-                params
-              );
-
+              const communityData = await detectWikipediaCommunities("wikipedia_data", finalParams);
               const nodeCommunities = communityData.node_communities || {};
               const updatedNodes = data.nodes.map((node) => {
                 const community = nodeCommunities[node.id?.toString().trim()];
@@ -406,7 +395,6 @@ const ResearchWizard = () => {
               });
 
               data.nodes = updatedNodes;
-
               setNetworkData(data);
               setOriginalNetworkData(data);
               setCommunities(communityData.communities || []);
@@ -417,15 +405,14 @@ const ResearchWizard = () => {
               return "No data returned from Wikipedia analysis.";
             }
           },
-          error: (error) => {
-            return error?.message || "Error analyzing Wikipedia discussion.";
-          },
+          error: (error) => error?.message || "Error analyzing Wikipedia discussion.",
         });
-      } else if (isWhatsApp) {
+
+      } else if (formData.platform === "whatsapp") {
         if (hasShownToastRef.current) return;
         hasShownToastRef.current = true;
 
-        toast.promise(analyzeNetwork(formData.uploadedFileName, params), {
+        toast.promise(analyzeNetwork(formData.uploadedFileName, finalParams), {
           loading: "Analyzing WhatsApp network...",
           success: async (data) => {
             if (data.nodes && data.links) {
@@ -433,11 +420,7 @@ const ResearchWizard = () => {
               setNetworkData(data);
               setOriginalNetworkData(data);
 
-              const communityData = await detectCommunities(
-                formData.uploadedFileName,
-                params
-              );
-
+              const communityData = await detectCommunities(formData.uploadedFileName, finalParams);
               setCommunities(communityData.communities || []);
               setCommunityMap(communityData.node_communities || {});
               setShouldFetchCommunities(true);
@@ -447,13 +430,13 @@ const ResearchWizard = () => {
               return "No data returned from server.";
             }
           },
-          error: (error) => {
-            return error?.message || "Error analyzing network.";
-          },
+          error: (error) => error?.message || "Error analyzing network.",
         });
+
       } else {
         toast.error("Unsupported platform selected.");
       }
+
     } catch (error) {
       console.error("Error during network analysis:", error);
       toast.error("Failed to analyze network.");
@@ -462,8 +445,12 @@ const ResearchWizard = () => {
 
   const fetchCommunityData = () => {
     if (!formData.uploadedFileName || !networkData) return;
+
     const params = filters.buildNetworkFilterParams();
-    detectCommunities(formData.uploadedFileName, params)
+    const platformParam = `platform=${formData.platform}`;
+    const finalParams = `${params}&${platformParam}`;
+
+    detectCommunities(formData.uploadedFileName, finalParams)
       .then((data) => {
         if (data.communities && data.nodes) {
           setCommunities(data.communities);
@@ -473,26 +460,16 @@ const ResearchWizard = () => {
               newCommunityMap[node.id.toString().trim()] = node.community;
             }
           });
-          setCommunities(data.communities || []);
           setCommunityMap(newCommunityMap);
-          if (networkData && networkData.nodes) {
-            const updatedNodes = networkData.nodes.map((node) => {
-              const normalizedId = node.id.toString().trim();
-              const community = newCommunityMap[normalizedId];
-              if (community !== undefined) {
-                return { ...node, community };
-              }
-              return node;
-            });
-            setNetworkData({
-              nodes: updatedNodes,
-              links: networkData.links,
-            });
-            setOriginalNetworkData({
-              nodes: updatedNodes,
-              links: networkData.links,
-            });
-          }
+
+          const updatedNodes = networkData.nodes.map((node) => {
+            const normalizedId = node.id.toString().trim();
+            const community = newCommunityMap[normalizedId];
+            return community !== undefined ? { ...node, community } : node;
+          });
+
+          setNetworkData({ nodes: updatedNodes, links: networkData.links });
+          setOriginalNetworkData({ nodes: updatedNodes, links: networkData.links });
         }
       })
       .catch((error) => {
@@ -518,8 +495,31 @@ const ResearchWizard = () => {
     return !lastAnalysisParams || currentParams !== lastAnalysisParams;
   };
 
+  // Update the handleInputChange function
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
+
+    console.log("target", e.target, formData);
+
+    // Handle messageWeight array updates
+    if (name.startsWith('messageWeight')) {
+      const index = parseInt(name.replace('messageWeight', '')) - 1;
+      const newValue = parseFloat(value);
+
+      const newMessageWeight = [...formData.messageWeight];
+      newMessageWeight[index] = newValue;
+
+      // Normalize to sum to 1
+      const sum = newMessageWeight.reduce((acc, val) => acc + val, 0);
+      if (sum > 0) {
+        const normalizedWeights = newMessageWeight.map(weight => weight / sum);
+        setFormData({
+          ...formData,
+          messageWeight: normalizedWeights
+        });
+      }
+      return;
+    }
 
     if (name.includes(".")) {
       const [parent, child] = name.split(".");
@@ -547,6 +547,7 @@ const ResearchWizard = () => {
       });
     }
 
+    // Rest of the existing logic...
     if (name === "isDirectedGraph" || name === "useHistoryAlgorithm") {
       const currentStepContent = getCurrentStepContent();
 
@@ -572,6 +573,22 @@ const ResearchWizard = () => {
     }
   };
 
+  // Add this helper function for the increase/decrease buttons
+  const handleMessageWeightChange = (index, delta) => {
+    const newMessageWeight = [...formData.messageWeight];
+    newMessageWeight[index] = Math.max(0.1, Math.min(1.0, newMessageWeight[index] + delta));
+
+    // Normalize to sum to 1
+    const sum = newMessageWeight.reduce((acc, val) => acc + val, 0);
+    if (sum > 0) {
+      const normalizedWeights = newMessageWeight.map(weight => weight / sum);
+      setFormData({
+        ...formData,
+        messageWeight: normalizedWeights
+      });
+    }
+  };
+
   const handleSaveResearch = async () => {
     const params = filters.buildNetworkFilterParams();
     const id = currentUser?.id;
@@ -587,8 +604,6 @@ const ResearchWizard = () => {
       })),
       filters: comparison.comparisonFilterSettings,
     } : {};
-    
-    
     const result = await toast.promise(
       saveToDB(
         id,
@@ -599,7 +614,8 @@ const ResearchWizard = () => {
         params,
         selectedMetric,
         comparisonData,
-        formData.platform
+        formData.platform,
+        communities
       ),
       {
         loading: "Saving research...",
@@ -667,6 +683,9 @@ const ResearchWizard = () => {
             setOriginalNetworkData={setOriginalNetworkData}
             setFormData={setFormData}
             handleFetchWikipedia={handleFetchWikipedia}
+            uploadError={uploadError}
+            wikipediaUrlError={wikipediaUrlError}
+
           />
         );
       case ALL_STEPS.WIKIPEDIA:
@@ -704,6 +723,8 @@ const ResearchWizard = () => {
           <DataConfiguration
             formData={formData}
             handleInputChange={handleInputChange}
+            handleMessageWeightChange={handleMessageWeightChange}
+            setFormData={setFormData}
           />
         );
       case ALL_STEPS.TIME_FRAME:

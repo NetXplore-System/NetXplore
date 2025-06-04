@@ -94,7 +94,7 @@ const ComparativeAnalysis = ({
             history: false,
             messageCount: 3,
             normalized: false,
-          }
+          },
         });
       }
       setLocalFilterSettings(newFilterSettings);
@@ -346,7 +346,7 @@ const ComparativeAnalysis = ({
                   comparisonData={comparisonData[index]}
                   comparisonFile={comparisonFiles[index]}
                   filterSettings={localFilterSettings[index]}
-                  onFileUpload={(e) => handleComparisonFileChange(e, index)}
+                  onFileUpload={(e) => handleComparisonFileChange(e, index,platform)}
                   onAnalyzeNetwork={(index, filters) =>
                     handleAnalyzeNetwork(index, filters)
                   }

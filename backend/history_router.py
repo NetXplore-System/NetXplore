@@ -73,7 +73,6 @@ async def analyze_network_comparison_history(
 
 
 
-
 @router.get("/history/{user_id}")
 async def get_user_history(
     user_id: str,
@@ -115,8 +114,9 @@ async def get_user_history(
             comparison_result = await db.execute(comparison_query)
             comparisons = comparison_result.scalars().all()
             
+           
             research_entry = {
-                **research.to_dict(),
+                **research.to_dict(),  # Ensure to_dict() returns only serializable data
                 "filters": filters.to_dict() if filters else None,
                 "analysis": analysis.to_dict() if analysis else None,
                 "comparisons": [comp.to_dict() for comp in comparisons] if comparisons else []

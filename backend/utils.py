@@ -1,4 +1,4 @@
-from typing import List, Tuple, Any
+from typing import List, Tuple, Any, Dict, Union
 from datetime import datetime
 from collections import defaultdict, deque
 import networkx as nx
@@ -137,286 +137,66 @@ def get_network_metrics(original_data, comparison_data, metrics_list):
 
 def calculate_sequential_weights(
     sequence: List[Tuple[str, str]],
-    n_prev: int = 3
+    n_prev: int = 3,
+    message_weights: List[float] = None
 ) -> Dict[Tuple[str, str], float]:
-    scheme = {2: [0.7, 0.3], 3: [0.5, 0.3, 0.2]}
-    if n_prev not in scheme:
-        raise ValueError("n_prev must be 2 or 3")
-    weights = scheme[n_prev]
+    
+    if n_prev < 1:
+        raise ValueError("n_prev must be at least 1")
+    
+    if message_weights is None:
+        message_weights = [1.0] * n_prev
+    elif len(message_weights) != n_prev:
+        message_weights = message_weights[:n_prev]
+    
+    print(f"Using weights: {message_weights}")
+   
 
     window: deque = deque(maxlen=n_prev)
-    edge_w: Dict[Tuple[str, str], float] = defaultdict(float)
+    edge_weights: Dict[Tuple[str, str], float] = defaultdict(float)
 
-    for curr, _ in sequence:
-        seen: set[str] = set()
-        for idx, prev in enumerate(reversed(window)):
-            if prev == curr or prev in seen:
+    for current_sender, _ in sequence:
+        for idx, previous_sender in enumerate(reversed(window)):
+            if previous_sender == current_sender:  
                 continue 
-            edge_w[(prev, curr)] += weights[idx]
-            seen.add(prev)
-        window.append(curr)
+            
+            edge_weights[(previous_sender, current_sender)] += message_weights[idx]
+        
+        window.append(current_sender)
 
-    return dict(edge_w)
+    return dict(edge_weights)
 
 
-def normalize_links_by_target(links: List[Dict[str, object]]) -> List[Dict[str, object]]:
-    """Divide each link weight by the sum of incoming weights of its *target* node."""
+
+def normalize_links_by_target(
+    links: List[Dict[str, Union[str, float]]], 
+    debug: bool = False
+) -> List[Dict[str, Union[str, float]]]:
+    
+    if not links:
+        return []
+    
     totals: Dict[str, float] = defaultdict(float)
     for link in links:
+        if "target" not in link or "weight" not in link:
+            raise ValueError(f"Invalid link structure: {link}")
         totals[link["target"]] += link["weight"]
+    
+    normalized_links = []
     for link in links:
+        new_link = link.copy()
         denom = totals[link["target"]]
-        if denom:
-            link["weight"] = round(link["weight"] / denom, 4)
-    return links
-
-async def extract_data(
-    lines: List[str],
-    start_datetime: datetime | None,
-    end_datetime: datetime | None,
-    limit: int,
-    limit_type: str,
-    min_length: int,
-    max_length: int,
-    keywords: str,
-    min_messages: int,
-    max_messages: int,
-    active_users: int,
-    selected_users: str,
-    username: str,
-    anonymize: bool,
-    date_formats: List[str],
-    for_history_network: bool = False  
-) -> List[Tuple[str, str]]:
-
-    keyword_list = [kw.strip().lower() for kw in keywords.split(",")] if keywords else []
-    selected_user_list = [user.strip().lower() for user in selected_users.split(",")] if selected_users else []
-    messages = []
-    user_message_count = defaultdict(int)
-    anonymized_map = {}
-    nodes = set()
-    edges_counter = defaultdict(int)
-    previous_sender = None
+        if denom > 0:
+            new_link["weight"] = round(link["weight"] / denom, 4)
+        else:
+            new_link["weight"] = 0.0
+        normalized_links.append(new_link)
     
-    logger.info(f"🔹 Converted: start_datetime={start_datetime}, end_datetime={end_datetime}")
-
-    filtered_lines = []
-    current_message = ""
-    current_datetime = None
-    MEDIA_RE = re.compile(r'\b(Media|image|video|GIF|sticker|Contact card) omitted\b', re.I)
-
-    for line in lines:
-        line = re.sub(r"[\u200f\u202f\u202a\u202b\u202c\u202d\u202e\u200d]", "", line).strip()
-        match = re.search(timestamp_pattern, line)
-
-        if match:
-            date_part = match.group()
-            parsed = False
-            for fmt in date_formats:
-                try:
-                    dt = datetime.strptime(date_part, fmt)
-                    parsed = True
-                    break
-                except ValueError:
-                    continue
-            if not parsed:
-                continue
-
-            if not ": " in line:
-                continue
-            if any(spam in line for spam in spam_messages):
-                continue
-            if MEDIA_RE.search(line):
-                continue
-
-            if current_message and current_datetime:
-                if (not start_datetime or current_datetime >= start_datetime) and \
-                (not end_datetime or current_datetime <= end_datetime):
-                    filtered_lines.append(current_message.strip())
-
-            current_message = line
-            current_datetime = dt
-        else:
-            if current_datetime:
-                current_message += " " + line.strip()
-
-    if current_message and current_datetime:
-        if (not start_datetime or current_datetime >= start_datetime) and \
-        (not end_datetime or current_datetime <= end_datetime):
-            filtered_lines.append(current_message.strip())
-
-
-    all_messages: List[Tuple[str, str]] = []
-    for index, line in enumerate(filtered_lines):
-        try:
-            match = re.search(timestamp_pattern, line)
-            timestamp = match.group()
-            message_part = line.split(timestamp, 1)[1].strip(" -[]")
-            sender, message_content = message_part.split(": ", 1)
-            sender = sender.strip("~").replace("\u202a", "").strip()
-            message_length = len(message_content)
-            if (min_length and message_length < min_length) or (max_length and message_length > max_length):
-                continue
-
-            if username and sender.lower() != username.lower():
-                continue
-
-            if keywords and not any(kw in message_content.lower() for kw in keyword_list):
-                continue
-
-            all_messages.append((sender, message_content))
-
-        except Exception as e:
-            logger.error(f"Error processing line: {line.strip()} - {e}")
-            continue
-
-
-    if for_history_network:
-        if limit:
-            if limit_type == "last":
-                selected_messages = all_messages[-limit:]
-            else:
-                selected_messages = all_messages[:limit]
-        else:
-            if limit_type == "last":
-                selected_messages = all_messages[::-1]
-            else:
-                selected_messages = all_messages
-    else:
-        if limit:
-            if limit_type == "last":
-                selected_messages = all_messages[-limit:][::-1]
-            else:
-                selected_messages = all_messages[:limit]
-        else:
-            if limit_type == "last":
-                selected_messages = all_messages[::-1]
-            else:
-                selected_messages = all_messages
-        
-    for line in selected_messages:
-        sender, message_content = line
-        user_message_count[sender] += 1
-            
-        if sender:
-            if anonymize:
-                sender = anonymize_name(sender, anonymized_map)
-
-            nodes.add(sender)
-            if previous_sender and previous_sender != sender:
-                edge = tuple(sorted([previous_sender, sender]))
-                edges_counter[edge] += 1
-            previous_sender = sender
-            
-        messages.append((sender, message_content))
-
-    if for_history_network:
-        return {"messages": messages, "all_messages": filtered_lines}
+    if debug:
+        for link in normalized_links:
+            print(f"Normalized link: {link}")
     
-    filtered_users = {
-        user: count for user, count in user_message_count.items()
-        if (not min_messages or count >= min_messages) and (not max_messages or count <= max_messages)
-    }
-
-    if active_users:
-        sorted_users = sorted(filtered_users.items(), key=lambda x: x[1], reverse=True)[:active_users]
-        filtered_users = dict(sorted_users)
-    
-    if selected_users:
-        filtered_users = {user: count for user, count in filtered_users.items()
-                            if user.lower() in selected_user_list}
-
-    messages = [msg for msg in messages if msg[0] in filtered_users]
-        
-    filtered_nodes = set(filtered_users.keys())
-    if anonymize:
-        filtered_nodes = {anonymize_name(node, anonymized_map) for node in filtered_nodes}
-
-    nodes_list = [
-        {
-            "id": node,
-            "messages": user_message_count.get(node, 0),
-            "degree": 0,  
-            "betweenness": 0,
-            "closeness": 0,
-            "eigenvector": 0,
-            "pagerank": 0
-        }
-        for node in filtered_nodes
-    ]
-
-    links_list = []
-    for edge, weight in edges_counter.items():
-        source, target = edge
-        if source in filtered_nodes and target in filtered_nodes:
-            links_list.append({
-                "source": source,
-                "target": target,
-                "weight": weight
-            })
-
-    is_connected = False
-    if nodes_list and links_list:
-        G = nx.Graph()
-        G.add_nodes_from([node["id"] for node in nodes_list])
-        G.add_weighted_edges_from([(link["source"], link["target"], link["weight"]) for link in links_list])
-
-        is_connected = nx.is_connected(G)
-
-        if is_connected:
-            degree_centrality = nx.degree_centrality(G)
-            betweenness_centrality = nx.betweenness_centrality(G, weight="weight")
-            closeness_centrality = nx.closeness_centrality(G)
-            eigenvector_centrality = nx.eigenvector_centrality(G, max_iter=1000)
-            pagerank = nx.pagerank(G)
-
-            for node in nodes_list:
-                node_id = node["id"]
-                node.update({
-                    "degree": round(degree_centrality.get(node_id, 0), 4),
-                    "betweenness": round(betweenness_centrality.get(node_id, 0), 4),
-                    "closeness": round(closeness_centrality.get(node_id, 0), 4),
-                    "eigenvector": round(eigenvector_centrality.get(node_id, 0), 4),
-                    "pagerank": round(pagerank.get(node_id, 0), 4)
-                })
-        else:
-            largest_cc = max(nx.connected_components(G), key=len)
-            G_subgraph = G.subgraph(largest_cc).copy()
-
-            degree_centrality = nx.degree_centrality(G_subgraph)
-            betweenness_centrality = nx.betweenness_centrality(G_subgraph, weight="weight")
-            closeness_centrality = nx.closeness_centrality(G_subgraph)
-            eigenvector_centrality = nx.eigenvector_centrality(G_subgraph, max_iter=1000)
-            pagerank = nx.pagerank(G_subgraph)
-
-            for node in nodes_list:
-                node_id = node["id"]
-                if node_id in largest_cc:
-                    node.update({
-                        "degree": round(degree_centrality.get(node_id, 0), 4),
-                        "betweenness": round(betweenness_centrality.get(node_id, 0), 4),
-                        "closeness": round(closeness_centrality.get(node_id, 0), 4),
-                        "eigenvector": round(eigenvector_centrality.get(node_id, 0), 4),
-                        "pagerank": round(pagerank.get(node_id, 0), 4)
-                    })
-    return {
-        "messages": messages,
-        "nodes": nodes_list,
-        "links": links_list,
-        "is_connected": is_connected
-    }
-
-
-def anonymize_name(name: str, mapping: dict[str, str]) -> str:
-    if name not in mapping:
-        if name.startswith('+972') or name.startswith('\u202a+972'):
-            alias = f'Phone_{sum(a.startswith("Phone_") for a in mapping.values())+1}'
-        else:
-            alias = f'User_{len(mapping)+1}'
-        mapping[name] = alias
-    return mapping[name]
-
-
+    return normalized_links
 
 def clean_filter_value(key: str, value: Any):
     if key in ["min_messages", "max_messages", "active_users"]:
@@ -447,8 +227,8 @@ def delete_old_files():
                 logger.warning(f"Skipping file with invalid timestamp format: {filename}")
                 
                 
-                
-def calculate_comparison_stats(original_nodes, comparison_nodes):
+
+def calculate_comparison_stats(original_nodes, comparison_nodes, original_links=None, comparison_links=None):
     if not original_nodes or not comparison_nodes:
         return None
 
@@ -468,10 +248,44 @@ def calculate_comparison_stats(original_nodes, comparison_nodes):
     common_nodes = original_node_ids.intersection(comparison_node_ids)
     common_nodes_count = len(common_nodes)
 
+    # Calculate edge count if links are provided
+    original_link_count = len(original_links) if original_links else 0
+    comparison_link_count = len(comparison_links) if comparison_links else 0
+    link_difference = comparison_link_count - original_link_count
+    link_change_percent = (
+        ((comparison_link_count - original_link_count) / original_link_count) * 100
+        if original_link_count
+        else 0
+    )
+
+    # Calculate network density if links and nodes are provided
+    original_density = (
+        (original_link_count / ((original_node_count * (original_node_count - 1)) / 2))
+        if original_node_count > 1 else 0
+    )
+    comparison_density = (
+        (comparison_link_count / ((comparison_node_count * (comparison_node_count - 1)) / 2))
+        if comparison_node_count > 1 else 0
+    )
+    density_difference = comparison_density - original_density
+    density_change_percent = (
+        ((comparison_density - original_density) / original_density) * 100
+        if original_density
+        else 0
+    )
+
     return {
         "original_node_count": original_node_count,
         "comparison_node_count": comparison_node_count,
         "node_difference": node_difference,
         "node_change_percent": round(node_change_percent, 2),
         "common_nodes_count": common_nodes_count,
+        "original_link_count": original_link_count,
+        "comparison_link_count": comparison_link_count,
+        "link_difference": link_difference,
+        "link_change_percent": round(link_change_percent, 2),
+        "original_density": round(original_density, 4),
+        "comparison_density": round(comparison_density, 4),
+        "density_difference": round(density_difference, 4),
+        "density_change_percent": round(density_change_percent, 2)
     }

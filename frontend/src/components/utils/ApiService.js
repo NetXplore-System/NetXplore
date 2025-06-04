@@ -26,10 +26,11 @@ export const fetchWithAuth = async (url, options = {}) => {
 };
 
 
-export const uploadFile = async (file) => {
+export const uploadFile = async (file, platform) => {
   try {
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("platform", platform);
 
     const response = await fetch(`${BASE_URL}/upload`, {
       method: "POST",
@@ -39,16 +40,27 @@ export const uploadFile = async (file) => {
       },
     });
 
-    if (!response.ok) {
-      throw new Error(response.statusText);
+    const text = await response.text();
+    let data;
+
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { error: text };
     }
 
-    return await response.json();
+    if (!response.ok) {
+      throw new Error(data?.details || data?.error || response.statusText);
+    }
+
+    return data;
   } catch (error) {
     console.error("Error uploading file:", error);
-    throw Error(error || "An error occurred during the upload.");
+    throw new Error(error.message || "An error occurred during the upload.");
   }
 };
+
+
 
 export const deleteFile = async (filename) => {
   try {
@@ -124,7 +136,6 @@ export const analyzeDecayingNetwork = async (filename, params) => {
 
 export const detectCommunities = async (filename, params) => {
   try {
-    params.append("algorithm", "louvain");
     const url = `${BASE_URL}/analyze/communities/${filename}?${params.toString()}`;
     console.log("Community detection URL:", url);
 
@@ -140,6 +151,8 @@ export const detectCommunities = async (filename, params) => {
     throw new Error(error || "An error occurred during community detection.");
   }
 };
+
+
 
 export const compareNetworks = async (params) => {
   try {
@@ -163,11 +176,12 @@ export const fetchWikipediaData = async (url) => {
       body: JSON.stringify({ url }),
     });
 
-    if (!response.ok) {
-      throw new Error(`Server error: ${response.status}`);
-    }
+    const data = await response.json(); 
 
-    const data = await response.json();
+    if (!response.ok) {
+
+      throw new Error(data?.detail || `Server error: ${response.status}`);
+    }
 
     if (data.nodes && data.links && data.content) {
       return {
@@ -189,24 +203,6 @@ export const fetchWikipediaData = async (url) => {
   }
 };
 
-export const analyzeWikipediaNetwork = async (filename, params) => {
-  try {
-    const url = `${BASE_URL}/analyze/wikipedia/${filename}?${params.toString()}`;
-    const response = await fetch(url);
-    if (!response.ok) {
-      const { detail } = await response.json();
-      console.error("Error response:", detail);
-      throw new Error(
-        detail || "An error occurred during Wikipedia network analysis."
-      );
-    }
-    return await response.json();
-  } catch (error) {
-    console.error("Error during Wikipedia network analysis:", error);
-    throw new Error("An error occurred during Wikipedia network analysis.");
-  }
-};
-
 
 export const saveToDB = async (
   id,
@@ -217,7 +213,8 @@ export const saveToDB = async (
   params,
   selectedMetric = "Degree Centrality",
   comparison,
-  platform = "whatsapp"
+  platform = "whatsapp",
+  communities = []
 ) => {
 
   try {
@@ -231,6 +228,8 @@ export const saveToDB = async (
     formData.append("file_name", file);
     formData.append("selected_metric", selectedMetric);
     formData.append("platform", platform);
+    formData.append("communities", JSON.stringify(communities || []));
+
 
     const response = await fetch(
      `${BASE_URL}/save-research?${params.toString()}`,
@@ -277,9 +276,19 @@ export const deleteResearch = async (researchId, token) => {
 }
 
 export const detectWikipediaCommunities = async (filename, params) => {
-  params.append("algorithm", "louvain");
-  const url = `${BASE_URL}/analyze/wikipedia-communities/${filename}?${params.toString()}`;
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(await response.text());
-  return await response.json();
+  try {
+    const url = `${BASE_URL}/analyze/wikipedia-communities/${filename}?${params.toString()}`;
+    console.log("Wikipedia community detection URL:", url);
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error during Wikipedia community detection:", error);
+    throw new Error("An error occurred during Wikipedia community detection.");
+  }
 };

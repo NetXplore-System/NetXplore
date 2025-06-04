@@ -25,7 +25,7 @@ import {
   FileEarmark,
   ChatText,
 } from "react-bootstrap-icons";
-import { GrConfigure } from "react-icons/gr";
+import { GrConfigure } from "react-icons/gr"; 
 import DiscussionSectionPicker from "../filters/DiscussionSectionPicker";
 import "../../styles/ComparativeAnalysis.css";
 
@@ -52,6 +52,7 @@ const ComparisonItem = ({
   selectedSection,
   setSelectedSection,
   handleFetchWikipedia,
+  setComparisonNetworkData
 }) => {
   const [showFilters, setShowFilters] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
@@ -122,15 +123,7 @@ const ComparisonItem = ({
           },
         };
       }
-
-      // updatedSettings = {
-      //   ...localFilterSettings,
-      //   [parent]: {
-      //     ...localFilterSettings[parent],
-      //     [child]: newValue,
-      //   },
-      // };
-
+      
       setLocalFilterSettings(updatedSettings);
 
       if (onFilterChange) {
@@ -1002,6 +995,83 @@ const ComparisonItem = ({
                         <option value="true">End</option>
                       </Form.Select>
                     </Form.Group>
+                  </Col>
+                </Row>
+                <Row className="mb-3">
+                  <Col md={12}>
+                    <h6 className="filter-section-title">
+                      <GrConfigure className="me-2" /> Config
+                    </h6>
+                  </Col>
+                  <Col md={3}>
+                    <Form.Check
+                      type="checkbox"
+                      id={`config-anonymize-${index}`}
+                      label="Use Anonymization"
+                      name="config.anonymize"
+                      checked={localFilterSettings.config?.anonymize || false}
+                      onChange={handleFilterChange}
+                      className="mb-2"
+                    />
+                  </Col>
+                  <Col md={2}>
+                    <Form.Check
+                      type="checkbox"
+                      id={`config-directed-${index}`}
+                      label="Directed Graph"
+                      name="config.directed"
+                      checked={localFilterSettings.config?.directed || false}
+                      onChange={handleFilterChange}
+                      className="mb-2"
+                    />
+                  </Col>
+                  <Col md={2}>
+                    <Form.Check
+                      type="checkbox"
+                      id={`config-history-${index}`}
+                      label="Use History Algorithm"
+                      name="config.history"
+                      checked={localFilterSettings.config?.history || false}
+                      onChange={handleFilterChange}
+                      className="mb-2"
+                      disabled={!localFilterSettings.config?.directed}
+                    />
+                  </Col>
+                  <Col md={2}>
+                    <Form.Group className="mb-2">
+                      <Form.Label>Message History Length</Form.Label>
+                      <Form.Select
+                        name="config.messageCount"
+                        value={(
+                          localFilterSettings.config?.messageCount || 3
+                        ).toString()}
+                        onChange={(e) =>
+                          handleFilterChange({
+                            target: {
+                              name: "config.messageCount",
+                              value: e.target.value,
+                              type: "select",
+                            },
+                          })
+                        }
+                        disabled={!localFilterSettings.config?.history || !localFilterSettings?.config?.directed}
+                      >
+                        <option value="3">3</option>
+                        <option value="2">2</option>
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                  <Col md={2}>
+                    <Form.Check
+                      type="checkbox"
+                      id={`config-normalized-${index}`}
+                      label="Normalized Algorithm"
+                      name="config.normalized"
+                      checked={localFilterSettings.config?.normalized || false}
+                      onChange={handleFilterChange}
+                      className="mb-2"
+                      disabled={!localFilterSettings.config?.directed}
+                    />
                   </Col>
                 </Row>
 

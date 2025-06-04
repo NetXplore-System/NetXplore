@@ -11,6 +11,12 @@ import networkx as nx
 from fastapi import Query
 from community import community_louvain
 from networkx.algorithms import community as nx_community
+from analyzers.factory import get_analyzer
+from typing import Optional
+import json
+from graph_builder import build_graph_from_txt
+from requests.exceptions import HTTPError, RequestException
+
 
 router = APIRouter()
 logger = logging.getLogger("wikipedia")
@@ -20,6 +26,7 @@ logging.basicConfig(level=logging.INFO)
 async def fetch_wikipedia_data(request: Request):
     data = await request.json()
     url = data.get("url")
+    filename = data.get("save_as", "wikipedia_data")
 
     if not url:
         raise HTTPException(status_code=400, detail="Missing Wikipedia URL")
@@ -33,7 +40,28 @@ async def fetch_wikipedia_data(request: Request):
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
         response = requests.get(url, headers=headers)
-        response.raise_for_status()
+        response.raise_for_status()  
+
+    except HTTPError as http_err:
+        logger.error(f"HTTP error while fetching Wikipedia URL: {http_err}")
+        raise HTTPException(
+            status_code=400,
+            detail="The provided Wikipedia URL is invalid or does not exist. Please try a different link."
+        )
+    except RequestException as req_err:
+        logger.error(f"Request error: {req_err}")
+        raise HTTPException(
+            status_code=400,
+            detail="Unable to connect to Wikipedia. Please check your network or try again later."
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error fetching Wikipedia data: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while trying to fetch the Wikipedia page."
+        )
+
+    try:
         soup = BeautifulSoup(response.text, "html.parser")
         title = soup.find("h1", id="firstHeading").get_text(strip=True)
         metadata = extract_metadata(soup)
@@ -41,13 +69,7 @@ async def fetch_wikipedia_data(request: Request):
 
         discussion_graph = None
         opinions = {"for": 0, "against": 0, "neutral": 0}
-
-        opinion_users = {
-            "for": [],
-            "against": [],
-            "neutral": []
-        }
-
+        opinion_users = {"for": [], "against": [], "neutral": []}
 
         if content_data and len(content_data) > 0 and 'discussion_graph' in content_data[0]:
             discussion_graph = content_data[0]['discussion_graph']
@@ -55,13 +77,11 @@ async def fetch_wikipedia_data(request: Request):
                 opinions["for"] += section["opinion_count"]["for"]
                 opinions["against"] += section["opinion_count"]["against"]
                 opinions["neutral"] += section["opinion_count"]["neutral"]
-
-            for comment in section["comments"]:
+                for comment in section["comments"]:
                     username = comment["username"]
                     opinion = comment["opinion"]
                     if username not in opinion_users[opinion]:
                         opinion_users[opinion].append(username)
-
 
         result = {
             "title": title,
@@ -75,27 +95,30 @@ async def fetch_wikipedia_data(request: Request):
         if discussion_graph:
             result["nodes"] = discussion_graph["nodes"]
             result["links"] = discussion_graph["links"]
-
             degree_map = {}
             for link in discussion_graph["links"]:
                 source = link["source"]
                 target = link["target"]
                 degree_map[source] = degree_map.get(source, 0) + 1
                 degree_map[target] = degree_map.get(target, 0) + 1
-
             for node in discussion_graph["nodes"]:
                 node_id = node["id"]
                 node["degree"] = degree_map.get(node_id, 0)
 
+        target_dir = "uploads"
+        os.makedirs(target_dir, exist_ok=True)
+        json_path = os.path.join(target_dir, f"{filename}.json")
 
-        with open("wikipedia_data.json", "w", encoding="utf-8") as f:
+        with open(json_path, "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
 
         logger.info(f"Successfully extracted Wikipedia content for: {title}")
         return result
+
     except Exception as e:
         logger.error(f"Error fetching Wikipedia data: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
     
 @router.get("/analyze/wikipedia/{filename}")
 async def analyze_network(
@@ -116,12 +139,15 @@ async def analyze_network(
     username: str = Query(None),
     anonymize: bool = Query(False)
 ):
-    txt_path = f"uploads/{filename}.txt"
+    base_path = "uploads"
+    txt_path = os.path.join(base_path, f"{filename}.txt")
+
+
     if not os.path.exists(txt_path):
         raise HTTPException(status_code=404, detail=f"TXT file {txt_path} not found.")
 
     try:
-        from utils import parse_date_time  
+        from utils import parse_date_time
         start_datetime = parse_date_time(start_date, start_time)
         end_datetime = parse_date_time(end_date, end_time)
     except Exception:
@@ -549,277 +575,86 @@ async def convert_to_txt(request: Request):
     data = await request.json()
     filename = data.get("filename")
     section_title = data.get("section_title")
+
     if not filename or not section_title:
         raise HTTPException(status_code=400, detail="Missing filename or section_title")
-    
-    json_path = f"{filename}.json"
+
+    base_path = "uploads"
+    json_path = os.path.join(base_path, f"{filename}.json")
+    txt_path = os.path.join(base_path, f"{filename}.txt")
+
     if not os.path.exists(json_path):
         raise HTTPException(status_code=404, detail=f"File {json_path} not found")
-    
+
     with open(json_path, "r", encoding="utf-8") as f:
         content = json.load(f)
-    
+
     selected_section = next((s for s in content["content"][0]["sections"] if s["title"] == section_title), None)
     if not selected_section:
         raise HTTPException(status_code=404, detail="Section not found")
-    
+
     txt_lines = []
     for comment in selected_section["comments"]:
         try:
-            timestamp_match_he = re.match(r"(\d+):(\d+), (\d+) ב([א-ת]+) (\d+)", comment['timestamp'])
-            
-            timestamp_match_en = re.match(r"(\d+):(\d+), (\d+) ([A-Za-z]+) (\d+)", comment['timestamp'])
-            
-            timestamp_match_alt = re.match(r"(\d+):(\d+), (\d+)/(\d+)/(\d+)", comment['timestamp'])
-            
+            timestamp = comment["timestamp"]
+            timestamp_match_he = re.match(r"(\d+):(\d+), (\d+) ב([א-ת]+) (\d+)", timestamp)
+            timestamp_match_en = re.match(r"(\d+):(\d+), (\d+) ([A-Za-z]+) (\d+)", timestamp)
+            timestamp_match_alt = re.match(r"(\d+):(\d+), (\d+)/(\d+)/(\d+)", timestamp)
+
             if timestamp_match_he:
                 hour, minute, day, month_he, year = timestamp_match_he.groups()
-                
                 month_map_he = {
-                    "ינואר": "01", "פברואר": "02", "מרץ": "03", "אפריל": "04",
-                    "מאי": "05", "יוני": "06", "יולי": "07", "אוגוסט": "08",
-                    "ספטמבר": "09", "אוקטובר": "10", "נובמבר": "11", "דצמבר": "12"
+                    "ינואר": "01", "פברואר": "02", "מרץ": "03", "אפריל": "04", "מאי": "05", "יוני": "06",
+                    "יולי": "07", "אוגוסט": "08", "ספטמבר": "09", "אוקטובר": "10", "נובמבר": "11", "דצמבר": "12"
                 }
                 month = month_map_he.get(month_he, "01")
-                
                 whatsapp_date = f"{day.zfill(2)}/{month}/{year}"
-                whatsapp_time = f"{hour.zfill(2)}:{minute.zfill(2)}:00"
-                whatsapp_timestamp = f"[{whatsapp_date}, {whatsapp_time}]"
-                
             elif timestamp_match_en:
                 hour, minute, day, month_en, year = timestamp_match_en.groups()
-                
                 month_map_en = {
                     "January": "01", "February": "02", "March": "03", "April": "04",
-                    "May": "05", "June": "06", "July": "07", "August": "08",
-                    "September": "09", "October": "10", "November": "11", "December": "12",
-                    "Jan": "01", "Feb": "02", "Mar": "03", "Apr": "04", "May": "05",
-                    "Jun": "06", "Jul": "07", "Aug": "08", "Sep": "09", "Sept": "09",
-                    "Oct": "10", "Nov": "11", "Dec": "12"
+                    "May": "05", "June": "06", "July": "07", "August": "08", "September": "09",
+                    "October": "10", "November": "11", "December": "12"
                 }
                 month = month_map_en.get(month_en, "01")
-                
                 whatsapp_date = f"{day.zfill(2)}/{month}/{year}"
-                whatsapp_time = f"{hour.zfill(2)}:{minute.zfill(2)}:00"
-                whatsapp_timestamp = f"[{whatsapp_date}, {whatsapp_time}]"
-                
             elif timestamp_match_alt:
                 hour, minute, day, month, year = timestamp_match_alt.groups()
-                
                 whatsapp_date = f"{day.zfill(2)}/{month.zfill(2)}/{year}"
-                whatsapp_time = f"{hour.zfill(2)}:{minute.zfill(2)}:00"
-                whatsapp_timestamp = f"[{whatsapp_date}, {whatsapp_time}]"
-                
             else:
-                all_numbers = re.findall(r'\d+', comment['timestamp'])
-                if len(all_numbers) >= 5: 
-                    hour = all_numbers[0]
-                    minute = all_numbers[1]
-                    day = all_numbers[2]
-                    month = all_numbers[3]
-                    year = all_numbers[4]
-                    
+                all_numbers = re.findall(r'\d+', timestamp)
+                if len(all_numbers) >= 5:
+                    hour, minute, day, month, year = all_numbers[:5]
                     whatsapp_date = f"{day.zfill(2)}/{month.zfill(2)}/{year}"
-                    whatsapp_time = f"{hour.zfill(2)}:{minute.zfill(2)}:00"
-                    whatsapp_timestamp = f"[{whatsapp_date}, {whatsapp_time}]"
                 else:
-                    print(f"Could not parse timestamp format: {comment['timestamp']}")
-                    whatsapp_timestamp = "[01/01/2000, 12:00:00]"
-            
+                    whatsapp_date = "01/01/2000"
+                    hour, minute = "12", "00"
+
+            whatsapp_time = f"{hour.zfill(2)}:{minute.zfill(2)}:00"
+            whatsapp_timestamp = f"[{whatsapp_date}, {whatsapp_time}]"
             line = f"{whatsapp_timestamp} {comment['username']}: {comment['text']}"
-            txt_lines.append(line)
-            
-        except Exception as e:
-            print(f"Error processing comment: {e}, timestamp: {comment.get('timestamp', 'No timestamp')}")
-            whatsapp_timestamp = "[01/01/2000, 12:00:00]"
-            line = f"{whatsapp_timestamp} {comment.get('username', 'Unknown')}: {comment.get('text', '')}"
-            txt_lines.append(line)
-    
+        except Exception:
+            line = f"[01/01/2000, 12:00:00] {comment.get('username', 'Unknown')}: {comment.get('text', '')}"
+
+        txt_lines.append(line)
+
+    os.makedirs(base_path, exist_ok=True)
     txt_content = "\n".join(txt_lines)
-    
-    os.makedirs("uploads", exist_ok=True)
-    
-    txt_path = f"uploads/{filename}.txt"
-    
+
     with open(txt_path, "w", encoding="utf-8") as txt_file:
         txt_file.write(txt_content)
-    
+
     graph_data = build_graph_from_txt(txt_path)
-    
-    return {
-            "message": "TXT created",
-            "path": txt_path,
-            "nodes": graph_data["nodes"],
-            "links": graph_data["links"]
-        }
-
-
-def build_graph_from_txt(
-    txt_path,
-    limit=None,
-    limit_type="first",
-    min_length=None,
-    max_length=None,
-    anonymize=False,
-    keywords=None,
-    min_messages=None,
-    max_messages=None,
-    active_users=None,
-    selected_users=None,
-    username=None,
-    start_date=None,
-    start_time=None,
-    end_date=None,
-    end_time=None
-):
-    from utils import parse_date_time
-
-    nodes = []
-    links = []
-    usernames = set()
-    user_message_count = defaultdict(int)
-    edges_counter = defaultdict(int)
-    anonymized_map = {}
-
-    with open(txt_path, "r", encoding="utf-8") as f:
-        lines = f.readlines()
-
-    filtered_lines = []
-
-    start_dt = parse_date_time(start_date, start_time) if start_date or start_time else None
-    end_dt = parse_date_time(end_date, end_time) if end_date or end_time else None
-
-    for line in lines:
-        match = re.match(r"\[([\d/\.]+), ([\d:]+)\] ([^:]+):(.*)", line)
-        if match:
-            date, time, user, text = match.groups()
-            text = text.strip()
-            user = user.strip()
-
-            if (min_length is not None and len(text) < min_length) or (max_length is not None and len(text) > max_length):
-                continue
-
-
-            if keywords:
-                keyword_list = [k.strip().lower() for k in keywords.split(",")]
-                if not any(k in text.lower() for k in keyword_list):
-                    continue
-
-            timestamp_str = f"{date} {time}"
-            try:
-                message_dt = datetime.strptime(timestamp_str, "%d/%m/%Y %H:%M:%S")
-                if (start_dt and message_dt < start_dt) or (end_dt and message_dt > end_dt):
-                    continue
-            except:
-                pass   
-
-            if username and username.strip().lower() != user.lower():
-                continue
-
-            filtered_lines.append((user, text))
-
-    if limit and limit > 0:
-        if limit_type == "last":
-            filtered_lines = filtered_lines[-limit:]
-        elif limit_type == "random":
-            import random
-            random.shuffle(filtered_lines)
-            filtered_lines = filtered_lines[:limit]
-        else:  
-            filtered_lines = filtered_lines[:limit]
-
-    previous_user = None
-
-    for user, text in filtered_lines:
-        original_user = user
-        if anonymize:
-            if user not in anonymized_map:
-                anonymized_map[user] = f"User_{len(anonymized_map) + 1}"
-            user = anonymized_map[user]
-
-        usernames.add(user)
-        user_message_count[user] += 1
-
-        if previous_user and previous_user != user:
-            edge = tuple(sorted([previous_user, user]))
-            edges_counter[edge] += 1
-        previous_user = user
-
-    if min_messages or max_messages or active_users or selected_users:
-        filtered_users = {u: c for u, c in user_message_count.items()
-                          if (not min_messages or c >= min_messages) and
-                             (not max_messages or c <= max_messages)}
-
-        if active_users:
-            sorted_users = sorted(filtered_users.items(), key=lambda x: x[1], reverse=True)
-            filtered_users = dict(sorted_users[:active_users])
-
-        if selected_users:
-            selected_set = set([u.strip().lower() for u in selected_users.split(",")])
-            filtered_users = {u: c for u, c in filtered_users.items() if u.lower() in selected_set}
-
-        usernames = set(filtered_users.keys())
-
-    G = nx.Graph()
-    G.add_nodes_from(usernames)
-
-    for edge, weight in edges_counter.items():
-        if edge[0] in usernames and edge[1] in usernames:
-            G.add_edge(edge[0], edge[1], weight=weight)
-
-    is_connected = nx.is_connected(G) if len(G.nodes()) > 0 else False
-
-    try:
-        degree_centrality = nx.degree_centrality(G)
-        betweenness_centrality = nx.betweenness_centrality(G, weight="weight")
-        if is_connected:
-            closeness_centrality = nx.closeness_centrality(G)
-            eigenvector_centrality = nx.eigenvector_centrality(G, max_iter=1000)
-            pagerank = nx.pagerank(G)
-        else:
-            largest_cc = max(nx.connected_components(G), key=len)
-            subgraph = G.subgraph(largest_cc).copy()
-            closeness_centrality = nx.closeness_centrality(subgraph)
-            eigenvector_centrality = nx.eigenvector_centrality(subgraph, max_iter=1000)
-            pagerank = nx.pagerank(subgraph)
-    except Exception as e:
-        logger.warning(f"Error calculating metrics: {e}")
-        degree_centrality = {}
-        betweenness_centrality = {}
-        closeness_centrality = {}
-        eigenvector_centrality = {}
-        pagerank = {}
-
-    nodes_list = [
-        {
-            "id": user,
-            "name": user,
-            "group": 1,
-            "messages": user_message_count.get(user, 0),
-            "degree": round(degree_centrality.get(user, 0), 4),
-            "betweenness": round(betweenness_centrality.get(user, 0), 4),
-            "closeness": round(closeness_centrality.get(user, 0), 4),
-            "eigenvector": round(eigenvector_centrality.get(user, 0), 4),
-            "pagerank": round(pagerank.get(user, 0), 4)
-        }
-        for user in usernames
-    ]
-
-    links_list = [
-        {"source": a, "target": b, "weight": w}
-        for (a, b), w in edges_counter.items()
-        if a in usernames and b in usernames
-    ]
-
-    logger.info(f"Created Wikipedia graph with {len(nodes_list)} nodes and {len(links_list)} links")
 
     return {
-        "nodes": nodes_list,
-        "links": links_list,
-        "is_connected": is_connected
+        "message": "TXT created",
+        "path": txt_path,
+        "nodes": graph_data["nodes"],
+        "links": graph_data["links"]
     }
 
-def extract_massages(file_content, platform="whatsapp", limit_type="first", limit=None):
+
+def extract_massages(file_content, platform="whatsapp", limit_type="first", limit=None, min_length=1, max_length=10000):
 
     messages = []
     
@@ -890,146 +725,48 @@ def extract_massages(file_content, platform="whatsapp", limit_type="first", limi
             random.shuffle(messages)
             messages = messages[:limit]
     
-    print(f"🔹 Found {len(messages)} messages in {platform} format.")
+    print(f" Found {len(messages)} messages in {platform} format.")
     return messages
 
 @router.get("/analyze/wikipedia-communities/{filename}")
-async def analyze_wikipedia_communities(
+async def analyze_communities(
     filename: str,
-    algorithm: str = Query("louvain", description="Algorithm: louvain, girvan_newman, greedy_modularity"),
-    limit: int = Query(50),
-    min_length: int = Query(None),
-    max_length: int = Query(None),
+    platform: str = Query("wikipedia"),
+    algorithm: str = Query("louvain"),
+    limit: Optional[int] = Query(50),
     limit_type: str = Query("first"),
+    min_length: Optional[int] = Query(None),
+    max_length: Optional[int] = Query(None),
     anonymize: bool = Query(False),
-    keywords: str = Query(None),
-    min_messages: int = Query(None),
-    max_messages: int = Query(None),
-    active_users: int = Query(None),
-    selected_users: str = Query(None),
-    username: str = Query(None),
-    start_date: str = Query(None),
-    start_time: str = Query(None),
-    end_date: str = Query(None),
-    end_time: str = Query(None)
+    keywords: Optional[str] = Query(None),
+    min_messages: Optional[int] = Query(None),
+    max_messages: Optional[int] = Query(None),
+    active_users: Optional[int] = Query(None),
+    selected_users: Optional[str] = Query(None),
+    username: Optional[str] = Query(None),
+    start_date: Optional[str] = Query(None),
+    start_time: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    end_time: Optional[str] = Query(None)
 ):
-    try:
-        txt_path = f"uploads/{filename}.txt"
-        if not os.path.exists(txt_path):
-            raise HTTPException(status_code=404, detail=f"TXT file {txt_path} not found.")
-
-        graph_data = build_graph_from_txt(
-            txt_path,
-            limit=limit,
-            limit_type=limit_type,
-            min_length=min_length,
-            max_length=max_length,
-            anonymize=anonymize,
-            keywords=keywords,
-            min_messages=min_messages,
-            max_messages=max_messages,
-            active_users=active_users,
-            selected_users=selected_users,
-            username=username,
-            start_date=start_date,
-            start_time=start_time,
-            end_date=end_date,
-            end_time=end_time
-        )
-
-        if not graph_data["nodes"] or not graph_data["links"]:
-            logger.warning("No nodes or links found in Wikipedia data")
-            return {
-                "nodes": [],
-                "links": [],
-                "communities": [],
-                "node_communities": {},
-                "algorithm": algorithm,
-                "num_communities": 0,
-                "modularity": None,
-                "warning": "No data found for community analysis"
-            }
-
-        G = nx.Graph()
-
-        for node in graph_data["nodes"]:
-            G.add_node(node["id"], **{k: v for k, v in node.items() if k != "id"})
-
-        for link in graph_data["links"]:
-            source = link["source"]
-            target = link["target"]
-            weight = link.get("weight", 1)
-            G.add_edge(source, target, weight=weight)
-
-        communities = {}
-        node_communities = {}
-
-        if algorithm == "louvain":
-            partition = community_louvain.best_partition(G)
-            node_communities = partition
-            for node, community_id in partition.items():
-                communities.setdefault(community_id, []).append(node)
-
-        elif algorithm == "girvan_newman":
-            communities_iter = nx_community.girvan_newman(G)
-            communities_list = list(next(communities_iter))
-            for i, community in enumerate(communities_list):
-                communities[i] = list(community)
-                for node in community:
-                    node_communities[node] = i
-
-        elif algorithm == "greedy_modularity":
-            communities_list = list(nx_community.greedy_modularity_communities(G))
-            for i, community in enumerate(communities_list):
-                communities[i] = list(community)
-                for node in community:
-                    node_communities[node] = i
-
-        else:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Unknown algorithm: {algorithm}. Supported: louvain, girvan_newman, greedy_modularity"
-            )
-
-        communities_list = []
-        for community_id, nodes in communities.items():
-            community_nodes_data = [node for node in graph_data["nodes"] if node["id"] in nodes]
-
-            avg_betweenness = sum(node["betweenness"] for node in community_nodes_data) / len(community_nodes_data) if community_nodes_data else 0
-            avg_pagerank = sum(node["pagerank"] for node in community_nodes_data) / len(community_nodes_data) if community_nodes_data else 0
-            avg_messages = sum(node["messages"] for node in community_nodes_data) / len(community_nodes_data) if community_nodes_data else 0
-
-            communities_list.append({
-                "id": community_id,
-                "size": len(nodes),
-                "nodes": nodes,
-                "avg_betweenness": round(avg_betweenness, 4),
-                "avg_pagerank": round(avg_pagerank, 4),
-                "avg_messages": round(avg_messages, 2)
-            })
-
-        communities_list.sort(key=lambda x: x["size"], reverse=True)
-
-        for node in graph_data["nodes"]:
-            node_id = node["id"]
-            if node_id in node_communities:
-                node["community"] = node_communities[node_id]
-
-        modularity = community_louvain.modularity(node_communities, G) if algorithm == "louvain" else None
-
-        logger.info(f"Found {len(communities)} communities using {algorithm} algorithm")
-
-        return {
-            "nodes": graph_data["nodes"],
-            "links": graph_data["links"],
-            "communities": communities_list,
-            "node_communities": node_communities,
-            "algorithm": algorithm,
-            "num_communities": len(communities),
-            "modularity": round(modularity, 4) if modularity is not None else None,
-            "is_connected": graph_data.get("is_connected", False)
-        }
-
-    except Exception as e:
-        logger.error(f"Error in Wikipedia community analysis: {e}")
-        raise HTTPException(status_code=500, detail=f"Error analyzing communities: {str(e)}")
+    analyzer = get_analyzer(platform)
+    return await analyzer.detect_communities(
+        filename=filename,
+        platform=platform,
+        algorithm=algorithm,
+        limit=limit,
+        limit_type=limit_type,
+        min_length=min_length,
+        max_length=max_length,
+        anonymize=anonymize,
+        keywords=keywords,
+        min_messages=min_messages,
+        max_messages=max_messages,
+        active_users=active_users,
+        selected_users=selected_users,
+        username=username,
+        start_date=start_date,
+        start_time=start_time,
+        end_date=end_date,
+        end_time=end_time
+    )

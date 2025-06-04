@@ -6,11 +6,13 @@ import { logoutUser, deleteUser } from "../redux/user/userSlice";
 import { PersonCircle } from "react-bootstrap-icons";
 import { toast } from "sonner";
 
-
 const Profile = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { currentUser, token } = useSelector((state) => state.user);
+  const baseURL = import.meta.env.VITE_API_URL;
+  const isFullUrl = (url) =>
+    url?.startsWith("http://") || url?.startsWith("https://");
 
   useEffect(() => {
     if (!currentUser || !token) {
@@ -35,12 +37,15 @@ const Profile = () => {
     }
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/users/${currentUser.id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/users/${currentUser.id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       if (!response.ok) {
         const { detail } = await response.json();
@@ -69,9 +74,13 @@ const Profile = () => {
         style={{ maxWidth: "600px", borderRadius: "20px" }}
       >
         <div className="text-center mb-4">
-          {currentUser.avatar ? (
+          {currentUser.avatar && currentUser.avatar.trim() !== "" ? (
             <img
-              src={currentUser.avatar}
+              src={
+                isFullUrl(currentUser.avatar)
+                  ? currentUser.avatar
+                  : `${baseURL}${currentUser.avatar}`
+              }
               alt="Profile"
               className="rounded-circle border"
               style={{ width: "120px", height: "120px", objectFit: "cover" }}
@@ -80,6 +89,7 @@ const Profile = () => {
             <PersonCircle size={120} color="#6c757d" />
           )}
         </div>
+
         <h3 className="text-center mb-1">Welcome, {currentUser.name}!</h3>
         <p className="text-center text-muted mb-4">{currentUser.email}</p>
 

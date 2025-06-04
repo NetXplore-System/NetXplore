@@ -142,6 +142,8 @@ class NetworkAnalysis(Base):
     metric_name = Column(String, nullable=True)  
     is_connected = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(pytz.utc))
+    communities = Column(JSONB, nullable=True)
+
 
     def to_dict(self):
         return {

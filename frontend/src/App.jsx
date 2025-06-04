@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Routes, Route, useLocation, HashRouter } from "react-router-dom";
+import 'katex/dist/katex.min.css';
 
 // Pages
 import ResearchWizard from "./pages/ResearchWizard.jsx";

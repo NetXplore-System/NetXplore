@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button, Form, Container, Card, Row, Col } from "react-bootstrap";
+import { Button, Form, Container, Card } from "react-bootstrap";
 import { useSelector, useDispatch } from "react-redux";
 import { updateUser } from "../redux/user/userSlice";
 import { PersonCircle } from "react-bootstrap-icons";
@@ -9,16 +9,11 @@ const EditProfile = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { currentUser, token } = useSelector((state) => state.user);
-  const [file, setFile] = useState(null);
-  const [fileUploadError, setFileUploadError] = useState(null);
-  const [filePerc, setFilePerc] = useState(0);
   const fileRef = useRef(null);
+  const baseURL = import.meta.env.VITE_API_URL;
 
-  useEffect(() => {
-    if (!token) {
-      navigate("/signin");
-    }
-  }, [token, navigate]);
+  const isFullUrl = (url) =>
+    url?.startsWith("http://") || url?.startsWith("https://");
 
   const [formData, setFormData] = useState({
     name: currentUser?.name || "",
@@ -26,65 +21,84 @@ const EditProfile = () => {
     avatar: currentUser?.avatar || "",
   });
 
-  const handleSave = async (e) => {
-    e.preventDefault();
+  const [file, setFile] = useState(null);
+  const [fileUploadError, setFileUploadError] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-    if (file) {
-      try {
-        const uploadData = new FormData();
-        uploadData.append("file", file);
-
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/upload-avatar`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: uploadData,
-        });
-
-        if (!response.ok) throw new Error("Failed to upload image");
-
-        const { avatarUrl } = await response.json();
-        setFormData((prev) => ({ ...prev, avatar: avatarUrl }));
-      } catch (error) {
-        setFileUploadError(error.message);
-        return;
-      }
-    }
-
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/users/${currentUser.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to update profile");
-      }
-
-      const updatedUser = await response.json();
-      dispatch(updateUser(updatedUser));
-      navigate("/profile");
-    } catch (error) {
-      alert(error.message);
-    }
-  };
+  useEffect(() => {
+    if (!token) navigate("/signin");
+  }, [token, navigate]);
 
   const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile && selectedFile.size > 2 * 1024 * 1024) {
-      setFileUploadError("Image must be less than 2MB");
+    const selected = e.target.files[0];
+    if (selected && selected.size > 2 * 1024 * 1024) {
+      setFileUploadError("Image must be smaller than 2MB.");
     } else {
-      setFile(selectedFile);
+      setFile(selected);
       setFileUploadError(null);
     }
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const uploadAvatarAndSave = async () => {
+    setLoading(true);
+    try {
+      let avatarUrl = formData.avatar;
+
+      if (file) {
+        const uploadData = new FormData();
+        uploadData.append("file", file);
+
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL}/upload-avatar`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            body: uploadData,
+          }
+        );
+
+        if (!res.ok) throw new Error("Failed to upload image");
+
+        const data = await res.json();
+        avatarUrl = data.avatarUrl;
+      }
+
+      const updatedData = { ...formData, avatar: avatarUrl };
+
+      const saveRes = await fetch(
+        `${import.meta.env.VITE_API_URL}/users/${currentUser.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(updatedData),
+        }
+      );
+
+      if (!saveRes.ok) throw new Error("Failed to update profile");
+
+      const updatedUser = await saveRes.json();
+      dispatch(updateUser(updatedUser));
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      navigate("/profile");
+    } catch (error) {
+      setFileUploadError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    await uploadAvatarAndSave();
   };
 
   return (
@@ -107,8 +121,14 @@ const EditProfile = () => {
             >
               {formData.avatar ? (
                 <img
-                  src={formData.avatar}
-                  alt="Profile"
+                  src={
+                    file
+                      ? URL.createObjectURL(file)
+                      : isFullUrl(formData.avatar)
+                      ? formData.avatar
+                      : `${baseURL}${formData.avatar}`
+                  }
+                  alt="Avatar"
                   className="rounded-circle border"
                   style={{
                     width: "120px",
@@ -120,7 +140,6 @@ const EditProfile = () => {
                 <PersonCircle size={120} color="#6c757d" />
               )}
             </div>
-
             <Form.Control
               type="file"
               ref={fileRef}
@@ -128,23 +147,19 @@ const EditProfile = () => {
               accept="image/*"
               onChange={handleFileChange}
             />
-
             {fileUploadError && (
               <div className="text-danger small mt-2">{fileUploadError}</div>
-            )}
-            {filePerc > 0 && filePerc < 100 && (
-              <div className="text-info small mt-2">Uploading {filePerc}%</div>
             )}
           </Form.Group>
 
           <Form.Group className="mb-3" controlId="formName">
             <Form.Label>Name</Form.Label>
             <Form.Control
-              type="text"
               name="name"
+              type="text"
               value={formData.name}
               onChange={handleChange}
-              placeholder="Enter your name"
+              placeholder="Your name"
               required
             />
           </Form.Group>
@@ -152,18 +167,23 @@ const EditProfile = () => {
           <Form.Group className="mb-4" controlId="formEmail">
             <Form.Label>Email</Form.Label>
             <Form.Control
-              type="email"
               name="email"
+              type="email"
               value={formData.email}
               onChange={handleChange}
-              placeholder="Enter your email"
+              placeholder="Your email"
               required
             />
           </Form.Group>
 
           <div className="text-center">
-            <Button type="submit" variant="dark" className="rounded-pill px-4">
-              Save Changes
+            <Button
+              variant="dark"
+              type="submit"
+              className="rounded-pill px-4"
+              disabled={loading}
+            >
+              {loading ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         </Form>
