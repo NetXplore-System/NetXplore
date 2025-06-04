@@ -213,7 +213,7 @@ const Dashboard = () => {
                             size="sm"
                             className="ms-auto btn-dashboard"
                             onClick={() =>
-                              navigate(`/explore?research=${research.id}`)
+                              navigate(`/history?view=${research.id}`)
                             }
                           >
                             <FaSearch className="me-1" /> View
