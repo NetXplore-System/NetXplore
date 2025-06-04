@@ -41,6 +41,7 @@ import {
   Eye,
   Share,
 } from "react-bootstrap-icons";
+import { InlineMath, BlockMath } from "react-katex";
 import { toast } from "sonner";
 import { useDispatch } from "react-redux";
 import { addToMain } from "../../redux/images/imagesSlice";
@@ -48,7 +49,10 @@ import { addToMain } from "../../redux/images/imagesSlice";
 import NetworkCustomizationToolbar from "../../components/NetworkCustomizationToolbar";
 import NetworkGraph from "../../components/network/NetworkGraph";
 import NetworkDataTable from "../../components/NetworkDataTable";
-import { graphMetrics } from "../../constants/graphMetrics";
+import {
+  graphMetrics,
+  centralityExplanations,
+} from "../../constants/graphMetrics";
 
 import { detectCommunities } from "../../components/utils/ApiService";
 
@@ -204,7 +208,9 @@ const NetworkVisualization = ({
     const numEdges = links.length;
     const inDegreeMap = {};
     const outDegreeMap = {};
-    let reciprocalEdges = 0;
+
+    const linkSet = new Set();
+    let reciprocalCount = 0;
 
     links.forEach((link) => {
       const sourceId =
@@ -215,19 +221,18 @@ const NetworkVisualization = ({
       inDegreeMap[targetId] = (inDegreeMap[targetId] || 0) + 1;
       outDegreeMap[sourceId] = (outDegreeMap[sourceId] || 0) + 1;
 
-      if (
-        links.some((l) => {
-          const lSource = typeof l.source === "object" ? l.source.id : l.source;
-          const lTarget = typeof l.target === "object" ? l.target.id : l.target;
-          return lSource === targetId && lTarget === sourceId;
-        })
-      ) {
-        reciprocalEdges++;
+      const key = `${sourceId}->${targetId}`;
+      const reverseKey = `${targetId}->${sourceId}`;
+
+      if (linkSet.has(reverseKey)) {
+        reciprocalCount++;
+      } else {
+        linkSet.add(key);
       }
     });
 
     const reciprocity =
-      numEdges > 0 ? (reciprocalEdges / numEdges).toFixed(2) : 0;
+      numEdges > 0 ? (reciprocalCount / numEdges).toFixed(2) : 0;
 
     setNetworkStats({
       numNodes,
@@ -252,26 +257,32 @@ const NetworkVisualization = ({
     const n = nodes.length;
     const m = links.length;
     if (n < 2) return 0;
-    return (2 * m) / (n * (n - 1));
+
+    const denominator = isDirectedGraph ? n * (n - 1) : (n * (n - 1)) / 2;
+    return m / denominator;
   };
 
   const handleDiameterMetric = () => {
     setShowDiameter(!showDiameter);
     if (!showDiameter && networkData) {
-      const diameter = calculateDiameter(networkData.nodes, networkData.links);
+      const diameter = calculateDiameter(
+        networkData.nodes,
+        networkData.links,
+        isDirectedGraph
+      );
       setDiameterValue(diameter);
     }
   };
 
-  const calculateDiameter = (nodes, links) => {
+  const calculateDiameter = (nodes, links, isDirectedGraph = false) => {
     if (nodes.length < 2) return 0;
 
     const distances = {};
     nodes.forEach((node) => {
       distances[node.id] = {};
-      nodes.forEach(
-        (n) => (distances[node.id][n.id] = node.id === n.id ? 0 : Infinity)
-      );
+      nodes.forEach((n) => {
+        distances[node.id][n.id] = node.id === n.id ? 0 : Infinity;
+      });
     });
 
     links.forEach((link) => {
@@ -281,18 +292,20 @@ const NetworkVisualization = ({
         typeof link.target === "object" ? link.target.id : link.target;
 
       distances[sourceId][targetId] = 1;
-      distances[targetId][sourceId] = 1;
+
+      if (!isDirectedGraph) {
+        distances[targetId][sourceId] = 1;
+      }
     });
 
+    // Floyd–Warshall: All-pairs shortest paths
     nodes.forEach((k) => {
       nodes.forEach((i) => {
         nodes.forEach((j) => {
-          if (
-            distances[i.id][j.id] >
-            distances[i.id][k.id] + distances[k.id][j.id]
-          ) {
-            distances[i.id][j.id] =
-              distances[i.id][k.id] + distances[k.id][j.id];
+          const ik = distances[i.id][k.id];
+          const kj = distances[k.id][j.id];
+          if (ik + kj < distances[i.id][j.id]) {
+            distances[i.id][j.id] = ik + kj;
           }
         });
       });
@@ -301,8 +314,9 @@ const NetworkVisualization = ({
     let maxDistance = 0;
     nodes.forEach((i) => {
       nodes.forEach((j) => {
-        if (distances[i.id][j.id] !== Infinity) {
-          maxDistance = Math.max(maxDistance, distances[i.id][j.id]);
+        const dist = distances[i.id][j.id];
+        if (dist !== Infinity) {
+          maxDistance = Math.max(maxDistance, dist);
         }
       });
     });
@@ -908,27 +922,124 @@ const NetworkVisualization = ({
                   <div className="stat-value">{networkStats.numEdges}</div>
                   <div className="stat-label">Links</div>
                 </div>
-                <div className="stat-card">
-                  <div className="stat-value">{networkStats.reciprocity}</div>
-                  <div className="stat-label">Reciprocity</div>
-                </div>
-                {communities && communities.length > 0 && (
+                <OverlayTrigger
+                  placement="top"
+                  overlay={
+                    <Tooltip id="tooltip-reciprocity">
+                      Reciprocity measures the proportion of mutual
+                      (bidirectional) links in the network. A value of 1 means
+                      all links are reciprocated.
+                      <InlineMath
+                        math={
+                          "\\text{Reciprocity} = \\frac{\\text{Reciprocated Links}}{\\text{Total Links}}"
+                        }
+                      />
+                    </Tooltip>
+                  }
+                >
                   <div className="stat-card">
-                    <div className="stat-value">{communities.length}</div>
-                    <div className="stat-label">Communities</div>
+                    <div className="stat-value">{networkStats.reciprocity}</div>
+                    <div className="stat-label">Reciprocity</div>
                   </div>
+                </OverlayTrigger>
+
+                {communities && communities.length > 0 && (
+                  <OverlayTrigger
+                    placement="top"
+                    overlay={
+                      <Tooltip
+                        id="tooltip-communities"
+                        style={{ maxWidth: "350px" }}
+                      >
+                        <div>
+                          Communities are groups of nodes that are densely
+                          connected internally.
+                          <br />
+                          Detected using the <strong>Louvain Algorithm</strong>,
+                          which maximizes the modularity score:
+                          <BlockMath
+                            math={
+                              "Q = \\frac{1}{2m} \\sum_{i,j} \\left[ A_{ij} - \\frac{k_i k_j}{2m} \\right] \\delta(c_i, c_j)"
+                            }
+                          />
+                          <ul
+                            style={{
+                              paddingLeft: "1.2em",
+                              fontSize: "0.9em",
+                              marginTop: "0.5em",
+                            }}
+                          >
+                            <li>
+                              <InlineMath math={"A_{ij}"} />: edge between nodes{" "}
+                              <InlineMath math={"i"} /> and{" "}
+                              <InlineMath math={"j"} />
+                            </li>
+                            <li>
+                              <InlineMath math={"k_i, k_j"} />: degrees of nodes{" "}
+                              <InlineMath math={"i, j"} />
+                            </li>
+                            <li>
+                              <InlineMath math={"m"} />: total number of edges
+                            </li>
+                            <li>
+                              <InlineMath math={"\\delta(c_i, c_j)"} /> = 1 if
+                              nodes are in the same community
+                            </li>
+                          </ul>
+                        </div>
+                      </Tooltip>
+                    }
+                  >
+                    <div className="stat-card">
+                      <div className="stat-value">{communities.length}</div>
+                      <div className="stat-label">Communities</div>
+                    </div>
+                  </OverlayTrigger>
                 )}
                 {showDensity && (
-                  <div className="stat-card">
-                    <div className="stat-value">{densityValue}</div>
-                    <div className="stat-label">Density</div>
-                  </div>
+                  <OverlayTrigger
+                    placement="top"
+                    overlay={
+                      <Tooltip id="tooltip-density">
+                        Density measures how connected the network is.
+                        <br />
+                        It's the ratio of existing links to the total possible
+                        links.
+                        <br />
+                        <InlineMath
+                          math={"\\text{Density} = \\frac{|E|}{|V|(|V| - 1)}"}
+                        />
+                      </Tooltip>
+                    }
+                  >
+                    <div className="stat-card">
+                      <div className="stat-value">{densityValue}</div>
+                      <div className="stat-label">Density</div>
+                    </div>
+                  </OverlayTrigger>
                 )}
                 {showDiameter && (
-                  <div className="stat-card">
-                    <div className="stat-value">{diameterValue}</div>
-                    <div className="stat-label">Diameter</div>
-                  </div>
+                  <OverlayTrigger
+                    placement="top"
+                    overlay={
+                      <Tooltip id="tooltip-diameter">
+                        Diameter is the longest shortest path between any two
+                        nodes in the network.
+                        <br />
+                        It represents the maximum distance data must travel in
+                        the worst case.
+                        <br />
+                        <InlineMath
+                          math={"\\text{Diameter} = \\max_{i,j} d(i, j)"}
+                        />
+                      </Tooltip>
+                    }
+                  >
+                    <div className="stat-card">
+                      <div className="stat-value">{diameterValue}</div>
+                      <div className="stat-label">Diameter</div>
+                    </div>
+                  </OverlayTrigger>
                 )}
               </div>
             )}
@@ -974,18 +1085,33 @@ const NetworkVisualization = ({
             </p>
             <div className="metrics-grid">
               {graphMetrics.map((metric) => (
-                <Button
+                <OverlayTrigger
                   key={metric}
-                  variant="light"
-                  className={`metric-btn mb-2 ${
-                    selectedMetric === metric ? "active" : ""
-                  }`}
-                  onClick={() => handleToggleMetric(metric)}
+                  placement="top"
+                  overlay={
+                    <Tooltip style={{ maxWidth: "300px" }}>
+                      <div>
+                        <div>{centralityExplanations[metric]?.short}</div>
+                        <InlineMath
+                          math={centralityExplanations[metric]?.latex}
+                        />
+                      </div>
+                    </Tooltip>
+                  }
                 >
-                  {metric}
-                </Button>
+                  <Button
+                    variant="light"
+                    className={`metric-btn mb-2 ${
+                      selectedMetric === metric ? "active" : ""
+                    }`}
+                    onClick={() => handleToggleMetric(metric)}
+                  >
+                    {metric}
+                  </Button>
+                </OverlayTrigger>
               ))}
             </div>
+
             {selectedMetric && (
               <div className="metric-actions mt-3">
                 <Button
@@ -1100,20 +1226,52 @@ const NetworkVisualization = ({
                   <Accordion.Body>
                     <ul className="help-list">
                       <li>
-                        <strong>Degree:</strong> Number of connections
+                        <strong>Degree Centrality:</strong> Measures how many
+                        direct connections a node has.
+                        <br />
+                        <em>Formula: </em>
+                        <InlineMath math={"C_D(v) = \\frac{\\deg(v)}{n - 1}"} />
                       </li>
-                      <li>
-                        <strong>Betweenness:</strong> Important bridge nodes
+                      <li className="mt-3">
+                        <strong>Betweenness Centrality:</strong> Captures how
+                        often a node lies on shortest paths between others.
+                        <br />
+                        <em>Formula: </em>
+                        <InlineMath
+                          math={
+                            "C_B(v) = \\sum_{s \\neq v \\neq t} \\frac{\\sigma_{st}(v)}{\\sigma_{st}}"
+                          }
+                        />
                       </li>
-                      <li>
-                        <strong>PageRank:</strong> Influential nodes
+                      <li className="mt-3">
+                        <strong>Closeness Centrality:</strong> Quantifies how
+                        easily a node reaches all other nodes.
+                        <br />
+                        <em>Formula: </em>
+                        <InlineMath
+                          math={
+                            "C_C(v) = \\frac{n - 1}{\\sum_{t \\neq v} d(v, t)}"
+                          }
+                        />
                       </li>
-                      <li>
-                        <strong>Density:</strong> How connected the network is
+                      <li className="mt-3">
+                        <strong>Eigenvector Centrality:</strong> Scores nodes
+                        based on the influence of their neighbors.
+                        <br />
+                        <em>Formula: </em>
+                        <InlineMath math={"A \\cdot x = \\lambda x"} />
                       </li>
-                      <li>
-                        <strong>Diameter:</strong> Maximum distance between
-                        nodes
+                      <li className="mt-3">
+                        <strong>PageRank Centrality:</strong> Ranks nodes by
+                        their link quantity and quality using a random walk
+                        model.
+                        <br />
+                        <em>Formula: </em>
+                        <InlineMath
+                          math={
+                            "PR(v) = \\frac{1 - d}{N} + d \\sum_{u \\in M(v)} \\frac{PR(u)}{L(u)}"
+                          }
+                        />
                       </li>
                     </ul>
                   </Accordion.Body>
