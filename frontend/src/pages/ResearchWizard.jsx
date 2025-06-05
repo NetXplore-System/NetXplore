@@ -108,7 +108,7 @@ const ResearchWizard = () => {
     includeMessageContent: true,
     isDirectedGraph: false,
     useHistoryAlgorithm: false,
-    messageWeight: [0.2, 0.3, 0.5],
+    messageWeight: [0.5, 0.3, 0.2],
     historyLength: 3,
     isNormalized: false,
     timeFrame: {
@@ -495,13 +495,11 @@ const ResearchWizard = () => {
     return !lastAnalysisParams || currentParams !== lastAnalysisParams;
   };
 
-  // Update the handleInputChange function
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
 
     console.log("target", e.target, formData);
 
-    // Handle messageWeight array updates
     if (name.startsWith('messageWeight')) {
       const index = parseInt(name.replace('messageWeight', '')) - 1;
       const newValue = parseFloat(value);
@@ -509,7 +507,6 @@ const ResearchWizard = () => {
       const newMessageWeight = [...formData.messageWeight];
       newMessageWeight[index] = newValue;
 
-      // Normalize to sum to 1
       const sum = newMessageWeight.reduce((acc, val) => acc + val, 0);
       if (sum > 0) {
         const normalizedWeights = newMessageWeight.map(weight => weight / sum);
@@ -547,7 +544,6 @@ const ResearchWizard = () => {
       });
     }
 
-    // Rest of the existing logic...
     if (name === "isDirectedGraph" || name === "useHistoryAlgorithm") {
       const currentStepContent = getCurrentStepContent();
 
@@ -573,12 +569,10 @@ const ResearchWizard = () => {
     }
   };
 
-  // Add this helper function for the increase/decrease buttons
   const handleMessageWeightChange = (index, delta) => {
     const newMessageWeight = [...formData.messageWeight];
     newMessageWeight[index] = Math.max(0.1, Math.min(1.0, newMessageWeight[index] + delta));
 
-    // Normalize to sum to 1
     const sum = newMessageWeight.reduce((acc, val) => acc + val, 0);
     if (sum > 0) {
       const normalizedWeights = newMessageWeight.map(weight => weight / sum);

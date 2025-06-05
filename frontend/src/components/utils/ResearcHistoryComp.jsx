@@ -56,31 +56,6 @@ const ResearchHistory = ({ research }) => {
         handleToggleCommunitiesFilter
     } = useNetworkFilters(networkData, setNetworkData, originalNetworkData, setOriginalNetworkData, communityMap);
 
-    // Add function to reverse link direction for directed graphs
-    const reverseLinksDirection = (links) => {
-        return links.map(link => ({
-            ...link,
-            source: link.target,
-            target: link.source
-        }));
-    };
-
-    // Add function to get processed network data with correct arrow direction
-    const getProcessedNetworkData = () => {
-        if (!networkData) return null;
-        
-        let processedData = { ...networkData };
-        
-        // Reverse arrow direction if it's a directed graph (from target to source)
-        if (research.filters?.directed) {
-            processedData = {
-                ...networkData,
-                links: reverseLinksDirection(networkData.links)
-            };
-        }
-        
-        return processedData;
-    };
 
     const handleToggleMetric = (metric) => {
         setSelectedMetric(selectedMetric === metric ? null : metric);
@@ -106,9 +81,7 @@ const ResearchHistory = ({ research }) => {
         setVisualizationSettings(settings);
         if (!networkData) return;
 
-        // Use processed data (with reversed arrows if directed) for customization
-        const dataToCustomize = getProcessedNetworkData();
-        const customizedData = networkUtils.applyCustomization(dataToCustomize, settings);
+        const customizedData = networkUtils.applyCustomization(networkData, settings);
         setCustomizedNetworkData(customizedData);
     };
 
@@ -143,11 +116,9 @@ const ResearchHistory = ({ research }) => {
         }
     };
 
-    // Use processed network data for filtered nodes and links
-    const processedNetworkData = getProcessedNetworkData();
-    const filteredNodes = processedNetworkData ? processedNetworkData.nodes : [];
-    const filteredLinks = processedNetworkData
-        ? processedNetworkData.links.filter(
+    const filteredNodes = networkData ? networkData.nodes : [];
+    const filteredLinks = networkData
+        ? networkData.links.filter(
             (link) =>
                 filteredNodes.some((node) => node.id === link.source) &&
                 filteredNodes.some((node) => node.id === link.target)
@@ -185,7 +156,7 @@ const ResearchHistory = ({ research }) => {
     };
 
     const visualizationProps = {
-        networkData: processedNetworkData,
+        networkData,
         filteredNodes,
         filteredLinks,
         customizedNetworkData,

@@ -160,7 +160,7 @@ def calculate_sequential_weights(
             if previous_sender == current_sender:  
                 continue 
             
-            edge_weights[(previous_sender, current_sender)] += message_weights[idx]
+            edge_weights[(current_sender, previous_sender)] += message_weights[idx]
         
         window.append(current_sender)
 
