@@ -79,7 +79,7 @@ const ComparisonItem = ({
       history: false,
       messageCount: 3,
       normalized: false,
-      messageWeights: [0.2, 0.3, 0.5], // Default weights for 3 messages
+      messageWeights: [0.5, 0.3, 0.2], 
     }
   });
 
@@ -91,7 +91,6 @@ const ComparisonItem = ({
     }
   }, [filterSettings]);
 
-  // Memoize the filter change handler to prevent unnecessary re-renders
   const handleFilterChange = useCallback((e) => {
     const { name, value, type, checked } = e.target;
 
@@ -117,15 +116,14 @@ const ComparisonItem = ({
           },
         };
       } else if (name === "config.messageCount") {
-        // Update message weights array when messageCount changes
         const messageCount = Number(newValue);
         let newWeights;
         if (messageCount === 2) {
-          newWeights = [0.4, 0.6]; // Default weights for 2 messages
+          newWeights = [0.6, 0.4]; 
         } else if (messageCount === 3) {
-          newWeights = [0.2, 0.3, 0.5]; // Default weights for 3 messages
+          newWeights = [0.5, 0.3, 0.2]; 
         } else {
-          newWeights = localFilterSettings.config?.messageWeights || [0.2, 0.3, 0.5];
+          newWeights = localFilterSettings.config?.messageWeights || [0.5, 0.3, 0.2];
         }
         
         updatedSettings = {
@@ -165,17 +163,14 @@ const ComparisonItem = ({
     }
   }, [localFilterSettings, onFilterChange, index]);
 
-  // Memoize message weight change handler and optimize calculations
   const handleMessageWeightChange = useCallback((weightIndex, delta) => {
-    const currentWeights = [...(localFilterSettings.config?.messageWeights || [0.2, 0.3, 0.5])];
+    const currentWeights = [...(localFilterSettings.config?.messageWeights || [0.5, 0.3, 0.2])];
     
-    // Apply delta to the specific weight
     currentWeights[weightIndex] = Math.max(0.1, Math.min(1.0, currentWeights[weightIndex] + delta));
     
     let finalWeights;
     
     if (weightIndex === 0) {
-      // If we're changing the first weight, normalize all weights
       const sum = currentWeights.reduce((acc, val) => acc + val, 0);
       if (sum > 0) {
         finalWeights = currentWeights.map(weight => weight / sum);
@@ -183,7 +178,6 @@ const ComparisonItem = ({
         finalWeights = currentWeights;
       }
     } else {
-      // If changing other weights, keep the first weight fixed and normalize only the remaining weights
       const firstWeight = currentWeights[0];
       const remainingWeights = currentWeights.slice(1);
       const remainingSum = remainingWeights.reduce((acc, val) => acc + val, 0);
@@ -263,7 +257,7 @@ const ComparisonItem = ({
         history: false,
         messageCount: 3,
         normalized: false,
-        messageWeights: [0.2, 0.3, 0.5],
+        messageWeights: [0.5, 0.3, 0.2],
       },
     };
 
@@ -534,7 +528,6 @@ const ComparisonItem = ({
     }
   };
 
-  // Memoize expensive computations
   const currentWeights = useMemo(() => 
     localFilterSettings.config?.messageWeights || [0.2, 0.3, 0.5], 
     [localFilterSettings.config?.messageWeights]
@@ -558,14 +551,13 @@ const ComparisonItem = ({
     [currentWeights, messageCount]
   );
 
-  // Check if weight sum is valid (should be close to 1.0)
   const weightSum = useMemo(() => 
     currentWeights.slice(0, messageCount).reduce((acc, val) => acc + val, 0),
     [currentWeights, messageCount]
   );
 
   const isWeightSumValid = useMemo(() => 
-    Math.abs(weightSum - 1.0) < 0.01, // Allow small floating point errors
+    Math.abs(weightSum - 1.0) < 0.01, 
     [weightSum]
   );
 

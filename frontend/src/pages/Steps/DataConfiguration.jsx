@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
-import { Card, Form, OverlayTrigger, Tooltip, Button } from "react-bootstrap";
-import { InfoCircle, Plus, Dash } from "react-bootstrap-icons";
+import React, { useState } from "react";
+import { Card, Form, OverlayTrigger, Tooltip } from "react-bootstrap";
+import { InfoCircle } from "react-bootstrap-icons";
 
 const InfoTooltip = ({ text, id }) => (
   <OverlayTrigger

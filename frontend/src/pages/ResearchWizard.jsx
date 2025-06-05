@@ -108,6 +108,8 @@ const ResearchWizard = () => {
     includeMessageContent: true,
     isDirectedGraph: false,
     useHistoryAlgorithm: false,
+    messageWeight: [0.5, 0.3, 0.2],
+    historyLength: 3,
     isNormalized: false,
     timeFrame: {
       startDate: "",
@@ -377,7 +379,6 @@ const ResearchWizard = () => {
           }),
         });
   
-        // toast.promise(analyzeWikipediaNetwork("wikipedia_data", finalParams), {
           toast.promise(analyzeNetwork("wikipedia_data", finalParams), {
 
           loading: "Analyzing Wikipedia discussion...",
@@ -496,6 +497,24 @@ const ResearchWizard = () => {
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
 
+    if (name.startsWith('messageWeight')) {
+      const index = parseInt(name.replace('messageWeight', '')) - 1;
+      const newValue = parseFloat(value);
+
+      const newMessageWeight = [...formData.messageWeight];
+      newMessageWeight[index] = newValue;
+
+      const sum = newMessageWeight.reduce((acc, val) => acc + val, 0);
+      if (sum > 0) {
+        const normalizedWeights = newMessageWeight.map(weight => weight / sum);
+        setFormData({
+          ...formData,
+          messageWeight: normalizedWeights
+        });
+      }
+      return;
+    }
+
     if (name.includes(".")) {
       const [parent, child] = name.split(".");
       let newValue;
@@ -544,6 +563,20 @@ const ResearchWizard = () => {
           }
         }
       }
+    }
+  };
+
+  const handleMessageWeightChange = (index, delta) => {
+    const newMessageWeight = [...formData.messageWeight];
+    newMessageWeight[index] = Math.max(0.1, Math.min(1.0, newMessageWeight[index] + delta));
+
+    const sum = newMessageWeight.reduce((acc, val) => acc + val, 0);
+    if (sum > 0) {
+      const normalizedWeights = newMessageWeight.map(weight => weight / sum);
+      setFormData({
+        ...formData,
+        messageWeight: normalizedWeights
+      });
     }
   };
 

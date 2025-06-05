@@ -63,6 +63,7 @@ async def save_research(
     use_history: bool = Query(False),
     normalize: bool = Query(False),
     history_length: int = Query(3),
+    message_weights: str = Query([5,3,2]),
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     communities: Optional[str] = Form(None),
@@ -76,6 +77,17 @@ async def save_research(
         if platform == "wikipedia" and file_name.endswith(".txt"):
             file_name = file_name[:-4]
         
+        # Parse message_weights from string to list of floats
+        parsed_message_weights = None
+        if message_weights:
+            try:
+                parsed_message_weights = json.loads(message_weights)
+                if not isinstance(parsed_message_weights, list) or not all(isinstance(x, (int, float)) for x in parsed_message_weights):
+                    raise ValueError("message_weights must be a list of numbers")
+            except Exception as e:
+                logger.warning(f"Invalid message_weights format: {message_weights}, error: {e}")
+                parsed_message_weights = [0.5, 0.3, 0.2] if history_length == 3 else [0.7, 0.3]
+
         analyzer = get_analyzer(platform)
         data = await analyzer.analyze(
             filename=file_name,
@@ -98,6 +110,7 @@ async def save_research(
             start_time=start_time,
             end_time=end_time,
             history_length=int(history_length) if history_length is not None else 3,
+            message_weights=parsed_message_weights,
             is_for_save=True
         )
         
@@ -183,6 +196,22 @@ async def save_research(
                 
                 for comp_data, comp_filter in zip(comparison_data, comparison_filters):
                     
+                    # Parse message_weights for comparison
+                    comp_message_weights = comp_filter.get("config", {}).get("messageWeights")
+                    parsed_comp_message_weights = None
+                    if comp_message_weights:
+                        try:
+                            if isinstance(comp_message_weights, list):
+                                parsed_comp_message_weights = comp_message_weights
+                            else:
+                                parsed_comp_message_weights = json.loads(comp_message_weights)
+                            if not isinstance(parsed_comp_message_weights, list) or not all(isinstance(x, (int, float)) for x in parsed_comp_message_weights):
+                                raise ValueError("message_weights must be a list of numbers")
+                        except Exception as e:
+                            logger.warning(f"Invalid comparison message_weights format: {comp_message_weights}, error: {e}")
+                            comp_history_length = int(comp_filter.get("config", {}).get("messageCount", 3))
+                            parsed_comp_message_weights = [0.5, 0.3, 0.2] if comp_history_length == 3 else [0.7, 0.3]
+
                     messages = await analyzer.analyze(
                         filename=comp_data.get("file_name", file_name),
                         start_date=comp_filter.get("timeFrame", {}).get("startDate"),
@@ -204,6 +233,7 @@ async def save_research(
                         use_history=comp_filter.get("config", {}).get("history", False),
                         normalize=comp_filter.get("config", {}).get("normalized", False),
                         history_length=int(comp_filter.get("config", {}).get("messageCount", 3)),
+                        message_weights=parsed_comp_message_weights,
                         is_for_save=True
                     )
 
