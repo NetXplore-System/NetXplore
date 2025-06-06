@@ -16,11 +16,46 @@ const NetworkGraph = ({
   forceGraphRef,
   isDirectedGraph = false,
 }) => {
+  
   useEffect(() => {
     if (forceGraphRef.current) {
       forceGraphRef.current.zoomToFit(400, 100);
     }
   }, [networkData, forceGraphRef]);
+
+  useEffect(() => {
+    if (forceGraphRef.current && networkData && networkData.nodes) {
+      const graph = forceGraphRef.current;
+      const nodes = customizedNetworkData ? customizedNetworkData.nodes : filteredNodes;
+      const nodeCount = nodes.length;
+            
+      setTimeout(() => {
+        if (graph) {
+          try {
+            if (typeof graph.d3Force === 'function') {
+              
+              const chargeForce = graph.d3Force('charge');
+              if (chargeForce && typeof chargeForce.strength === 'function') {
+                chargeForce.strength(-150 * nodeCount);
+              }
+              
+              const linkForce = graph.d3Force('link');
+              if (linkForce && typeof linkForce.distance === 'function') {
+                linkForce.distance(60 + nodeCount * 3);
+              }
+              
+              if (typeof graph.d3ReheatSimulation === 'function') {
+                graph.d3ReheatSimulation();
+              }
+              
+            } else {
+              console.warn('d3Force is not a function on the graph instance');}
+          } catch (error) {
+            console.error('Error setting forces:', error);}
+        }
+      }, 300);
+    }
+  }, [networkData, customizedNetworkData, selectedMetric]);
 
   if (!networkData) {
     return <div>No network data available</div>;
@@ -94,14 +129,15 @@ const NetworkGraph = ({
         width={showMetrics ? 1200 : 1500}
         height={700}
         fitView
-        fitViewPadding={20}
+        fitViewPadding={100}     
         nodeAutoColorBy={customizedNetworkData ? null : "id"}
         linkWidth={(link) => Math.sqrt(link.weight || 1)}
         linkColor={() => "gray"}
         enableNodeDrag={true}
-        cooldownTicks={100}
-        d3AlphaDecay={0.03}
-        d3VelocityDecay={0.2}
+        cooldownTicks={400} 
+        d3AlphaDecay={0.005} 
+        d3VelocityDecay={0.7} 
+        d3ReheatOnLayout={true}
         onNodeClick={handleNodeClick}
         onEngineStop={() => forceGraphRef.current?.zoomToFit(400, 100)}
         onNodeDragEnd={(node) => {
@@ -118,17 +154,14 @@ const NetworkGraph = ({
           ctx.lineWidth = Math.sqrt(link.weight || 1);
           ctx.stroke();
           
-          // Calculate positions for weight label
           let labelX, labelY;
           
           if (isDirectedGraph) {
-            // For directed graphs, place label near the arrowhead
             const dx = link.target.x - link.source.x;
             const dy = link.target.y - link.source.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
             
             if (distance > 0) {
-              // Calculate target radius for arrow positioning
               const targetRadius =
                 link.target.size ||
                 (selectedMetric === "PageRank Centrality"
@@ -143,12 +176,10 @@ const NetworkGraph = ({
                   ? Math.max(10, link.target.degree * 80)
                   : 20);
               
-              // Position label at 75% of the way to target, offset from the line
               const t = 0.75;
               const baseX = link.source.x + (dx * t);
               const baseY = link.source.y + (dy * t);
               
-              // Create perpendicular offset for the label
               const offsetDistance = 15 / globalScale;
               const perpX = (-dy / distance) * offsetDistance;
               const perpY = (dx / distance) * offsetDistance;
@@ -156,17 +187,14 @@ const NetworkGraph = ({
               labelX = baseX + perpX;
               labelY = baseY + perpY;
             } else {
-              // Fallback to midpoint if distance is 0
               labelX = (link.source.x + link.target.x) / 2;
               labelY = (link.source.y + link.target.y) / 2;
             }
           } else {
-            // For undirected graphs, use the center as before
             labelX = (link.source.x + link.target.x) / 2;
             labelY = (link.source.y + link.target.y) / 2;
           }
           
-          // Draw weight label
           const fontSize = 10 / globalScale;
           ctx.save();
           ctx.font = `bold ${fontSize}px Sans-Serif`;
@@ -176,7 +204,6 @@ const NetworkGraph = ({
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           
-          // Draw text with white outline for better visibility
           ctx.strokeText(link.weight || "1", labelX, labelY);
           ctx.fillText(link.weight || "1", labelX, labelY);
           ctx.restore();

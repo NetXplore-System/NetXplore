@@ -441,6 +441,7 @@ def extract_reply_to_from_id(element_id: str) -> str:
 
     return None
 
+
 def process_wiki_talk_page(html_content):
     soup = BeautifulSoup(html_content, 'html.parser')
 
@@ -448,6 +449,7 @@ def process_wiki_talk_page(html_content):
     if not content_div:
         logger.warning("Could not find any suitable content div")
         return []
+
     all_elements = content_div.find_all([
         'h1', 'h2', 'h3', 'h4', 'li', 'p', 'div', 'dl', 'dd', 'dt'
     ])
@@ -459,6 +461,8 @@ def process_wiki_talk_page(html_content):
         "participants": set(),
         "opinion_count": {"for": 0, "against": 0, "neutral": 0}
     }
+
+    pending_text = ""
 
     for element in all_elements:
         if element.name.startswith('h'):
@@ -474,6 +478,7 @@ def process_wiki_talk_page(html_content):
                 "participants": set(),
                 "opinion_count": {"for": 0, "against": 0, "neutral": 0}
             }
+            pending_text = ""
 
         elif element.name in ['li', 'p', 'div', 'dd']:
             html = str(element)
@@ -481,7 +486,21 @@ def process_wiki_talk_page(html_content):
 
             if username and timestamp:
                 comment_text = extract_individual_comment_text(element, username, timestamp)
-                
+
+                lines = pending_text.splitlines()
+                filtered_lines = [
+                    line for line in lines if not re.search(
+                        r"(תגובה אחרונה|Last comment|תגובות\b|comments\b|אנשים בשיחה|participants)",
+                        line,
+                        flags=re.IGNORECASE
+                    )
+                ]
+                pending_text = " ".join(filtered_lines).strip()
+
+
+                full_text = (pending_text + "\n" + comment_text).strip() if pending_text else comment_text
+                pending_text = ""  
+
                 element_text = element.get_text(strip=True)
                 indentation_from_colons = count_indent_colons(element_text)
                 indentation_from_html = 0
@@ -492,20 +511,26 @@ def process_wiki_talk_page(html_content):
                     parent = parent.parent
                 indentation = max(indentation_from_colons, indentation_from_html)
 
-                opinion = analyze_comment_for_opinion(comment_text)
+                opinion = analyze_comment_for_opinion(full_text)
                 current_section["opinion_count"][opinion] += 1
 
                 comment = {
                     "indentation": indentation,
                     "username": username,
                     "timestamp": timestamp,
-                    "text": comment_text,  
+                    "text": full_text.replace("\n", " ").strip(),
+
                     "opinion": opinion,
                     "reply_to": None
                 }
 
                 current_section["participants"].add(username)
                 current_section["comments"].append(comment)
+
+            else:
+                text = element.get_text(strip=True)
+                if text:
+                    pending_text += "\n" + text
 
     if current_section["comments"]:
         current_section["participants"] = list(current_section["participants"])

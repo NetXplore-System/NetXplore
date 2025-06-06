@@ -43,6 +43,10 @@ const ResearchWizard = () => {
   const hasShownToastRef = useRef(false);
   const [uploadError, setUploadError] = useState("");
   const [wikipediaUrlError, setWikipediaUrlError] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [wikipediaLoaded, setWikipediaLoaded] = useState(false);
+
+
 
 
 
@@ -319,14 +323,16 @@ const ResearchWizard = () => {
         setUploadError(error.message || "Error uploading file.");
       });
   };
-  
+ 
   const handleFetchWikipedia = () => {
     if (!formData.wikipediaUrl?.trim()) {
       setWikipediaUrlError("Please enter a valid Wikipedia URL.");
       return;
     }
   
-    setWikipediaUrlError("");    
+    setWikipediaUrlError("");
+    setIsUploading(true);
+    setWikipediaLoaded(false);
   
     fetchWikipediaData(formData.wikipediaUrl)
       .then((data) => {
@@ -339,6 +345,7 @@ const ResearchWizard = () => {
             ...prev,
             uploadedFileName: "wikipedia_data.txt",
           }));
+          setWikipediaLoaded(true);  
         } else {
           setWikipediaUrlError("No valid discussion data found.");
         }
@@ -349,6 +356,9 @@ const ResearchWizard = () => {
             ? "Failed to connect to server."
             : err.message || "Could not load Wikipedia data."
         );
+      })
+      .finally(() => {
+        setIsUploading(false);
       });
   };
   
@@ -645,6 +655,9 @@ const ResearchWizard = () => {
             handleFetchWikipedia={handleFetchWikipedia}
             uploadError={uploadError}
             wikipediaUrlError={wikipediaUrlError}
+            isUploading={isUploading}
+            wikipediaLoaded={wikipediaLoaded}
+
 
           />
         );
