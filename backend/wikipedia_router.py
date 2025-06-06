@@ -191,105 +191,200 @@ def extract_metadata(soup):
 
 
 def count_indent_colons(text):
-   
     text = text.strip()
-    
     colon_count = 0
     for char in text:
         if char == ':':
             colon_count += 1
         else:
             break
-    
     return colon_count
 
-
-
-def split_by_signatures(text):
-    """
-    פיצול טקסט ארוך לתגובות לפי חתימות משתמשים מסוג ויקיפדיה.
-    """
-    pattern = r'(?=\s*[א-תA-Za-z0-9_\-\'\" ]{2,50}\s*[-–—]\s*שיחה\s+\d{1,2}[:\.]\d{2},?\s+\d{1,2}\s+[א-ת]+\s+\d{4}\s+\(IDT\))'
-    return [part.strip() for part in re.split(pattern, text) if part.strip()]
-
 def extract_user_and_timestamp(html_content):
-    from bs4 import BeautifulSoup
-    import re
-
+    
     soup = BeautifulSoup(html_content, 'html.parser')
-
+    
     timestamp_link = soup.select_one('a.ext-discussiontools-init-timestamplink')
     if timestamp_link:
         timestamp = timestamp_link.get_text(strip=True)
+        
         parent = timestamp_link.find_parent()
         if parent:
             user_links = parent.select('a[title^="User:"], a[title^="משתמש:"]')
             if user_links:
                 parent_text = parent.get_text()
                 ts_pos = parent_text.find(timestamp)
-                best_user, best_dist = None, float('inf')
+                
+                best_user = None
+                best_dist = float('inf')
+                
                 for link in user_links:
-                    name = link.get_text(strip=True)
-                    name_pos = parent_text.find(name)
-                    dist = abs(ts_pos - name_pos)
-                    if dist < best_dist:
-                        best_user, best_dist = name, dist
+                    username = link.get_text(strip=True)
+                    username = clean_username(username)
+                    if username:
+                        name_pos = parent_text.find(username)
+                        if name_pos != -1:
+                            dist = abs(ts_pos - name_pos)
+                            if dist < best_dist:
+                                best_user = username
+                                best_dist = dist
+                
                 if best_user:
                     return best_user, timestamp
-
+    
     text = soup.get_text(separator=" ", strip=True)
-
-    patterns = [
-        r'([א-תA-Za-z0-9_\-\s\'\"\.]{2,50})\s*[-–—]\s*שיחה\s*‏?\s*(\d{1,2}[:\.]\d{2}.*?\d{4})',
-        r'([א-תA-Za-z0-9_\-\s\'\"\.]{2,50})\s*שיחה\s*‏?\s*(\d{1,2}[:\.]\d{2}.*?\d{4})',
-        r'([a-zA-Z0-9_\-\s\'\"\.]{2,50})\s*[-–—]?\s*talk\s*‏?\s*(\d{1,2}[:\.]\d{2}.*?\d{4})',
+    
+    signature_patterns = [
+        r'([א-תA-Za-z0-9_\-\s]{2,50}?)\s*[-–—]?\s*שיחה\s*‏?\s*(\d{1,2}[:\.]\d{2}.*?\d{4})',
+        r'([a-zA-Z0-9_\-\s]{2,50}?)\s*[-–—]?\s*talk\s*‏?\s*(\d{1,2}[:\.]\d{2}.*?\d{4})',
+        r'([א-תA-Za-z0-9_\-\s]{2,50}?)\s*[-–—]\s*(\d{1,2}[:\.]\d{2}.*?\d{4})',
     ]
-    for pattern in patterns:
-        match = re.search(pattern, text)
-        if match:
+    
+    for pattern in signature_patterns:
+        matches = list(re.finditer(pattern, text))
+        if matches:
+            match = matches[-1]
             username = match.group(1).strip()
             timestamp = match.group(2).strip()
-            username = re.sub(r'[\u200F\u200E\u202D\u202C]', '', username)
-            return username, timestamp
-
-    time_matches = list(re.finditer(r'(\d{1,2}[:\.]\d{2}.*?\d{4})', text))
-    for time_match in reversed(time_matches):
-        timestamp = time_match.group(1).strip()
-        before_time = text[:time_match.start()].strip()
-        search_area = before_time[-100:]
-
-        user_patterns = [
-            r'([א-תA-Za-z0-9_\-\s\'\"\.]{2,50})\s*[-–—]?\s*שיחה\s*$',
-            r'([a-zA-Z0-9_\-\s\'\"\.]{2,50})\s*[-–—]?\s*talk\s*$',
-            r'([א-תA-Za-z0-9_\-\s\'\"\.]{2,50})\s*$',
-        ]
-        for up in user_patterns:
-            user_match = re.search(up, search_area)
-            if user_match:
-                username = user_match.group(1).strip()
-                username = re.sub(r'[\u200F\u200E\u202D\u202C]', '', username)
-                if not any(w in username.lower() for w in ['המידע', 'תגובה', 'ערך', 'מקור']):
-                    return username, timestamp
-
-    html = str(soup)
-    user_links = list(re.finditer(r'<a[^>]+title="(?:User|משתמש):([^"]+)"[^>]*>([^<]+)</a>', html))
-    time_matches = list(re.finditer(r'(\d{1,2}[:\.]\d{2}.*?\d{4})', html))
-    if user_links and time_matches:
-        best_user, best_time, best_dist = None, None, float('inf')
-        for ul in user_links:
-            user = ul.group(2).strip()
-            upos = ul.end()
-            for tm in time_matches:
-                tpos = tm.start()
-                dist = abs(tpos - upos)
-                if dist < best_dist and dist < 200:
-                    best_user = user
-                    best_time = tm.group(1).strip()
-                    best_dist = dist
-        if best_user and best_time:
-            return best_user, best_time
-
+            
+            username = clean_username(username)
+            if username and is_valid_username(username):
+                return username, timestamp
+    
     return None, None
+
+
+def clean_username(username):
+   
+    if not username:
+        return None
+    
+    username = re.sub(r'[\u200F\u200E\u202D\u202C\u2066\u2067\u2068\u2069]', '', username)
+    
+    prefixes_to_remove = [
+        r'^[.\s]*המידע נמחק.*?(?=\s[A-Za-z])',
+        r'^[.\s]*הודעה נמחקה.*?(?=\s[A-Za-z])',
+        r'^[.\s]*תגובה נמחקה.*?(?=\s[A-Za-z])',
+        r'^[.\s]*\n+',
+        r'^\.',
+    ]
+    
+    for prefix in prefixes_to_remove:
+        username = re.sub(prefix, '', username, flags=re.DOTALL)
+    
+    username_match = re.search(r'([א-תA-Za-z0-9_\-\s]{2,50})', username.strip())
+    if username_match:
+        username = username_match.group(1).strip()
+    
+    username = re.sub(r'[-–—]*$', '', username)
+    
+    username = re.sub(r'\s+', ' ', username)
+    
+    return username if len(username) >= 2 else None
+
+def is_valid_username(username):
+   
+    if not username or len(username) < 2:
+        return False
+    
+    invalid_patterns = [
+        r'^(המידע|תגובה|ערך|מקור|דיון|הצעה|פרלמנט)$',
+        r'^\d+$',  
+        r'^[^\w\s]+$',  
+        r'(נמחק|הוסר|נמחקה)',  
+    ]
+    
+    for pattern in invalid_patterns:
+        if re.search(pattern, username, re.IGNORECASE):
+            return False
+    
+    if username.strip() == '':
+        return False
+        
+    return True
+
+def extract_individual_comment_text(element, username, timestamp):
+    
+    if not element:
+        return ""
+    
+    full_text = element.get_text(separator=" ", strip=True)
+    
+    signature_pattern = r'([א-תA-Za-z0-9_\-\s]{2,50}?)\s*[-–—]?\s*שיחה\s*‏?\s*(\d{1,2}[:\.]\d{2}.*?\d{4})'
+    signature_matches = list(re.finditer(signature_pattern, full_text))
+    
+    if len(signature_matches) == 1:
+        match = signature_matches[0]
+        comment_text = full_text[:match.start()].strip()
+        return clean_extracted_comment(comment_text)
+    
+    target_username_clean = username.lower().replace(' ', '').replace('-', '')
+    target_timestamp_clean = timestamp.replace(' ', '').replace('(IDT)', '')
+    
+    target_sig_start = None
+    target_sig_end = None
+    
+    for match in signature_matches:
+        sig_username = clean_username(match.group(1).strip())
+        sig_timestamp = match.group(2).strip()
+        
+        if (sig_username and 
+            sig_username.lower().replace(' ', '').replace('-', '') == target_username_clean and
+            target_timestamp_clean in sig_timestamp.replace(' ', '').replace('(IDT)', '')):
+            target_sig_start = match.start()
+            target_sig_end = match.end()
+            break
+    
+    if target_sig_start is not None:
+        previous_sig_end = 0
+        for match in signature_matches:
+            if match.end() < target_sig_start and match.end() > previous_sig_end:
+                previous_sig_end = match.end()
+        
+        comment_text = full_text[previous_sig_end:target_sig_start].strip()
+        return clean_extracted_comment(comment_text)
+    
+    return clean_extracted_comment(full_text)
+
+
+def clean_extracted_comment(text):
+  
+    if not text:
+        return ""
+    
+    text = text.strip()
+    
+    text = re.sub(r'^[::\s]+', '', text)
+    
+    text = re.sub(r'[א-תA-Za-z0-9_\-\s]{2,50}?\s*[-–—]?\s*שיחה\s*‏?\s*\d{1,2}[:\.]\d{2}.*?\d{4}.*?$', '', text, flags=re.MULTILINE)
+    text = re.sub(r'[a-zA-Z0-9_\-\s]{2,50}?\s*[-–—]?\s*talk\s*‏?\s*\d{1,2}[:\.]\d{2}.*?\d{4}.*?$', '', text, flags=re.MULTILINE)
+    
+    text = re.sub(r'\s*תגובה\s*$', '', text)
+    
+    text = re.sub(r'^\s*[.\s]*המידע נמחק.*?\n', '', text, flags=re.DOTALL)
+    text = re.sub(r'^\s*[.\s]*תגובה נמחקה.*?\n', '', text, flags=re.DOTALL)
+    
+    text = re.sub(r'\d{1,2}[:\.]\d{2}.*?\d{4}', '', text)
+    
+    text = re.sub(r'\s+', ' ', text).strip()
+    
+    return text
+
+
+def clean_comment_text(text):
+   
+    if not text:
+        return ""
+    
+    text = re.sub(r'^[.\s]*המידע נמחק.*?\n', '', text, flags=re.DOTALL)
+    text = re.sub(r'^[.\s]*תגובה נמחקה.*?\n', '', text, flags=re.DOTALL)
+    
+    text = re.sub(r'^[::\s]+', '', text)
+    
+    text = re.sub(r'[א-תA-Za-z0-9_\-\s]{2,30}\s*[-–—]?\s*שיחה\s*‏?\s*\d{1,2}[:\.]\d{2}.*?\d{4}.*?$', '', text)
+    text = re.sub(r'[a-zA-Z0-9_\-\s]{2,30}\s*[-–—]?\s*talk\s*‏?\s*\d{1,2}[:\.]\d{2}.*?\d{4}.*?$', '', text)
+    
+    return text.strip()
 
 
 def analyze_comment_for_opinion(text):
@@ -309,6 +404,7 @@ def analyze_comment_for_opinion(text):
         return "against"
     
     return "neutral"
+
 
 def build_conversation_tree(comments):
     tree = {}
@@ -345,7 +441,6 @@ def extract_reply_to_from_id(element_id: str) -> str:
 
     return None
 
-
 def process_wiki_talk_page(html_content):
     soup = BeautifulSoup(html_content, 'html.parser')
 
@@ -353,9 +448,8 @@ def process_wiki_talk_page(html_content):
     if not content_div:
         logger.warning("Could not find any suitable content div")
         return []
-
     all_elements = content_div.find_all([
-        'h1', 'h2', 'h3', 'h4', 'li', 'p', 'div', 'dl', 'dd', 'dt', 'strong', 'b', 'span'
+        'h1', 'h2', 'h3', 'h4', 'li', 'p', 'div', 'dl', 'dd', 'dt'
     ])
 
     sections = []
@@ -382,34 +476,32 @@ def process_wiki_talk_page(html_content):
             }
 
         elif element.name in ['li', 'p', 'div', 'dd']:
-            text = element.get_text(strip=True)
-            if not text or len(text) < 5:
-                continue
-
             html = str(element)
-
-            indentation_from_colons = count_indent_colons(text)
-            indentation_from_html = 0
-            parent = element.parent
-            while parent:
-                if parent.name in ['dd', 'dt']:
-                    indentation_from_html += 1
-                parent = parent.parent
-            indentation = max(indentation_from_colons, indentation_from_html)
-
             username, timestamp = extract_user_and_timestamp(html)
 
             if username and timestamp:
-                opinion = analyze_comment_for_opinion(text)
+                comment_text = extract_individual_comment_text(element, username, timestamp)
+                
+                element_text = element.get_text(strip=True)
+                indentation_from_colons = count_indent_colons(element_text)
+                indentation_from_html = 0
+                parent = element.parent
+                while parent:
+                    if parent.name in ['dd', 'dt']:
+                        indentation_from_html += 1
+                    parent = parent.parent
+                indentation = max(indentation_from_colons, indentation_from_html)
+
+                opinion = analyze_comment_for_opinion(comment_text)
                 current_section["opinion_count"][opinion] += 1
 
                 comment = {
                     "indentation": indentation,
                     "username": username,
                     "timestamp": timestamp,
-                    "text": text.strip(),
+                    "text": comment_text,  
                     "opinion": opinion,
-                    "reply_to": None  
+                    "reply_to": None
                 }
 
                 current_section["participants"].add(username)
@@ -438,12 +530,7 @@ def process_wiki_talk_page(html_content):
 
             stack.append(i)
 
-            logger.debug(f"[{i}] {comment['username']} (indent={indent}) -> {comment['reply_to']}")
-
     return sections
-
-
-
 
 
 def build_discussion_graph_from_sections(sections):
@@ -529,103 +616,15 @@ def extract_main_content(soup, url):
             content_data.append({
                 "type": "talk_page",
                 "sections": talk_page_data,
-                "discussion_graph": discussion_graph  
+                "discussion_graph": discussion_graph
             })
         else:
             logger.warning("No sections found in talk page")
     else:
         logger.info("Not a talk page, skipping discussion processing")
-        logger.info(f"Talk indicators checked: {talk_indicators}")
-        logger.info(f"URL: {url}")
-        logger.info(f"Decoded URL: {decoded_url}")
 
     return content_data
 
-def extract_discussion_graph(soup, url):
- 
-    content_div = soup.find("div", class_="mw-parser-output")
-    if not content_div:
-        logger.warning("Could not find content div with class 'mw-parser-output'")
-        return {"nodes": [], "links": []}
-    
-    comment_elements = content_div.select("[data-mw-comment-start], [id^='c-'], dl dd, dl dt")
-    logger.info(f"Found {len(comment_elements)} potential comment elements")
-    
-    comments = []
-    users = set()
-    
-    for element in comment_elements:
-        text = element.get_text(strip=True)
-        if not text or len(text) < 10:
-            continue
-        
-        comment_html = str(element)
-        username, timestamp = extract_user_and_timestamp(comment_html)
-        
-        if not username:
-            if element.has_attr('id') and element['id'].startswith('c-'):
-                id_parts = element['id'].split('-')
-                if len(id_parts) > 1:
-                    username = id_parts[1]
-                    timestamp_elem = element.select_one('a.ext-discussiontools-init-timestamplink')
-                    if timestamp_elem:
-                        timestamp = timestamp_elem.get_text(strip=True)
-        
-        if username:
-            indentation = 0
-            parent_element = element.parent
-            while parent_element:
-                if parent_element.name == 'dl':
-                    indentation += 1
-                parent_element = parent_element.parent
-            
-            if indentation == 0 and text.startswith(':'):
-                indentation = len(re.match(r'^(:+)', text).group(1))
-            
-            users.add(username)
-
-            reply_to_username = extract_reply_to_from_id(element.get('id', ""))
-            if reply_to_username and reply_to_username != username:
-                users.add(reply_to_username)
-
-            comments.append({
-                "id": len(comments),
-                "username": username,
-                "timestamp": timestamp if timestamp else "",
-                "indentation": indentation,
-                "element_id": element.get('id', ""),
-                "parent_id": None  
-            })
-            logger.info(f"Found comment by '{username}' with indentation {indentation}")
-    
-    conversation_tree = []
-    comment_stack = []
-    
-    for comment in comments:
-        indentation = comment["indentation"]
-        
-        while comment_stack and comment_stack[-1]["indentation"] >= indentation:
-            comment_stack.pop()
-        
-        if comment_stack:
-            parent_comment = comment_stack[-1]
-            comment["parent_id"] = parent_comment["id"]
-            conversation_tree.append({
-                "source": comment["username"],
-                "target": parent_comment["username"],
-                "value": 1   
-            })
-            logger.info(f"Comment by '{comment['username']}' is a reply to '{parent_comment['username']}'")
-        
-        comment_stack.append(comment)
-    
-    nodes = [{"id": user, "name": user, "group": 1} for user in users]
-    links = conversation_tree
-    
-    return {
-        "nodes": nodes,
-        "links": links
-    }
 
 @router.post("/convert-wikipedia-to-txt")
 async def convert_to_txt(request: Request):
@@ -654,6 +653,12 @@ async def convert_to_txt(request: Request):
     for comment in selected_section["comments"]:
         try:
             timestamp = comment["timestamp"]
+            username = comment["username"]  
+            
+            text = comment["text"]
+            
+            text = clean_comment_text_for_txt(text)
+            
             timestamp_match_he = re.match(r"(\d+):(\d+), (\d+) ב([א-ת]+) (\d+)", timestamp)
             timestamp_match_en = re.match(r"(\d+):(\d+), (\d+) ([A-Za-z]+) (\d+)", timestamp)
             timestamp_match_alt = re.match(r"(\d+):(\d+), (\d+)/(\d+)/(\d+)", timestamp)
@@ -689,9 +694,13 @@ async def convert_to_txt(request: Request):
 
             whatsapp_time = f"{hour.zfill(2)}:{minute.zfill(2)}:00"
             whatsapp_timestamp = f"[{whatsapp_date}, {whatsapp_time}]"
-            line = f"{whatsapp_timestamp} {comment['username']}: {comment['text']}"
-        except Exception:
-            line = f"[01/01/2000, 12:00:00] {comment.get('username', 'Unknown')}: {comment.get('text', '')}"
+            
+            line = f"{whatsapp_timestamp} {username}: {text}"
+            
+        except Exception as e:
+            username = comment.get('username', 'Unknown')
+            text = comment.get('text', '')
+            line = f"[01/01/2000, 12:00:00] {username}: {text}"
 
         txt_lines.append(line)
 
@@ -711,79 +720,23 @@ async def convert_to_txt(request: Request):
     }
 
 
-def extract_massages(file_content, platform="whatsapp", limit_type="first", limit=None, min_length=1, max_length=10000):
+def clean_comment_text_for_txt(text):
+ 
+    if not text:
+        return ""
+    
+    text = re.sub(r'[א-תA-Za-z0-9_\-\s]{2,50}?-שיחה\s*‏?\s*\d{1,2}[:\.]\d{2}.*?\d{4}.*?תגובה\s*$', '', text)
+    text = re.sub(r'[a-zA-Z0-9_\-\s]{2,50}?-talk\s*‏?\s*\d{1,2}[:\.]\d{2}.*?\d{4}.*?$', '', text)
+    
+    text = re.sub(r'\s*תגובה\s*$', '', text)
+    
+    text = re.sub(r'‏', '', text) 
+    
+    text = re.sub(r'\s+', ' ', text).strip()
+    
+    return text
 
-    messages = []
-    
-    lines = file_content.strip().split('\n')
-    
-    for line in lines:
-        if platform == "whatsapp":
-            match = re.match(r"\[([\d/\.]+), ([\d:]+)\] ([^:]+): (.*)", line)
-            if match:
-                date, time, username, text = match.groups()
-                try:
-                    if '/' in date:
-                        day, month, year = date.split('/')
-                    elif '.' in date:
-                        day, month, year = date.split('.')
-                    else:
-                        continue
-                    
-                    hour, minute, second = time.split(':')
-                    timestamp = f"{day}/{month}/{year}, {hour}:{minute}:{second}"
-                    
-                    if min_length <= len(text) <= max_length:
-                        messages.append({
-                            "timestamp": timestamp,
-                            "user": username.strip(),
-                            "message": text.strip()
-                        })
-                except:
-                    continue
-        
-        elif platform == "wikipedia":
-            match_with_tilde = re.match(r"\[([\d/\.]+), ([\d:]+)\] ~ ([^:]+): (.*)", line)
-            match_without_tilde = re.match(r"\[([\d/\.]+), ([\d:]+)\] ([^:]+): (.*)", line)
-            
-            if match_with_tilde:
-                date, time, username, text = match_with_tilde.groups()
-            elif match_without_tilde:
-                date, time, username, text = match_without_tilde.groups()
-            else:
-                continue
-            try:
-                if '/' in date:
-                    day, month, year = date.split('/')
-                elif '.' in date:
-                    day, month, year = date.split('.')
-                else:
-                    continue
-                
-                hour, minute, second = time.split(':')
-                timestamp = f"{day}/{month}/{year}, {hour}:{minute}:{second}"
-                
-                if min_length <= len(text) <= max_length:
-                    messages.append({
-                        "timestamp": timestamp,
-                        "user": username.strip(),
-                        "message": text.strip()
-                    })
-            except:
-                continue
-    
-    if limit and limit > 0:
-        if limit_type == "first":
-            messages = messages[:limit]
-        elif limit_type == "last":
-            messages = messages[-limit:]
-        elif limit_type == "random":
-            import random
-            random.shuffle(messages)
-            messages = messages[:limit]
-    
-    print(f" Found {len(messages)} messages in {platform} format.")
-    return messages
+
 
 @router.get("/analyze/wikipedia-communities/{filename}")
 async def analyze_communities(
