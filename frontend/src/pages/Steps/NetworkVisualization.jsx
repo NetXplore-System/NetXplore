@@ -139,13 +139,7 @@ const NetworkVisualization = ({
     importantNodesThreshold: 0.5,
   });
 
-  const reverseLinksDirection = (links) => {
-    return links.map(link => ({
-      ...link,
-      source: link.target,
-      target: link.source
-    }));
-  };
+  
 
   useEffect(() => {
     if (!networkData && uploadedFileName) {
@@ -177,11 +171,6 @@ const NetworkVisualization = ({
     setFilteredNodes(filtered);
   
     let linksToFilter = networkData.links;
-    
-    // Reverse arrow direction for directed graphs
-    if (isDirectedGraph) {
-      linksToFilter = reverseLinksDirection(networkData.links);
-    }
   
     const filteredEdges = linksToFilter.filter(
       (link) =>

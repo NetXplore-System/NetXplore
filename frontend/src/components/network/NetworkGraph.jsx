@@ -146,69 +146,30 @@ const NetworkGraph = ({
         }}
         linkCanvasObject={(link, ctx, globalScale) => {
           if (!link.source || !link.target) return;
-          
+45
+          const sourceX = link.source.x;
+          const sourceY = link.source.y;
+          const targetX = link.target.x;
+          const targetY = link.target.y;
+
+          const dx = targetX - sourceX;
+          const dy = targetY - sourceY;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist === 0) return;
+
           ctx.beginPath();
-          ctx.moveTo(link.source.x, link.source.y);
-          ctx.lineTo(link.target.x, link.target.y);
+          ctx.moveTo(sourceX, sourceY);
+          ctx.lineTo(targetX, targetY);
           ctx.strokeStyle = "gray";
           ctx.lineWidth = Math.sqrt(link.weight || 1);
           ctx.stroke();
-          
-          let labelX, labelY;
-          
-          if (isDirectedGraph) {
-            const dx = link.target.x - link.source.x;
-            const dy = link.target.y - link.source.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            
-            if (distance > 0) {
-              const targetRadius =
-                link.target.size ||
-                (selectedMetric === "PageRank Centrality"
-                  ? Math.max(10, link.target.pagerank * 500)
-                  : selectedMetric === "Eigenvector Centrality"
-                  ? Math.max(10, link.target.eigenvector * 60)
-                  : selectedMetric === "Closeness Centrality"
-                  ? Math.max(10, link.target.closeness * 50)
-                  : selectedMetric === "Betweenness Centrality"
-                  ? Math.max(10, link.target.betweenness * 80)
-                  : selectedMetric === "Degree Centrality"
-                  ? Math.max(10, link.target.degree * 80)
-                  : 20);
-              
-              const t = 0.75;
-              const baseX = link.source.x + (dx * t);
-              const baseY = link.source.y + (dy * t);
-              
-              const offsetDistance = 15 / globalScale;
-              const perpX = (-dy / distance) * offsetDistance;
-              const perpY = (dx / distance) * offsetDistance;
-              
-              labelX = baseX + perpX;
-              labelY = baseY + perpY;
-            } else {
-              labelX = (link.source.x + link.target.x) / 2;
-              labelY = (link.source.y + link.target.y) / 2;
-            }
-          } else {
-            labelX = (link.source.x + link.target.x) / 2;
-            labelY = (link.source.y + link.target.y) / 2;
-          }
-          
-          const fontSize = 10 / globalScale;
-          ctx.save();
-          ctx.font = `bold ${fontSize}px Sans-Serif`;
-          ctx.fillStyle = "#333";
-          ctx.strokeStyle = "white";
-          ctx.lineWidth = 2;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          
-          ctx.strokeText(link.weight || "1", labelX, labelY);
-          ctx.fillText(link.weight || "1", labelX, labelY);
-          ctx.restore();
 
           if (isDirectedGraph) {
+            // Reduced arrowhead size
+            const minArrowLength = 5;
+            const minArrowWidth = 2.5;
+            const arrowLength = Math.max(minArrowLength, 8 / globalScale);
+            const arrowWidth = Math.max(minArrowWidth, 4 / globalScale);
             const targetRadius =
               link.target.size ||
               (selectedMetric === "PageRank Centrality"
@@ -223,29 +184,61 @@ const NetworkGraph = ({
                 ? Math.max(10, link.target.degree * 80)
                 : 20);
 
-            const dx = link.target.x - link.source.x;
-            const dy = link.target.y - link.source.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-
-            if (dist === 0) return;
-
-            const arrowX = link.target.x - (dx * targetRadius) / dist;
-            const arrowY = link.target.y - (dy * targetRadius) / dist;
-
+            // Arrowhead tip
+            const arrowTipX = targetX - (dx * targetRadius) / dist;
+            const arrowTipY = targetY - (dy * targetRadius) / dist;
             const angle = Math.atan2(dy, dx);
-            const arrowLength = 10 / globalScale;
-            const arrowWidth = 5 / globalScale;
+            const arrowAngle = Math.PI / 8;
+            const arrowX1 = arrowTipX - arrowLength * Math.cos(angle - arrowAngle);
+            const arrowY1 = arrowTipY - arrowLength * Math.sin(angle - arrowAngle);
+            const arrowX2 = arrowTipX - arrowLength * Math.cos(angle + arrowAngle);
+            const arrowY2 = arrowTipY - arrowLength * Math.sin(angle + arrowAngle);
 
             ctx.save();
-            ctx.translate(arrowX, arrowY);
-            ctx.rotate(angle);
             ctx.beginPath();
-            ctx.moveTo(0, 0);
-            ctx.lineTo(-arrowLength, arrowWidth);
-            ctx.lineTo(-arrowLength, -arrowWidth);
+            ctx.moveTo(arrowTipX, arrowTipY);
+            ctx.lineTo(arrowX1, arrowY1);
+            ctx.lineTo(arrowX2, arrowY2);
             ctx.closePath();
             ctx.fillStyle = "gray";
             ctx.fill();
+            ctx.restore();
+
+            // Place label just before the arrowhead, on the line
+            const labelDistFromTip = arrowLength + 6; // px before arrow tip
+            let labelX = arrowTipX - (dx / dist) * labelDistFromTip;
+            let labelY = arrowTipY - (dy / dist) * labelDistFromTip;
+            // Optionally, offset slightly perpendicular for clarity
+            const perpX = -dy / dist;
+            const perpY = dx / dist;
+            labelX += perpX * 2; // small offset
+            labelY += perpY * 2;
+
+            const fontSize = 10 / globalScale;
+            ctx.save();
+            ctx.font = `bold ${fontSize}px Sans-Serif`;
+            ctx.fillStyle = "#333";
+            ctx.strokeStyle = "white";
+            ctx.lineWidth = 2;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.strokeText(link.weight || "1", labelX, labelY);
+            ctx.fillText(link.weight || "1", labelX, labelY);
+            ctx.restore();
+          } else {
+            // Undirected: label at midpoint
+            const labelX = (sourceX + targetX) / 2;
+            const labelY = (sourceY + targetY) / 2;
+            const fontSize = 10 / globalScale;
+            ctx.save();
+            ctx.font = `bold ${fontSize}px Sans-Serif`;
+            ctx.fillStyle = "#333";
+            ctx.strokeStyle = "white";
+            ctx.lineWidth = 2;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.strokeText(link.weight || "1", labelX, labelY);
+            ctx.fillText(link.weight || "1", labelX, labelY);
             ctx.restore();
           }
         }}

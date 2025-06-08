@@ -95,6 +95,7 @@ const ComparativeAnalysis = ({
             history: false,
             messageCount: 3,
             normalized: false,
+            messageWeights: [0.5, 0.3, 0.2],
           },
         });
       }
