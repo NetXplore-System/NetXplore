@@ -1312,8 +1312,8 @@ const NetworkVisualization = ({
     setDiameterValue(0);
     setStrongConnectionsActive(false);
     setHighlightCentralNodes(false);
-    setFilteredNodes([]);
-    setFilteredLinks([]);
+    setFilteredNodes([]); 
+    setFilteredLinks([]); 
     setShowOnlyIntraCommunityLinks(false);
     setActivityFilterEnabled(false);
     setActivityThreshold(2);
@@ -1347,8 +1347,35 @@ const NetworkVisualization = ({
       importantNodesThreshold: 0.5,
     });
 
+    setTimeout(() => {
+      if (forceGraphRef.current) {
+        try {
+         
+          if (typeof forceGraphRef.current.d3Force === 'function') {
+            const nodeCount = originalNetworkData.nodes.length;
+          
+            const chargeForce = forceGraphRef.current.d3Force('charge');
+            if (chargeForce && typeof chargeForce.strength === 'function') {
+              chargeForce.strength(-180 * nodeCount); 
+            }
+          
+            const linkForce = forceGraphRef.current.d3Force('link');
+            if (linkForce && typeof linkForce.distance === 'function') {
+              linkForce.distance(80 + nodeCount * 3); 
+            }
+          }
+          
+          forceGraphRef.current.d3ReheatSimulation();
+          forceGraphRef.current.zoomToFit(400);
+        } catch (error) {
+          console.error("Error resetting forces:", error);
+        }
+      }
+    }, 200);
+
     toast.success("Network reset to original state.");
   };
+
 
   return (
     <Card className="network-visualization-card">
