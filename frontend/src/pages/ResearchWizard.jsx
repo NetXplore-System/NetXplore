@@ -566,20 +566,6 @@ const ResearchWizard = () => {
     }
   };
 
-  const handleMessageWeightChange = (index, delta) => {
-    const newMessageWeight = [...formData.messageWeight];
-    newMessageWeight[index] = Math.max(0.1, Math.min(1.0, newMessageWeight[index] + delta));
-
-    const sum = newMessageWeight.reduce((acc, val) => acc + val, 0);
-    if (sum > 0) {
-      const normalizedWeights = newMessageWeight.map(weight => weight / sum);
-      setFormData({
-        ...formData,
-        messageWeight: normalizedWeights
-      });
-    }
-  };
-
   const handleSaveResearch = async () => {
     const params = filters.buildNetworkFilterParams();
     const id = currentUser?.id;
