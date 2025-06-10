@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import { toast } from "sonner";
 import {
   Button,
@@ -25,7 +31,7 @@ import {
   FileEarmark,
   ChatText,
 } from "react-bootstrap-icons";
-import { GrConfigure } from "react-icons/gr"; 
+import { GrConfigure } from "react-icons/gr";
 import DiscussionSectionPicker from "../filters/DiscussionSectionPicker";
 import "../../styles/ComparativeAnalysis.css";
 
@@ -52,12 +58,14 @@ const ComparisonItem = ({
   selectedSection,
   setSelectedSection,
   handleFetchWikipedia,
-  setComparisonNetworkData
+  setComparisonNetworkData,
 }) => {
   const [showFilters, setShowFilters] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [isLoadingWikipedia, setIsLoadingWikipedia] = useState(false);
   const [comparisonWikiContent, setComparisonWikiContent] = useState(null);
+  const [hasOpenedOnce, setHasOpenedOnce] = useState(false);
+  const [activeAccordionKey, setActiveAccordionKey] = useState(null);
   const [comparisonSelectedSection, setComparisonSelectedSection] =
     useState(null);
   const [localFilterSettings, setLocalFilterSettings] = useState({
@@ -79,8 +87,8 @@ const ComparisonItem = ({
       history: false,
       messageCount: 3,
       normalized: false,
-      messageWeights: [0.5, 0.3, 0.2], 
-    }
+      messageWeights: [0.5, 0.3, 0.2],
+    },
   });
 
   const accordionRef = useRef(null);
@@ -91,68 +99,129 @@ const ComparisonItem = ({
     }
   }, [filterSettings]);
 
-  const handleFilterChange = useCallback((e) => {
-    const { name, value, type, checked } = e.target;
+  const handleFilterChange = useCallback(
+    (e) => {
+      const { name, value, type, checked } = e.target;
 
-    if (name.includes(".")) {
-      const [parent, child] = name.split(".");
-      let newValue;
-      if (type === "checkbox") {
-        newValue = checked;
-      } else if (type === "number") {
-        newValue = value === "" ? "" : Number(value);
-      } else {
-        newValue = value;
-      }
-      let updatedSettings;
-      if (name === "config.directed" && !newValue) {
-        updatedSettings = {
-          ...localFilterSettings,
-          config: {
-            ...localFilterSettings.config,
-            directed: newValue,
-            history: false,
-            normalized: false,
-          },
-        };
-      } else if (name === "config.messageCount") {
-        const messageCount = Number(newValue);
-        let newWeights;
-        if (messageCount === 2) {
-          newWeights = [0.6, 0.4]; 
-        } else if (messageCount === 3) {
-          newWeights = [0.5, 0.3, 0.2]; 
+      if (name.includes(".")) {
+        const [parent, child] = name.split(".");
+        let newValue;
+        if (type === "checkbox") {
+          newValue = checked;
+        } else if (type === "number") {
+          newValue = value === "" ? "" : Number(value);
         } else {
-          newWeights = localFilterSettings.config?.messageWeights || [0.5, 0.3, 0.2];
+          newValue = value;
         }
-        
-        updatedSettings = {
-          ...localFilterSettings,
-          [parent]: {
-            ...localFilterSettings[parent],
-            [child]: newValue,
-            messageWeights: newWeights,
-          },
-        };
-      } else {
-        updatedSettings = {
-          ...localFilterSettings,
-          [parent]: {
-            ...localFilterSettings[parent],
-            [child]: newValue,
-          },
-        };
-      }
-      
-      setLocalFilterSettings(updatedSettings);
+        let updatedSettings;
+        if (name === "config.directed" && !newValue) {
+          updatedSettings = {
+            ...localFilterSettings,
+            config: {
+              ...localFilterSettings.config,
+              directed: newValue,
+              history: false,
+              normalized: false,
+            },
+          };
+        } else if (name === "config.messageCount") {
+          const messageCount = Number(newValue);
+          let newWeights;
+          if (messageCount === 2) {
+            newWeights = [0.6, 0.4];
+          } else if (messageCount === 3) {
+            newWeights = [0.5, 0.3, 0.2];
+          } else {
+            newWeights = localFilterSettings.config?.messageWeights || [
+              0.5, 0.3, 0.2,
+            ];
+          }
 
-      if (onFilterChange) {
-        onFilterChange(index, updatedSettings);
+          updatedSettings = {
+            ...localFilterSettings,
+            [parent]: {
+              ...localFilterSettings[parent],
+              [child]: newValue,
+              messageWeights: newWeights,
+            },
+          };
+        } else {
+          updatedSettings = {
+            ...localFilterSettings,
+            [parent]: {
+              ...localFilterSettings[parent],
+              [child]: newValue,
+            },
+          };
+        }
+
+        setLocalFilterSettings(updatedSettings);
+
+        if (onFilterChange) {
+          onFilterChange(index, updatedSettings);
+        }
+      } else {
+        const updatedSettings = {
+          ...localFilterSettings,
+          [name]: type === "checkbox" ? checked : value,
+        };
+
+        setLocalFilterSettings(updatedSettings);
+
+        if (onFilterChange) {
+          onFilterChange(index, updatedSettings);
+        }
       }
-    } else {
+    },
+    [localFilterSettings, onFilterChange, index]
+  );
+
+  const handleMessageWeightChange = useCallback(
+    (weightIndex, delta) => {
+      const currentWeights = [
+        ...(localFilterSettings.config?.messageWeights || [0.5, 0.3, 0.2]),
+      ];
+
+      currentWeights[weightIndex] = Math.max(
+        0.1,
+        Math.min(1.0, currentWeights[weightIndex] + delta)
+      );
+
+      let finalWeights;
+
+      if (weightIndex === 0) {
+        const sum = currentWeights.reduce((acc, val) => acc + val, 0);
+        if (sum > 0) {
+          finalWeights = currentWeights.map((weight) => weight / sum);
+        } else {
+          finalWeights = currentWeights;
+        }
+      } else {
+        const firstWeight = currentWeights[0];
+        const remainingWeights = currentWeights.slice(1);
+        const remainingSum = remainingWeights.reduce(
+          (acc, val) => acc + val,
+          0
+        );
+
+        if (remainingSum > 0) {
+          const targetRemainingSum = 1.0 - firstWeight;
+          const normalizedRemainingWeights = remainingWeights.map(
+            (weight) => (weight / remainingSum) * targetRemainingSum
+          );
+
+          finalWeights = [firstWeight, ...normalizedRemainingWeights];
+        } else {
+          finalWeights = currentWeights;
+        }
+      }
+
       const updatedSettings = {
         ...localFilterSettings,
-        [name]: type === "checkbox" ? checked : value,
+        config: {
+          ...localFilterSettings.config,
+          messageWeights: finalWeights,
+        },
       };
 
       setLocalFilterSettings(updatedSettings);
@@ -160,54 +229,9 @@ const ComparisonItem = ({
       if (onFilterChange) {
         onFilterChange(index, updatedSettings);
       }
-    }
-  }, [localFilterSettings, onFilterChange, index]);
-
-  const handleMessageWeightChange = useCallback((weightIndex, delta) => {
-    const currentWeights = [...(localFilterSettings.config?.messageWeights || [0.5, 0.3, 0.2])];
-    
-    currentWeights[weightIndex] = Math.max(0.1, Math.min(1.0, currentWeights[weightIndex] + delta));
-    
-    let finalWeights;
-    
-    if (weightIndex === 0) {
-      const sum = currentWeights.reduce((acc, val) => acc + val, 0);
-      if (sum > 0) {
-        finalWeights = currentWeights.map(weight => weight / sum);
-      } else {
-        finalWeights = currentWeights;
-      }
-    } else {
-      const firstWeight = currentWeights[0];
-      const remainingWeights = currentWeights.slice(1);
-      const remainingSum = remainingWeights.reduce((acc, val) => acc + val, 0);
-      
-      if (remainingSum > 0) {
-        const targetRemainingSum = 1.0 - firstWeight;
-        const normalizedRemainingWeights = remainingWeights.map(weight => 
-          (weight / remainingSum) * targetRemainingSum
-        );
-        
-        finalWeights = [firstWeight, ...normalizedRemainingWeights];
-      } else {
-        finalWeights = currentWeights;
-      }
-    }
-    
-    const updatedSettings = {
-      ...localFilterSettings,
-      config: {
-        ...localFilterSettings.config,
-        messageWeights: finalWeights,
-      },
-    };
-    
-    setLocalFilterSettings(updatedSettings);
-    
-    if (onFilterChange) {
-      onFilterChange(index, updatedSettings);
-    }
-  }, [localFilterSettings, onFilterChange, index]);
+    },
+    [localFilterSettings, onFilterChange, index]
+  );
 
   const toggleFilters = useCallback(() => {
     setShowFilters(!showFilters);
@@ -224,7 +248,14 @@ const ComparisonItem = ({
         comparisonData?.isWikipediaData || platform === "wikipedia";
       onAnalyzeNetwork(index, localFilterSettings, isWikipediaData);
     }
-  }, [comparisonData, comparisonFile, platform, onAnalyzeNetwork, index, localFilterSettings]);
+  }, [
+    comparisonData,
+    comparisonFile,
+    platform,
+    onAnalyzeNetwork,
+    index,
+    localFilterSettings,
+  ]);
 
   const resetFilters = useCallback(() => {
     const defaultSettings = {
@@ -269,6 +300,12 @@ const ComparisonItem = ({
   }, [onFilterChange, index]);
 
   const handleUseOriginalFile = () => {
+    setShowFilters(true);
+    if (!hasOpenedOnce) {
+      setActiveAccordionKey("0");
+      setHasOpenedOnce(true);
+    }
+
     if (platform === "wikipedia") {
       const updatedData = {
         id: index,
@@ -289,20 +326,6 @@ const ComparisonItem = ({
     } else {
       useOriginalFile(index);
     }
-
-    setTimeout(() => {
-      if (accordionRef.current) {
-        const accordionButton =
-          accordionRef.current.querySelector(".accordion-button");
-        if (
-          accordionButton &&
-          !accordionButton.classList.contains("collapsed")
-        ) {
-          accordionButton.click();
-        }
-      }
-      setShowFilters(true);
-    }, 100);
   };
 
   const handleLoadNewWikipediaUrl = async () => {
@@ -528,45 +551,53 @@ const ComparisonItem = ({
     }
   };
 
-  const currentWeights = useMemo(() => 
-    localFilterSettings.config?.messageWeights || [0.2, 0.3, 0.5], 
+  const currentWeights = useMemo(
+    () => localFilterSettings.config?.messageWeights || [0.2, 0.3, 0.5],
     [localFilterSettings.config?.messageWeights]
   );
 
-  const messageCount = useMemo(() => 
-    localFilterSettings.config?.messageCount || 3, 
+  const messageCount = useMemo(
+    () => localFilterSettings.config?.messageCount || 3,
     [localFilterSettings.config?.messageCount]
   );
 
-  const isHistoryEnabled = useMemo(() => 
-    localFilterSettings.config?.history && localFilterSettings.config?.directed, 
+  const isHistoryEnabled = useMemo(
+    () =>
+      localFilterSettings.config?.history &&
+      localFilterSettings.config?.directed,
     [localFilterSettings.config?.history, localFilterSettings.config?.directed]
   );
 
-  const weightDistributionSummary = useMemo(() => 
-    currentWeights
-      .slice(0, messageCount)
-      .map((w, i) => `Message ${i + 1}: ${w.toFixed(1)}`)
-      .join(", "),
+  const weightDistributionSummary = useMemo(
+    () =>
+      currentWeights
+        .slice(0, messageCount)
+        .map((w, i) => `Message ${i + 1}: ${w.toFixed(1)}`)
+        .join(", "),
     [currentWeights, messageCount]
   );
 
-  const weightSum = useMemo(() => 
-    currentWeights.slice(0, messageCount).reduce((acc, val) => acc + val, 0),
+  const weightSum = useMemo(
+    () =>
+      currentWeights.slice(0, messageCount).reduce((acc, val) => acc + val, 0),
     [currentWeights, messageCount]
   );
 
-  const isWeightSumValid = useMemo(() => 
-    Math.abs(weightSum - 1.0) < 0.01, 
+  const isWeightSumValid = useMemo(
+    () => Math.abs(weightSum - 1.0) < 0.01,
     [weightSum]
   );
 
   const weightSumWarning = useMemo(() => {
     if (weightSum < 0.99) {
-      return `⚠️ Warning: Weight sum is ${weightSum.toFixed(3)} (should be 1.0)`;
+      return `⚠️ Warning: Weight sum is ${weightSum.toFixed(
+        3
+      )} (should be 1.0)`;
     }
     if (weightSum > 1.01) {
-      return `⚠️ Warning: Weight sum is ${weightSum.toFixed(3)} (should be 1.0)`;
+      return `⚠️ Warning: Weight sum is ${weightSum.toFixed(
+        3
+      )} (should be 1.0)`;
     }
     return null;
   }, [weightSum]);
@@ -593,7 +624,7 @@ const ComparisonItem = ({
     comparisonData,
     selectedSection,
     comparisonSelectedSection,
-    comparisonWikiContent
+    comparisonWikiContent,
   ]);
 
   const hasValidData = useMemo(() => {
@@ -609,12 +640,7 @@ const ComparisonItem = ({
       comparisonFile ||
       comparisonData?.isOriginalFile
     );
-  }, [
-    platform,
-    comparisonWikiContent,
-    comparisonData,
-    comparisonFile
-  ]);
+  }, [platform, comparisonWikiContent, comparisonData, comparisonFile]);
 
   return (
     <Card
@@ -702,21 +728,21 @@ const ComparisonItem = ({
                 {(comparisonWikiContent ||
                   comparisonData?.wikiContent ||
                   comparisonData?.isWikipediaData) && (
-                    <div className="mb-2">
-                      <Button
-                        variant="light"
-                        size="sm"
-                        onClick={() => setShowPicker(true)}
-                        className="w-100"
-                      >
-                        <ChatText className="me-1" size={14} />
-                        {comparisonSelectedSection ||
-                          comparisonData?.selectedSection
-                          ? "Change Discussion Section"
-                          : "Select Discussion Section"}
-                      </Button>
-                    </div>
-                  )}
+                  <div className="mb-2">
+                    <Button
+                      variant="light"
+                      size="sm"
+                      onClick={() => setShowPicker(true)}
+                      className="w-100"
+                    >
+                      <ChatText className="me-1" size={14} />
+                      {comparisonSelectedSection ||
+                      comparisonData?.selectedSection
+                        ? "Change Discussion Section"
+                        : "Select Discussion Section"}
+                    </Button>
+                  </div>
+                )}
 
                 {hasValidData && (
                   <div className="d-flex align-items-center gap-2">
@@ -890,7 +916,8 @@ const ComparisonItem = ({
 
                       try {
                         const response = await fetch(
-                          `${import.meta.env.VITE_API_URL
+                          `${
+                            import.meta.env.VITE_API_URL
                           }/convert-wikipedia-to-txt`,
                           {
                             method: "POST",
@@ -914,7 +941,8 @@ const ComparisonItem = ({
                             });
 
                             const retryResponse = await fetch(
-                              `${import.meta.env.VITE_API_URL
+                              `${
+                                import.meta.env.VITE_API_URL
                               }/convert-wikipedia-to-txt`,
                               {
                                 method: "POST",
@@ -930,7 +958,7 @@ const ComparisonItem = ({
                             if (!retryResponse.ok) {
                               throw new Error(
                                 retryData.detail ||
-                                "Failed to convert section to TXT"
+                                  "Failed to convert section to TXT"
                               );
                             }
                             return retryData;
@@ -972,7 +1000,8 @@ const ComparisonItem = ({
         {hasValidData && (
           <Accordion
             className="mt-3"
-            defaultActiveKey={comparisonData?.isOriginalFile ? "0" : ""}
+            activeKey={activeAccordionKey}
+            onSelect={(key) => setActiveAccordionKey(key)}
             ref={accordionRef}
           >
             <Accordion.Item eventKey="0">
@@ -1176,7 +1205,10 @@ const ComparisonItem = ({
                             },
                           })
                         }
-                        disabled={!localFilterSettings.config?.history || !localFilterSettings?.config?.directed}
+                        disabled={
+                          !localFilterSettings.config?.history ||
+                          !localFilterSettings?.config?.directed
+                        }
                       >
                         <option value="3">3</option>
                         <option value="2">2</option>
@@ -1202,11 +1234,13 @@ const ComparisonItem = ({
                   <Row className="mb-3">
                     <Col md={12}>
                       <h6 className="filter-section-title">
-                        <GrConfigure className="me-2" /> Message Weight Distribution
+                        <GrConfigure className="me-2" /> Message Weight
+                        Distribution
                       </h6>
                       <small className="text-muted">
-                        Adjust the influence of each previous message in the ranking algorithm. 
-                        Weights are automatically normalized to sum to 1.0.
+                        Adjust the influence of each previous message in the
+                        ranking algorithm. Weights are automatically normalized
+                        to sum to 1.0.
                       </small>
                     </Col>
                     {currentWeights
@@ -1215,28 +1249,36 @@ const ComparisonItem = ({
                         <Col md={4} key={weightIndex}>
                           <Form.Group className="mb-3">
                             <Form.Label>
-                              {weightIndex === 0 
+                              {weightIndex === 0
                                 ? "Most Recent Message"
-                                : weightIndex === 1 
+                                : weightIndex === 1
                                 ? "2nd Previous Message"
-                                : "3rd Previous Message"} Weight
+                                : "3rd Previous Message"}{" "}
+                              Weight
                             </Form.Label>
                             <div className="d-flex align-items-center">
                               <Button
                                 variant="outline-secondary"
                                 size="sm"
-                                onClick={() => handleMessageWeightChange(weightIndex, -0.05)}
+                                onClick={() =>
+                                  handleMessageWeightChange(weightIndex, -0.05)
+                                }
                                 disabled={weight <= 0.1}
                               >
                                 -
                               </Button>
-                              <div className="mx-3 text-center" style={{ minWidth: "60px" }}>
+                              <div
+                                className="mx-3 text-center"
+                                style={{ minWidth: "60px" }}
+                              >
                                 <strong>{weight.toFixed(1)}</strong>
                               </div>
                               <Button
                                 variant="outline-secondary"
                                 size="sm"
-                                onClick={() => handleMessageWeightChange(weightIndex, 0.05)}
+                                onClick={() =>
+                                  handleMessageWeightChange(weightIndex, 0.05)
+                                }
                                 disabled={weight >= 0.9}
                               >
                                 +
@@ -1246,9 +1288,14 @@ const ComparisonItem = ({
                         </Col>
                       ))}
                     <Col md={12}>
-                      <div className={`alert ${isWeightSumValid ? 'alert-info' : 'alert-warning'}`}>
+                      <div
+                        className={`alert ${
+                          isWeightSumValid ? "alert-info" : "alert-warning"
+                        }`}
+                      >
                         <InfoCircle size={16} className="me-2" />
-                        <strong>Weight Distribution:</strong> {weightDistributionSummary}
+                        <strong>Weight Distribution:</strong>{" "}
+                        {weightDistributionSummary}
                         <br />
                         <small>
                           Sum: {weightSum.toFixed(3)}
@@ -1265,13 +1312,13 @@ const ComparisonItem = ({
 
                 {(comparisonData?.isOriginalFile ||
                   comparisonData?.isWikipediaData) && (
-                    <div className="alert alert-info mt-3">
-                      <InfoCircle size={16} className="me-2" />
-                      {platform === "wikipedia"
-                        ? "You're using Wikipedia data. Apply different filters and click 'Analyze' to create a comparison."
-                        : "You're using the original file. Apply different filters and click 'Analyze' to create a comparison."}
-                    </div>
-                  )}
+                  <div className="alert alert-info mt-3">
+                    <InfoCircle size={16} className="me-2" />
+                    {platform === "wikipedia"
+                      ? "You're using Wikipedia data. Apply different filters and click 'Analyze' to create a comparison."
+                      : "You're using the original file. Apply different filters and click 'Analyze' to create a comparison."}
+                  </div>
+                )}
               </Accordion.Body>
             </Accordion.Item>
           </Accordion>

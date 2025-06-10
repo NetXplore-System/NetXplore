@@ -17,6 +17,7 @@ import { addToComparison } from "../../redux/images/imagesSlice";
 import {
   FileBarGraph,
   InfoCircle,
+  CameraFill,
   FileEarmarkCheck,
   Eye,
   EyeSlash,
@@ -224,27 +225,20 @@ const ComparisonMetrics = ({
                       <Card.Header className="d-flex justify-content-between align-items-center">
                         <h5 className="mb-0">Original Network</h5>
                         <OverlayTrigger
-                          placement="top"
-                          delay={{ show: 250, hide: 400 }}
+                          placement="bottom"
                           overlay={
-                            <Tooltip id={`capture-tooltip`}>
-                              Capture and save the current comparison
-                              visualization as an image
+                            <Tooltip id="tooltip-screenshot">
+                              Save this graph view as an image for the
+                              researcher report
                             </Tooltip>
                           }
                         >
                           <Button
-                            variant="outline-primary"
+                            variant="outline-secondary"
                             size="sm"
-                            onClick={(e) =>
-                              handleScreenshot(
-                                e,
-                                true,
-                                activeComparisonIndices.length
-                              )
-                            }
+                            onClick={handleScreenshot}
                           >
-                            <FileEarmarkCheck className="me-1" /> Capture
+                            <CameraFill />
                           </Button>
                         </OverlayTrigger>
                       </Card.Header>
@@ -280,29 +274,23 @@ const ComparisonMetrics = ({
                           </h5>
                           <div>
                             <OverlayTrigger
-                              placement="top"
-                              delay={{ show: 250, hide: 400 }}
+                              placement="bottom"
                               overlay={
-                                <Tooltip id={`capture-tooltip`}>
-                                  Capture and save the current comparison
-                                  visualization as an image
+                                <Tooltip id="tooltip-screenshot">
+                                  Save this graph view as an image for the
+                                  researcher report
                                 </Tooltip>
                               }
                             >
                               <Button
-                                variant="outline-primary"
+                                variant="outline-secondary"
                                 size="sm"
-                                onClick={(e) =>
-                                  handleScreenshot(
-                                    e,
-                                    true,
-                                    activeComparisonIndices.length
-                                  )
-                                }
+                                onClick={handleScreenshot}
                               >
-                                <FileEarmarkCheck className="me-1" /> Capture
+                                <CameraFill />
                               </Button>
                             </OverlayTrigger>
+
                             <Button
                               variant="outline-secondary"
                               size="sm"
@@ -338,7 +326,10 @@ const ComparisonMetrics = ({
                               comparisonMetric ? [comparisonMetric] : []
                             }
                             graphIndex={index}
-                            directed={comparisonFilterSettings[index]?.config?.directed || false}
+                            directed={
+                              comparisonFilterSettings[index]?.config
+                                ?.directed || false
+                            }
                           />
                         </Card.Body>
                       </Card>
@@ -488,12 +479,14 @@ const ComparisonMetrics = ({
                           </tr>
                           <tr>
                             <td>
-                              <strong>Common Nodes</strong>
+                              <strong>Overlapping Nodes</strong>
                               <OverlayTrigger
                                 placement="right"
                                 overlay={
                                   <Tooltip>
-                                    Users present in both networks
+                                    Participants found in both the original and
+                                    comparison networks. Helps identify
+                                    continuity or core users.
                                   </Tooltip>
                                 }
                               >
