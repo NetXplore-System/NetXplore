@@ -653,7 +653,7 @@ const ComparisonItem = ({
               <h5 className="mb-0">Comparison #{index + 1}</h5>
               {hasActiveFilters && (
                 <Badge bg="info" className="ms-2">
-                  {activeFilterCount}{" "}
+                  {activeFilterCount}
                   {activeFilterCount === 1 ? "filter" : "filters"}
                 </Badge>
               )}
@@ -1050,7 +1050,7 @@ const ComparisonItem = ({
                   </Col>
                   <Col md={3}>
                     <Form.Group className="mb-2">
-                      <Form.Label>Start Date</Form.Label>
+                      <Form.Label>Start Date (Optional)</Form.Label>
                       <Form.Control
                         type="date"
                         name="timeFrame.startDate"
@@ -1061,7 +1061,7 @@ const ComparisonItem = ({
                   </Col>
                   <Col md={3}>
                     <Form.Group className="mb-2">
-                      <Form.Label>Start Time</Form.Label>
+                      <Form.Label>Start Time (Optional)</Form.Label>
                       <Form.Control
                         type="time"
                         name="timeFrame.startTime"
@@ -1253,7 +1253,7 @@ const ComparisonItem = ({
                                 ? "Most Recent Message"
                                 : weightIndex === 1
                                 ? "2nd Previous Message"
-                                : "3rd Previous Message"}{" "}
+                                : "3rd Previous Message"}
                               Weight
                             </Form.Label>
                             <div className="d-flex align-items-center">
@@ -1294,7 +1294,7 @@ const ComparisonItem = ({
                         }`}
                       >
                         <InfoCircle size={16} className="me-2" />
-                        <strong>Weight Distribution:</strong>{" "}
+                        <strong>Weight Distribution:</strong>
                         {weightDistributionSummary}
                         <br />
                         <small>

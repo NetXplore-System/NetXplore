@@ -217,6 +217,13 @@ const ComparisonMetrics = ({
                 </div>
 
                 <Row>
+                  <div className="text-muted small m-3 d-flex align-items-center">
+                    <InfoCircle size={12} className="me-2" />
+                    To include network visualizations in research report,
+                    use the camera icon to capture each graph as currently
+                    displayed.
+                  </div>
+
                   <Col
                     md={activeComparisonIndices.length > 1 ? 12 : 6}
                     className="mb-4"
@@ -228,8 +235,9 @@ const ComparisonMetrics = ({
                           placement="bottom"
                           overlay={
                             <Tooltip id="tooltip-screenshot">
-                              Save this graph view as an image for the
-                              researcher report
+                              To include this network graph in your research
+                              report, use the camera icon to capture it exactly
+                              as displayed.
                             </Tooltip>
                           }
                         >
@@ -269,7 +277,7 @@ const ComparisonMetrics = ({
                       <Card className="graph-card">
                         <Card.Header className="d-flex justify-content-between align-items-center">
                           <h5 className="mb-0">
-                            Comparison #{index + 1}:{" "}
+                            Comparison #{index + 1}:
                             {comparisonData[index]?.name || ""}
                           </h5>
                           <div>
@@ -277,8 +285,9 @@ const ComparisonMetrics = ({
                               placement="bottom"
                               overlay={
                                 <Tooltip id="tooltip-screenshot">
-                                  Save this graph view as an image for the
-                                  researcher report
+                                  To include this network graph in your research
+                                  report, use the camera icon to capture it
+                                  exactly as displayed.
                                 </Tooltip>
                               }
                             >
@@ -375,7 +384,7 @@ const ComparisonMetrics = ({
                   return (
                     <div key={`stats-${index}`} className="mb-4">
                       <h6 className="mb-3">
-                        Statistics for Comparison #{index + 1}:{" "}
+                        Statistics for Comparison #{index + 1}:
                         {comparisonData[index]?.name || ""}
                       </h6>
                       <Table responsive striped bordered hover>
@@ -580,16 +589,16 @@ const ComparisonMetrics = ({
 
                       <Alert variant="info" className="mt-3">
                         <InfoCircle className="me-2" />
-                        <strong>Analysis:</strong> This comparison shows{" "}
+                        <strong>Analysis:</strong> This comparison shows
                         {stats.nodeDifference > 0
                           ? "an increase"
-                          : "a decrease"}{" "}
-                        in network size by {Math.abs(stats.nodeDifference)}{" "}
+                          : "a decrease"}
+                        in network size by {Math.abs(stats.nodeDifference)}
                         nodes ({Math.abs(parseFloat(stats.nodeChangePercent))}%)
                         and
                         {stats.linkDifference > 0
                           ? " an increase"
-                          : " a decrease"}{" "}
+                          : " a decrease"}
                         in connections by {Math.abs(stats.linkDifference)} edges
                         ({Math.abs(parseFloat(stats.linkChangePercent))}%).
                         {stats.commonNodesCount > 0
