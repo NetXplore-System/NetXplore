@@ -27,7 +27,7 @@ import {
   NodeMinus,
   People,
   Activity,
-  ImageFill,
+  CameraFill,
   Table,
   Search,
   Diagram3Fill,
@@ -139,8 +139,6 @@ const NetworkVisualization = ({
     importantNodesThreshold: 0.5,
   });
 
-  
-
   useEffect(() => {
     if (!networkData && uploadedFileName) {
       handleNetworkAnalysis();
@@ -163,15 +161,15 @@ const NetworkVisualization = ({
 
   const updateFilteredData = () => {
     if (!networkData) return;
-  
+
     const filtered = networkData.nodes.filter((node) =>
       node.id.toLowerCase().includes(filters.filter.toLowerCase())
     );
-  
+
     setFilteredNodes(filtered);
-  
+
     let linksToFilter = networkData.links;
-  
+
     const filteredEdges = linksToFilter.filter(
       (link) =>
         filtered.some(
@@ -185,7 +183,7 @@ const NetworkVisualization = ({
             (typeof link.target === "object" && node.id === link.target.id)
         )
     );
-  
+
     setFilteredLinks(filteredEdges);
   };
 
@@ -915,14 +913,7 @@ const NetworkVisualization = ({
                   placement="top"
                   overlay={
                     <Tooltip id="tooltip-reciprocity">
-                      Reciprocity measures the proportion of mutual
-                      (bidirectional) links in the network. A value of 1 means
-                      all links are reciprocated.
-                      <InlineMath
-                        math={
-                          "\\text{Reciprocity} = \\frac{\\text{Reciprocated Links}}{\\text{Total Links}}"
-                        }
-                      />
+                      Reciprocity: Ratio of mutual (bidirectional) links
                     </Tooltip>
                   }
                 >
@@ -936,47 +927,7 @@ const NetworkVisualization = ({
                   <OverlayTrigger
                     placement="top"
                     overlay={
-                      <Tooltip
-                        id="tooltip-communities"
-                        style={{ maxWidth: "350px" }}
-                      >
-                        <div>
-                          Communities are groups of nodes that are densely
-                          connected internally.
-                          <br />
-                          Detected using the <strong>Louvain Algorithm</strong>,
-                          which maximizes the modularity score:
-                          <BlockMath
-                            math={
-                              "Q = \\frac{1}{2m} \\sum_{i,j} \\left[ A_{ij} - \\frac{k_i k_j}{2m} \\right] \\delta(c_i, c_j)"
-                            }
-                          />
-                          <ul
-                            style={{
-                              paddingLeft: "1.2em",
-                              fontSize: "0.9em",
-                              marginTop: "0.5em",
-                            }}
-                          >
-                            <li>
-                              <InlineMath math={"A_{ij}"} />: edge between nodes{" "}
-                              <InlineMath math={"i"} /> and{" "}
-                              <InlineMath math={"j"} />
-                            </li>
-                            <li>
-                              <InlineMath math={"k_i, k_j"} />: degrees of nodes{" "}
-                              <InlineMath math={"i, j"} />
-                            </li>
-                            <li>
-                              <InlineMath math={"m"} />: total number of edges
-                            </li>
-                            <li>
-                              <InlineMath math={"\\delta(c_i, c_j)"} /> = 1 if
-                              nodes are in the same community
-                            </li>
-                          </ul>
-                        </div>
-                      </Tooltip>
+                      <Tooltip>Groups of densely connected nodes</Tooltip>
                     }
                   >
                     <div className="stat-card">
@@ -990,14 +941,7 @@ const NetworkVisualization = ({
                     placement="top"
                     overlay={
                       <Tooltip id="tooltip-density">
-                        Density measures how connected the network is.
-                        <br />
-                        It's the ratio of existing links to the total possible
-                        links.
-                        <br />
-                        <InlineMath
-                          math={"\\text{Density} = \\frac{|E|}{|V|(|V| - 1)}"}
-                        />
+                        Density: Ratio of actual to possible links
                       </Tooltip>
                     }
                   >
@@ -1012,15 +956,7 @@ const NetworkVisualization = ({
                     placement="top"
                     overlay={
                       <Tooltip id="tooltip-diameter">
-                        Diameter is the longest shortest path between any two
-                        nodes in the network.
-                        <br />
-                        It represents the maximum distance data must travel in
-                        the worst case.
-                        <br />
-                        <InlineMath
-                          math={"\\text{Diameter} = \\max_{i,j} d(i, j)"}
-                        />
+                        Diameter: Longest shortest path between two nodes
                       </Tooltip>
                     }
                   >
@@ -1193,69 +1129,145 @@ const NetworkVisualization = ({
                   <Accordion.Body>
                     <ul className="help-list">
                       <li>
-                        <strong>Zoom:</strong> Scroll wheel
+                        <strong>Zoom:</strong> Use the mouse scroll wheel to
+                        zoom in and out of the graph view.
                       </li>
                       <li>
-                        <strong>Pan:</strong> Click and drag
+                        <strong>Pan:</strong> Click and drag the background
+                        canvas to move across the network.
                       </li>
                       <li>
-                        <strong>Select node:</strong> Click on node
+                        <strong>Select Node:</strong> Click a node to view
+                        information or perform actions.
                       </li>
                       <li>
-                        <strong>Move node:</strong> Drag node
+                        <strong>Move Node:</strong> Click and drag a node to
+                        reposition it manually.
                       </li>
                       <li>
-                        <strong>Fix node:</strong> Double-click node
+                        <strong>Fix Node:</strong> Double-click a node to lock
+                        its position. Double-click again to release it.
                       </li>
                     </ul>
                   </Accordion.Body>
                 </Accordion.Item>
+
                 <Accordion.Item eventKey="1">
-                  <Accordion.Header>Network Metrics</Accordion.Header>
+                  <Accordion.Header>
+                    Graph Overview & Statistics
+                  </Accordion.Header>
                   <Accordion.Body>
                     <ul className="help-list">
                       <li>
-                        <strong>Degree Centrality:</strong> Measures how many
-                        direct connections a node has.
+                        <strong>Nodes:</strong> The total number of unique
+                        individuals or entities represented in the graph.
+                      </li>
+                      <li>
+                        <strong>Edges:</strong> The total number of links or
+                        interactions between nodes.
+                      </li>
+                      <li>
+                        <strong>Reciprocity:</strong> Measures the fraction of
+                        mutual links in a directed network. Indicates how many
+                        connections are reciprocated (e.g., A ↔ B).
                         <br />
-                        <em>Formula: </em>
+                        <InlineMath
+                          math={
+                            "R = \\frac{\\text{Mutual Links}}{\\text{Total Directed Links}}"
+                          }
+                        />
+                      </li>
+
+                      <li>
+                        <strong>Density:</strong> Indicates how densely the
+                        nodes are connected in the network. Higher density
+                        suggests more interconnected users.
+                        <br />
+                        <InlineMath
+                          math={"Density = \\frac{|E|}{|V|(|V| - 1)}"}
+                        />
+                      </li>
+
+                      <li>
+                        <strong>Diameter:</strong> The longest shortest path
+                        between any two nodes. Represents the worst-case
+                        communication span in the network.
+                        <br />
+                        <InlineMath math={"Diameter = \\max_{i,j} d(i, j)"} />
+                      </li>
+
+                      <li>
+                        <strong>Communities Count:</strong> Number of detected
+                        node groups with high internal connectivity, discovered
+                        using the <em>Louvain algorithm</em>, which optimizes
+                        modularity.
+                        <br />
+                        <InlineMath
+                          math={
+                            "Q = \\frac{1}{2m} \\sum_{i,j} \\left[ A_{ij} - \\frac{k_i k_j}{2m} \\right] \\delta(c_i, c_j)"
+                          }
+                        />
+                        <ul className="ms-3 mt-1 small">
+                          <li>
+                            <InlineMath math="A_{ij}" /> = 1 if edge exists
+                            between nodes i and j
+                          </li>
+                          <li>
+                            <InlineMath math="k_i, k_j" /> = degrees of nodes i
+                            and j
+                          </li>
+                          <li>
+                            <InlineMath math="m" /> = total number of edges
+                          </li>
+                          <li>
+                            <InlineMath math="\\delta(c_i, c_j)" /> = 1 if nodes
+                            i and j are in the same community
+                          </li>
+                        </ul>
+                      </li>
+                    </ul>
+                  </Accordion.Body>
+                </Accordion.Item>
+
+                <Accordion.Item eventKey="2">
+                  <Accordion.Header>Network Metrics</Accordion.Header>
+                  <Accordion.Body>
+                    <p>
+                      Select a centrality metric to identify key users in the
+                      network:
+                    </p>
+                    <ul className="help-list">
+                      <li>
+                        <strong>Degree Centrality:</strong> Measures how many
+                        direct links a node has.
                         <InlineMath math={"C_D(v) = \\frac{\\deg(v)}{n - 1}"} />
                       </li>
-                      <li className="mt-3">
-                        <strong>Betweenness Centrality:</strong> Captures how
-                        often a node lies on shortest paths between others.
-                        <br />
-                        <em>Formula: </em>
+                      <li>
+                        <strong>Betweenness Centrality:</strong> Indicates how
+                        often a node lies on shortest paths.
                         <InlineMath
                           math={
                             "C_B(v) = \\sum_{s \\neq v \\neq t} \\frac{\\sigma_{st}(v)}{\\sigma_{st}}"
                           }
                         />
                       </li>
-                      <li className="mt-3">
-                        <strong>Closeness Centrality:</strong> Quantifies how
-                        easily a node reaches all other nodes.
-                        <br />
-                        <em>Formula: </em>
+                      <li>
+                        <strong>Closeness Centrality:</strong> How fast a node
+                        can reach others.
                         <InlineMath
                           math={
                             "C_C(v) = \\frac{n - 1}{\\sum_{t \\neq v} d(v, t)}"
                           }
                         />
                       </li>
-                      <li className="mt-3">
+                      <li>
                         <strong>Eigenvector Centrality:</strong> Scores nodes
-                        based on the influence of their neighbors.
-                        <br />
-                        <em>Formula: </em>
+                        based on the importance of neighbors.
                         <InlineMath math={"A \\cdot x = \\lambda x"} />
                       </li>
-                      <li className="mt-3">
-                        <strong>PageRank Centrality:</strong> Ranks nodes by
-                        their link quantity and quality using a random walk
-                        model.
-                        <br />
-                        <em>Formula: </em>
+                      <li>
+                        <strong>PageRank Centrality:</strong> Measures node
+                        influence using link structure.
                         <InlineMath
                           math={
                             "PR(v) = \\frac{1 - d}{N} + d \\sum_{u \\in M(v)} \\frac{PR(u)}{L(u)}"
@@ -1265,16 +1277,69 @@ const NetworkVisualization = ({
                     </ul>
                   </Accordion.Body>
                 </Accordion.Item>
-                <Accordion.Item eventKey="2">
+
+                <Accordion.Item eventKey="3">
                   <Accordion.Header>Refinement & Analysis</Accordion.Header>
                   <Accordion.Body>
                     <ul className="help-list">
                       <li>
-                        <strong>Communities:</strong> Groups of densely
-                        connected nodes
+                        <strong>Strong Connections:</strong> Filter the graph to
+                        display only high-impact connections (e.g., high
+                        betweenness).
                       </li>
                       <li>
-                        <strong>Activity Filter:</strong> Show only active nodes
+                        <strong>Node Removal:</strong> Click a node and choose
+                        to remove it for impact analysis.
+                      </li>
+                      <li>
+                        <strong>Restore Network:</strong> Undo any manual
+                        modifications or filters and return to the original
+                        state.
+                      </li>
+                      <li>
+                        <strong>Communities:</strong> Identify groups of closely
+                        connected nodes using the Louvain algorithm.
+                      </li>
+                      <li>
+                        <strong>Intra-Community Links:</strong> Show only
+                        connections within the same community, hiding
+                        cross-group edges.
+                      </li>
+                    </ul>
+                  </Accordion.Body>
+                </Accordion.Item>
+
+                <Accordion.Item eventKey="4">
+                  <Accordion.Header>Visual Styling & Export</Accordion.Header>
+                  <Accordion.Body>
+                    <ul className="help-list">
+                      <li>
+                        <strong>Node Color:</strong> Use color to represent node
+                        metrics or community. For example, coloring by degree
+                        uses gradient intensity to show activity.
+                      </li>
+                      <li>
+                        <strong>Node Size:</strong> Size nodes based on selected
+                        metrics (e.g., larger for higher betweenness).
+                      </li>
+                      <li>
+                        <strong>Highlight Important Nodes:</strong> Emphasize
+                        top-ranked nodes using the current metric. Typically
+                        increases size and contrast for visibility.
+                      </li>
+                      <li>
+                        <strong>Community Colors:</strong> Assign distinct
+                        colors to each detected community for easier
+                        segmentation analysis.
+                      </li>
+                      <li>
+                        <strong>Screenshot Button:</strong> Click the camera
+                        icon located at the top-right of the graph area. This
+                        captures the current network view and saves it as an
+                        image.
+                        <br />
+                        The screenshot is automatically added to the
+                        researcher’s report for documentation.
                       </li>
                     </ul>
                   </Accordion.Body>
@@ -1301,8 +1366,8 @@ const NetworkVisualization = ({
     setDiameterValue(0);
     setStrongConnectionsActive(false);
     setHighlightCentralNodes(false);
-    setFilteredNodes([]); 
-    setFilteredLinks([]); 
+    setFilteredNodes([]);
+    setFilteredLinks([]);
     setShowOnlyIntraCommunityLinks(false);
     setActivityFilterEnabled(false);
     setActivityThreshold(2);
@@ -1339,21 +1404,20 @@ const NetworkVisualization = ({
     setTimeout(() => {
       if (forceGraphRef.current) {
         try {
-         
-          if (typeof forceGraphRef.current.d3Force === 'function') {
+          if (typeof forceGraphRef.current.d3Force === "function") {
             const nodeCount = originalNetworkData.nodes.length;
-          
-            const chargeForce = forceGraphRef.current.d3Force('charge');
-            if (chargeForce && typeof chargeForce.strength === 'function') {
-              chargeForce.strength(-180 * nodeCount); 
+
+            const chargeForce = forceGraphRef.current.d3Force("charge");
+            if (chargeForce && typeof chargeForce.strength === "function") {
+              chargeForce.strength(-180 * nodeCount);
             }
-          
-            const linkForce = forceGraphRef.current.d3Force('link');
-            if (linkForce && typeof linkForce.distance === 'function') {
-              linkForce.distance(80 + nodeCount * 3); 
+
+            const linkForce = forceGraphRef.current.d3Force("link");
+            if (linkForce && typeof linkForce.distance === "function") {
+              linkForce.distance(80 + nodeCount * 3);
             }
           }
-          
+
           forceGraphRef.current.d3ReheatSimulation();
           forceGraphRef.current.zoomToFit(400);
         } catch (error) {
@@ -1364,7 +1428,6 @@ const NetworkVisualization = ({
 
     toast.success("Network reset to original state.");
   };
-
 
   return (
     <Card className="network-visualization-card">
@@ -1551,19 +1614,6 @@ const NetworkVisualization = ({
 
                       <OverlayTrigger
                         placement="bottom"
-                        overlay={<Tooltip>Take Screenshot</Tooltip>}
-                      >
-                        <Button
-                          variant="outline-secondary"
-                          size="sm"
-                          onClick={handleScreenshot}
-                        >
-                          <ImageFill />
-                        </Button>
-                      </OverlayTrigger>
-
-                      <OverlayTrigger
-                        placement="bottom"
                         overlay={<Tooltip>Toggle Data Table</Tooltip>}
                       >
                         <Button
@@ -1576,17 +1626,25 @@ const NetworkVisualization = ({
                           <Table />
                         </Button>
                       </OverlayTrigger>
+
+                      <OverlayTrigger
+                        placement="bottom"
+                        overlay={<Tooltip>Take Screenshot</Tooltip>}
+                      >
+                        <Button
+                          variant="outline-secondary"
+                          size="sm"
+                          onClick={handleScreenshot}
+                        >
+                          <CameraFill />
+                        </Button>
+                      </OverlayTrigger>
                     </div>
 
                     <div className="center-badges">
                       {strongConnectionsActive && (
                         <Badge bg="info" className="me-2">
                           Strong Connections
-                        </Badge>
-                      )}
-                      {activityFilterEnabled && (
-                        <Badge bg="info" className="me-2">
-                          Activity Filter: {activityThreshold}
                         </Badge>
                       )}
                       {showOnlyIntraCommunityLinks && (
