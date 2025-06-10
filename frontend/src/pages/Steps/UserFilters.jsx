@@ -10,7 +10,7 @@ const UserFilters = ({ formData, handleInputChange }) => {
           <Col md={6}>
             <Form.Group className="mb-4">
               <Form.Label className="form-label">
-                Minimum Messages Per User
+                Minimum Messages Per User (Optional)
               </Form.Label>
               <Form.Control
                 type="number"
@@ -48,7 +48,7 @@ const UserFilters = ({ formData, handleInputChange }) => {
           <Col md={6}>
             <Form.Group className="mb-4">
               <Form.Label className="form-label">
-                Active Users Threshold
+                Active Users Threshold (Optional)
               </Form.Label>
               <Form.Control
                 type="number"

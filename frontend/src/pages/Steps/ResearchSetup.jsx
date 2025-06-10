@@ -171,7 +171,7 @@ const ResearchSetup = ({
             </Form.Text>
 
             <Alert variant="info" className="mt-4">
-              <strong>Note:</strong> Media (images, videos, audio, GIFs) is{" "}
+              <strong>Note:</strong> Media (images, videos, audio, GIFs) is
               <u>not included</u>. Only text messages from the exported chat
               will be analyzed.
               <Button

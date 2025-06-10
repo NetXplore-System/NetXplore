@@ -1513,7 +1513,7 @@ const NetworkHistory = ({
                 </div>
                 <div className="modal-body">
                   <p>
-                    Are you sure you want to remove node{" "}
+                    Are you sure you want to remove node
                     <strong>"{selectedNode.id}"</strong> from the network?
                   </p>
                   <p>

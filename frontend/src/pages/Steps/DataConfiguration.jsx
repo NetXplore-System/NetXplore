@@ -142,7 +142,7 @@ const DataConfiguration = ({ formData, handleInputChange, setFormData }) => {
             />
           </div>
           <Form.Text className="text-muted">
-            User identities will be{" "}
+            User identities will be
             {formData.isAnonymized ? "anonymized" : "preserved"} in the network
             visualization
           </Form.Text>

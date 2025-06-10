@@ -146,7 +146,7 @@ const SignUp = () => {
             <OAuth />
 
             <p className="text-center mt-3">
-              Already have an account?{" "}
+              Already have an account?
               <Link to="/signin" style={{ textDecoration: "none" }}>
                 Sign In
               </Link>

@@ -114,7 +114,7 @@ const SignIn = () => {
             <OAuth />
 
             <p className="text-center mt-3">
-              Don't have an account?{" "}
+              Don't have an account?
               <Link to="/register" style={{ textDecoration: "none" }}>
                 Sign Up
               </Link>

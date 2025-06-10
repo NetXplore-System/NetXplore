@@ -198,7 +198,7 @@ const History = () => {
           <h4 className="m-0 fw-bold">History Area</h4>
           {userHistory.length ? (
             <p className="m-0 fw-bold">
-              Date Range:{" "}
+              Date Range:
               {`${new Date(
                 userHistory?.at(0)?.created_at
               ).toLocaleDateString()} - ${new Date(

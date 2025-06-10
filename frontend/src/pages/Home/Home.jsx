@@ -1676,7 +1676,7 @@ const Home = () => {
                     </div>
                   )}
                 </Card>
-                <MetricsPanel networkStats={networkStats} />{" "}
+                <MetricsPanel networkStats={networkStats} />
               </Col>
 
               <Col lg={9} md={12} className="graph-area">
@@ -1808,7 +1808,7 @@ const Home = () => {
               </div>
               <div className="modal-body">
                 <p>
-                  Are you sure you want to remove the node{" "}
+                  Are you sure you want to remove the node
                   <strong>"{selectedNode.id}"</strong> from the network?
                 </p>
                 <p>

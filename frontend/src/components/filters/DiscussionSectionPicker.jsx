@@ -9,6 +9,9 @@ const DiscussionSectionPicker = ({
 }) => {
   const [options, setOptions] = useState([]);
   const [selectedTitle, setSelectedTitle] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [minComments, setMinComments] = useState(0);
+  const [sortOrder, setSortOrder] = useState("desc");
 
   useEffect(() => {
     if (content) {
@@ -20,7 +23,6 @@ const DiscussionSectionPicker = ({
   const handleSelect = async (section) => {
     setSelectedTitle(section.title);
     onSelect(section);
-
     try {
       const result = await convertToTxt(section.title);
       if (result?.filename) {
@@ -31,26 +33,57 @@ const DiscussionSectionPicker = ({
     }
   };
 
-  const totalComments = options.reduce(
+  const filteredOptions = options.filter((section) => {
+    const titleMatch = section.title
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
+    const commentMatch = section.comments.length >= minComments;
+    return titleMatch && commentMatch;
+  });
+
+  const sortedOptions = [...filteredOptions].sort((a, b) => {
+    return sortOrder === "asc"
+      ? a.comments.length - b.comments.length
+      : b.comments.length - a.comments.length;
+  });
+
+  const totalComments = sortedOptions.reduce(
     (acc, section) => acc + section.comments.length,
     0
   );
 
   return (
     <div className="discussion-section-picker">
-      {options.length > 0 && (
-        <div className="section-stats">
+      {sortedOptions.length > 0 && (
+        <div className="section-stats-row">
           <div className="stats-label">
-            Found: <span className="stats-number">{options.length}</span>{" "}
+            Found: <span className="stats-number">{sortedOptions.length}</span>{" "}
             sections with <span className="stats-number">{totalComments}</span>{" "}
             comments
+          </div>
+          <div className="filters-inline">
+            <input
+              type="text"
+              placeholder="Search by title..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="filter-input"
+            />
+            <select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value)}
+              className="filter-select"
+            >
+              <option value="desc">Most comments</option>
+              <option value="asc">Least comments</option>
+            </select>
           </div>
         </div>
       )}
 
-      {options.length > 0 ? (
+      {sortedOptions.length > 0 ? (
         <div className="sections-grid">
-          {options.map((section, idx) => (
+          {sortedOptions.map((section, idx) => (
             <div
               key={idx}
               className={`section-card ${

@@ -305,7 +305,7 @@ const NetworkDataTable = ({ networkData, onClose }) => {
                   onClick={() => handleSort(field)}
                   style={{ cursor: "pointer" }}
                 >
-                  {field.charAt(0).toUpperCase() + field.slice(1)}{" "}
+                  {field.charAt(0).toUpperCase() + field.slice(1)}
                   {renderSortIcon(field)}
                 </th>
               ))}

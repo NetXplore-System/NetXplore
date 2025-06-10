@@ -81,7 +81,7 @@ const FilteredResearches = () => {
                     <Card.Text>{research.description}</Card.Text>
                     <div className="mb-2">
                       <strong>Nodes:</strong> {research.nodes} <br />
-                      <strong>Communities:</strong> {research.communities}{" "}
+                      <strong>Communities:</strong> {research.communities}
                       <br />
                       <FaRegCalendarAlt className="me-2" />
                       {research.date}
