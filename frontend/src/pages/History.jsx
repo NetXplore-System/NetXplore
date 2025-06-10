@@ -169,7 +169,8 @@ const History = () => {
   const handleDownloadCSV = async (researchId) => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/export/csv/${researchId}`,
+        `${import.meta.env.VITE_API_URL}/export/excel/${researchId}`,
+
         {
           headers: {
             Authorization: `Bearer ${user?.token}`,
@@ -187,7 +188,8 @@ const History = () => {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `research_${researchId}.csv`);
+      link.setAttribute("download", `research_${researchId}.xlsx`);
+
       document.body.appendChild(link);
       link.click();
       link.remove();

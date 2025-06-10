@@ -23,6 +23,9 @@ import io
 from fastapi.responses import StreamingResponse
 import json
 from datetime import datetime
+from openpyxl import Workbook
+from io import BytesIO
+
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -122,7 +125,7 @@ async def get_user_history(
             
            
             research_entry = {
-                **research.to_dict(),  # Ensure to_dict() returns only serializable data
+                **research.to_dict(),  
                 "filters": filters.to_dict() if filters else None,
                 "analysis": analysis.to_dict() if analysis else None,
                 "comparisons": [comp.to_dict() for comp in comparisons] if comparisons else []
@@ -264,71 +267,17 @@ def format_date_safe(date_val):
     except Exception:
         return str(date_val)
 
-    
-@router.get("/export/history-csv")
-async def export_user_history_csv(
-    current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    user_id = current_user["user_id"]
-    query = select(Research).where(Research.user_id == user_id)
-    result = await db.execute(query)
-    researches = result.scalars().all()
-
-    output = io.StringIO()
-    output.write('\ufeff')  
-    writer = csv.writer(output)
-
-    writer.writerow([
-        "Research Name", "Platform", "Created At",
-        "Start Date", "End Date", "Message Count",
-        "Nodes", "Links", "Metric", "Communities"
-    ])
-
-    for research in researches:
-        filter_result = await db.execute(
-            select(ResearchFilter).where(ResearchFilter.research_id == research.research_id)
-        )
-        filters = filter_result.scalars().first()
-
-        analysis_result = await db.execute(
-            select(NetworkAnalysis).where(NetworkAnalysis.research_id == research.research_id)
-        )
-        analysis = analysis_result.scalars().first()
-
-        writer.writerow([
-            research.research_name,
-            research.platform,
-            research.created_at.strftime("%Y-%m-%d"),
-            format_date_safe(filters.start_date) if filters else "",
-            format_date_safe(filters.end_date) if filters else "",
-            filters.min_messages if filters else "",
-            len(analysis.nodes) if analysis and analysis.nodes else "",
-            len(analysis.links) if analysis and analysis.links else "",
-            analysis.metric_name if analysis else "",
-            len(analysis.communities) if analysis and analysis.communities else ""
-
-        ])
 
 
-    output.seek(0)
-    return StreamingResponse(output, media_type="text/csv", headers={
-        "Content-Disposition": "attachment; filename=research_history.csv"
-    })
-
-@router.get("/export/csv/{research_id}")
-async def export_single_research_csv(
+@router.get("/export/excel/{research_id}")
+async def export_excel_file(
     research_id: str,
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-
     research = await db.get(Research, research_id)
-    if not research:
-        raise HTTPException(status_code=404, detail="Research not found")
-
-    if str(research.user_id) != current_user["user_id"]:
-        raise HTTPException(status_code=403, detail="Access forbidden")
+    if not research or str(research.user_id) != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Unauthorized")
 
     filters_result = await db.execute(select(ResearchFilter).where(ResearchFilter.research_id == research_id))
     filters = filters_result.scalars().first()
@@ -336,66 +285,81 @@ async def export_single_research_csv(
     analysis_result = await db.execute(select(NetworkAnalysis).where(NetworkAnalysis.research_id == research_id))
     analysis = analysis_result.scalars().first()
 
-    comparison_result = await db.execute(select(Comparisons).where(Comparisons.research_id == research_id))
-    comparisons = comparison_result.scalars().all()
+    comparisons_result = await db.execute(select(Comparisons).where(Comparisons.research_id == research_id))
+    comparisons = comparisons_result.scalars().all()
 
-    output = io.StringIO()
-    output.write('\ufeff')
-    writer = csv.writer(output)
+    wb = Workbook()
 
-    writer.writerow([
+    ws_summary = wb.active
+    ws_summary.title = "Summary"
+    ws_summary.append([
         "Research Name", "Platform", "Created At",
         "Start Date", "End Date", "Message Count",
-        "Nodes", "Links", "Metric", "Communities",
-        "Original File",
-        "Comparison File",
-        "Node Count (Original)", "Node Count (Comparison)", "Node Difference", "Node Change %",
-        "Edge Count (Original)", "Edge Count (Comparison)", "Edge Difference", "Edge Change %",
-        "Common Nodes", 
-        "Network Density (Original)", "Network Density (Comparison)", "Density Difference", "Density Change %"
-
+        "Nodes", "Links", "Metric", "Communities"
+    ])
+    ws_summary.append([
+        research.research_name,
+        research.platform,
+        research.created_at.strftime("%Y-%m-%d"),
+        filters.start_date if filters else "",
+        filters.end_date if filters else "",
+        filters.min_messages if filters else "",
+        len(analysis.nodes) if analysis and analysis.nodes else "",
+        len(analysis.links) if analysis and analysis.links else "",
+        analysis.metric_name if analysis else "",
+        len(analysis.communities) if analysis and analysis.communities else ""
     ])
 
-    for comparison in comparisons:
-        comparison_filters = json.loads(comparison.filters) if comparison and comparison.filters else {}
-        comparison_stats = json.loads(comparison.statistics) if comparison and comparison.statistics else {}
+    ws_summary.append([])
+    ws_summary.append([
+        "Original File", "Comparison File",
+        "Original Nodes", "Comparison Nodes", "Node Diff", "Node %",
+        "Original Edges", "Comparison Edges", "Edge Diff", "Edge %",
+        "Common Nodes", "Original Density", "Comparison Density"
+    ])
 
-        comp_timeframe = comparison_filters.get("timeFrame", {})
-        comp_limit = comparison_filters.get("limit", {})
-        comp_user_filters = comparison_filters.get("userFilters", {})
-        comp_config = comparison_filters.get("config", {})
-
-        writer.writerow([
-            research.research_name,
-            research.platform,
-            research.created_at.strftime("%Y-%m-%d"),
-            format_date_safe(filters.start_date) if filters else "",
-            format_date_safe(filters.end_date) if filters else "",
-            filters.min_messages if filters else "",
-            len(analysis.nodes) if analysis and analysis.nodes else "",
-            len(analysis.links) if analysis and analysis.links else "",
-            analysis.metric_name if analysis else "",
-            len(analysis.communities) if analysis and analysis.communities else "",
-
-            comparison.original_file_name or "unknown",
-            comparison.file_name or "Unnamed",
-            comparison_stats.get("original_node_count", ""),
-            comparison_stats.get("comparison_node_count", ""),
-            comparison_stats.get("node_difference", ""),
-            comparison_stats.get("node_change_percent", ""),
-            comparison_stats.get("original_link_count", ""),
-            comparison_stats.get("comparison_link_count", ""),
-            comparison_stats.get("link_difference", ""),
-            comparison_stats.get("link_change_percent", ""),
-            comparison_stats.get("common_nodes_count", ""),
-            comparison_stats.get("original_density", ""),
-            comparison_stats.get("comparison_density", ""),
-            comparison_stats.get("density_difference", ""),
-            comparison_stats.get("density_change_percent", "")
-
+    for comp in comparisons:
+        stats = json.loads(comp.statistics or "{}")
+        ws_summary.append([
+            getattr(comp, "original_file_name", ""),
+            getattr(comp, "file_name", ""),
+            stats.get("original_node_count", ""),
+            stats.get("comparison_node_count", ""),
+            stats.get("node_difference", ""),
+            stats.get("node_change_percent", ""),
+            stats.get("original_link_count", ""),
+            stats.get("comparison_link_count", ""),
+            stats.get("link_difference", ""),
+            stats.get("link_change_percent", ""),
+            stats.get("common_nodes_count", ""),
+            stats.get("original_density", ""),
+            stats.get("comparison_density", "")
         ])
 
+    ws_nodes = wb.create_sheet(title="Nodes")
+    node_headers = ["id", "name", "group", "degree", "messages", "pagerank", "closeness", "betweenness", "eigenvector"]
+    ws_nodes.append(node_headers)
+
+    for node in analysis.nodes:
+        ws_nodes.append([node.get(h, "") for h in node_headers])
+
+    ws_links = wb.create_sheet(title="Links")
+    ws_links.append(["source", "target", "weight"])
+    for link in analysis.links:
+        ws_links.append([
+            link.get("source", ""),
+            link.get("target", ""),
+            link.get("weight", "")
+        ])
+
+    output = BytesIO()
+    wb.save(output)
     output.seek(0)
-    return StreamingResponse(output, media_type="text/csv", headers={
-        "Content-Disposition": f"attachment; filename=research_{research_id}.csv"
-    })
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f"attachment; filename=research_{research_id}.xlsx"
+        }
+    )
