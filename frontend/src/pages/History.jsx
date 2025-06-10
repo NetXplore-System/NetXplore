@@ -11,6 +11,7 @@ import ResearchHistory from "../components/utils/ResearcHistoryComp";
 import UpdateResearch from "../components/utils/UpdateResearch";
 import ComparisonHistory from "../components/utils/HistoryComparison";
 import MadeReport from "../components/utils/MadeReport";
+import { FaDownload } from "react-icons/fa";
 
 import "../components/utils/history.css";
 import { deleteResearch } from "../components/utils/ApiService";
@@ -165,6 +166,39 @@ const History = () => {
     }
   }, [showDownload]);
 
+  const handleDownloadCSV = async (researchId) => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/export/excel/${researchId}`,
+
+        {
+          headers: {
+            Authorization: `Bearer ${user?.token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        toast.error(data.detail || "Failed to export CSV");
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `research_${researchId}.xlsx`);
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      toast.error("An error occurred while downloading CSV");
+      console.error(error);
+    }
+  };
+
   return (
     <div className="history-container">
       {research && (
@@ -222,6 +256,7 @@ const History = () => {
                   <th>Date Created</th>
                   <th>Platform</th>
                   <th>Actions</th>
+                  <th>Export CSV</th>
                 </tr>
               </thead>
               <tbody>
@@ -267,16 +302,6 @@ const History = () => {
                         >
                           <FaCopy />
                         </Button>
-                        {/* <Button
-                          data-tooltip-id="my-tooltip"
-                          data-tooltip-content="Generate PDF report"
-                          data-tooltip-place="top"
-                          aria-label="Generate Report"
-                          variant="success"
-                          onClick={() => handleReportGeneration(research)}
-                        >
-                          <FaFilePdf />
-                        </Button> */}
                         <Button
                           data-tooltip-id="my-tooltip"
                           data-tooltip-content="Delete research"
@@ -291,6 +316,23 @@ const History = () => {
                           <FaTrash />
                         </Button>
                       </ButtonGroup>
+                    </td>
+                    <td>
+                      <Button
+                        data-tooltip-id="my-tooltip"
+                        data-tooltip-content="Download CSV"
+                        data-tooltip-place="top"
+                        size="sm"
+                        onClick={() => handleDownloadCSV(research.id)}
+                        aria-label="Download CSV"
+                        style={{
+                          backgroundColor: "#050d2d",
+                          color: "white",
+                          border: "none",
+                        }}
+                      >
+                        <FaDownload />
+                      </Button>
                     </td>
                   </tr>
                 ))}

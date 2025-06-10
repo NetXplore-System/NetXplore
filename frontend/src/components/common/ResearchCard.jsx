@@ -142,7 +142,6 @@ const ResearchCard = ({
                 <div className="d-flex justify-content-center">
                   <Button
                     className="upload-btn"
-                    // onClick={() => toast.success("URL saved!")}
                     onClick={handleWikipediaUrlSubmit}
 
                   >

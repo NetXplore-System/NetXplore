@@ -168,6 +168,8 @@ class Comparisons(Base):
     messages = Column(JSONB, nullable=True)
     filters = Column(JSONB, nullable=True)
     statistics = Column(JSONB, nullable=True)
+    file_name= Column(String, nullable=True)
+    original_file_name = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(pytz.utc))
 
     def to_dict(self):

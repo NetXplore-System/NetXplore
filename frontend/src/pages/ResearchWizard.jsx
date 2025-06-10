@@ -45,6 +45,8 @@ const ResearchWizard = () => {
   const [wikipediaUrlError, setWikipediaUrlError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [wikipediaLoaded, setWikipediaLoaded] = useState(false);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+
 
 
 
@@ -311,20 +313,26 @@ const ResearchWizard = () => {
       return;
     }
   
-    setUploadError("");       
+    setUploadError("");
+    setIsUploadingFile(true);
     const platform = formData.platform;
+  
     uploadFile(file, platform)
       .then((data) => {
         setFormData((prev) => ({
           ...prev,
           uploadedFileName: data.filename,
         }));
-        setUploadError("");  
+        setUploadError("");
       })
       .catch((error) => {
         setUploadError(error.message || "Error uploading file.");
-      });
+      })
+      .finally(() => {
+        setIsUploadingFile(false); 
+            });
   };
+  
  
   const handleFetchWikipedia = () => {
     if (!formData.wikipediaUrl?.trim()) {
@@ -362,12 +370,10 @@ const ResearchWizard = () => {
       .finally(() => {
         setIsUploading(false);
       });
-  };
-  
-  
+  }; 
+
   const handleNetworkAnalysis = async () => {
     if (!formData.uploadedFileName) {
-      toast.error("No file selected for analysis.");
       return;
     }
   
@@ -389,66 +395,48 @@ const ResearchWizard = () => {
           }),
         });
   
-          toast.promise(analyzeNetwork("wikipedia_data", finalParams), {
-
-          loading: "Analyzing Wikipedia discussion...",
-          success: async (data) => {
-            if (data.nodes && data.links) {
-              dispatch(clearImages());
+        const data = await analyzeNetwork("wikipedia_data", finalParams);
   
-              const communityData = await detectWikipediaCommunities("wikipedia_data", finalParams);
-              const nodeCommunities = communityData.node_communities || {};
-              const updatedNodes = data.nodes.map((node) => {
-                const community = nodeCommunities[node.id?.toString().trim()];
-                return community !== undefined ? { ...node, community } : node;
-              });
+        if (data.nodes && data.links) {
+          dispatch(clearImages());
   
-              data.nodes = updatedNodes;
-              setNetworkData(data);
-              setOriginalNetworkData(data);
-              setCommunities(communityData.communities || []);
-              setCommunityMap(nodeCommunities);
+          const communityData = await detectWikipediaCommunities("wikipedia_data", finalParams);
+          const nodeCommunities = communityData.node_communities || {};
+          const updatedNodes = data.nodes.map((node) => {
+            const community = nodeCommunities[node.id?.toString().trim()];
+            return community !== undefined ? { ...node, community } : node;
+          });
   
-              return "Wikipedia analysis completed successfully!";
-            } else {
-              return "No data returned from Wikipedia analysis.";
-            }
-          },
-          error: (error) => error?.message || "Error analyzing Wikipedia discussion.",
-        });
+          data.nodes = updatedNodes;
+          setNetworkData(data);
+          setOriginalNetworkData(data);
+          setCommunities(communityData.communities || []);
+          setCommunityMap(nodeCommunities);
+        }
   
       } else if (formData.platform === "whatsapp") {
         if (hasShownToastRef.current) return;
         hasShownToastRef.current = true;
   
-        toast.promise(analyzeNetwork(formData.uploadedFileName, finalParams), {
-          loading: "Analyzing WhatsApp network...",
-          success: async (data) => {
-            if (data.nodes && data.links) {
-              dispatch(clearImages());
-              setNetworkData(data);
-              setOriginalNetworkData(data);
+        const data = await analyzeNetwork(formData.uploadedFileName, finalParams);
   
-              const communityData = await detectCommunities(formData.uploadedFileName, finalParams);
-              setCommunities(communityData.communities || []);
-              setCommunityMap(communityData.node_communities || {});
-              setShouldFetchCommunities(true);
+        if (data.nodes && data.links) {
+          dispatch(clearImages());
+          setNetworkData(data);
+          setOriginalNetworkData(data);
   
-              return "WhatsApp analysis completed successfully!";
-            } else {
-              return "No data returned from server.";
-            }
-          },
-          error: (error) => error?.message || "Error analyzing network.",
-        });
+          const communityData = await detectCommunities(formData.uploadedFileName, finalParams);
+          setCommunities(communityData.communities || []);
+          setCommunityMap(communityData.node_communities || {});
+          setShouldFetchCommunities(true);
+        }
   
       } else {
-        toast.error("Unsupported platform selected.");
+        return;
       }
   
     } catch (error) {
       console.error("Error during network analysis:", error);
-      toast.error("Failed to analyze network.");
     }
   };
   
@@ -607,8 +595,6 @@ const ResearchWizard = () => {
         communities
       ),
       {
-        loading: "Saving research...",
-        success: "Research saved successfully!",
         error: (error) => error?.detail || "Error saving research.",
       }
     );
@@ -676,6 +662,7 @@ const ResearchWizard = () => {
             wikipediaUrlError={wikipediaUrlError}
             isUploading={isUploading}
             wikipediaLoaded={wikipediaLoaded}
+            isUploadingFile={isUploadingFile}
 
 
           />
@@ -803,6 +790,17 @@ const ResearchWizard = () => {
     }
   };
 
+  const canNavigateToStep = (targetStepIndex) => {
+    if (targetStepIndex === 0) return true;
+  
+    if (!formData.name?.trim()) return false;
+    if (!formData.uploadedFileName) return false;
+    if (uploadError) return false;
+  
+    return true;
+  };
+  
+
   return (
     <Container fluid className="research-wizard-container">
       <Row className="justify-content-center">
@@ -826,6 +824,14 @@ const ResearchWizard = () => {
                   className={`wizard-step ${isCompleted ? "completed" : ""} ${
                     isActive ? "active" : ""
                   }`}
+                  onClick={() => {
+                    if (canNavigateToStep(index)) {
+                      setCurrentStep(index + 1);
+                    } else {
+                      toast.error("Please complete required fields before proceeding.");
+                    }
+                  }}
+                  
                 >
                   <div className="step-circle">{index + 1}</div>
                   <div className="step-line"></div>

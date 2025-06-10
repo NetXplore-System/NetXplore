@@ -295,70 +295,60 @@ const NetworkHistory = ({
     return maxDistance;
   };
 
-  const fetchCommunityData = () => {
+  const fetchCommunityData = async () => {
     if (!uploadedFileName || !networkData || !networkData.nodes) {
       toast.error("No data available for community detection");
       return;
     }
-
+  
     const params = filters.buildNetworkFilterParams();
-
     const isWikipedia = formData.platform === "wikipedia";
-    const isWhatsApp = formData.platform === "whatsapp";
-
-    const detectFn = isWikipedia
-      ? detectWikipediaCommunities
-      : detectCommunities;
-
-    toast.promise(detectFn(uploadedFileName, params), {
-      loading: "Detecting communities...",
-      success: (data) => {
-        if (data.communities && data.nodes) {
-          const newCommunityMap = {};
-          data.nodes.forEach((node) => {
-            if (node.community !== undefined) {
-              newCommunityMap[node.id.toString().trim()] = node.community;
-            }
-          });
-
-          const updatedNodes = networkData.nodes.map((node) => {
-            const normalizedId = node.id.toString().trim();
-            const community = newCommunityMap[normalizedId];
-            return community !== undefined ? { ...node, community } : node;
-          });
-
-          const updatedOriginalNodes = originalNetworkData.nodes.map((node) => {
-            const normalizedId = node.id.toString().trim();
-            const community = newCommunityMap[normalizedId];
-            return community !== undefined ? { ...node, community } : node;
-          });
-
-          setNetworkData({
-            nodes: updatedNodes,
-            links: networkData.links,
-          });
-
-          setOriginalNetworkData({
-            nodes: updatedOriginalNodes,
-            links: originalNetworkData.links,
-          });
-
-          setCommunities(data.communities || []);
-          setCommunityMap(newCommunityMap);
-
-          loadCommunityColors(data.communities);
-
-          return `Detected ${data.communities.length} communities in the network.`;
-        } else {
-          return "No community data returned from server.";
-        }
-      },
-      error: (error) => {
-        return error?.message || "Error detecting communities.";
-      },
-    });
+    const detectFn = isWikipedia ? detectWikipediaCommunities : detectCommunities;
+  
+    try {
+      const data = await detectFn(uploadedFileName, params);
+  
+      if (data.communities && data.nodes) {
+        const newCommunityMap = {};
+        data.nodes.forEach((node) => {
+          if (node.community !== undefined) {
+            newCommunityMap[node.id.toString().trim()] = node.community;
+          }
+        });
+  
+        const updatedNodes = networkData.nodes.map((node) => {
+          const normalizedId = node.id.toString().trim();
+          const community = newCommunityMap[normalizedId];
+          return community !== undefined ? { ...node, community } : node;
+        });
+  
+        const updatedOriginalNodes = originalNetworkData.nodes.map((node) => {
+          const normalizedId = node.id.toString().trim();
+          const community = newCommunityMap[normalizedId];
+          return community !== undefined ? { ...node, community } : node;
+        });
+  
+        setNetworkData({
+          nodes: updatedNodes,
+          links: networkData.links,
+        });
+  
+        setOriginalNetworkData({
+          nodes: updatedOriginalNodes,
+          links: originalNetworkData.links,
+        });
+  
+        setCommunities(data.communities || []);
+        setCommunityMap(newCommunityMap);
+        loadCommunityColors(data.communities);
+      }
+    } catch (error) {
+      toast.error(error?.message || "Error detecting communities.");
+    }
   };
+  
 
+  
   const loadCommunityColors = (communities) => {
     if (!communities || communities.length === 0) {
       console.log("No communities to set colors for");

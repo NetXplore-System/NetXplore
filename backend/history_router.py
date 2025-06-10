@@ -18,6 +18,15 @@ from models import Research, ResearchFilter, NetworkAnalysis, Comparisons
 from auth_router import get_current_user
 from utils import apply_comparison_filters, find_common_nodes, mark_common_nodes, get_network_metrics
 
+import csv
+import io
+from fastapi.responses import StreamingResponse
+import json
+from datetime import datetime
+from openpyxl import Workbook
+from io import BytesIO
+
+
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
@@ -116,7 +125,7 @@ async def get_user_history(
             
            
             research_entry = {
-                **research.to_dict(),  # Ensure to_dict() returns only serializable data
+                **research.to_dict(),  
                 "filters": filters.to_dict() if filters else None,
                 "analysis": analysis.to_dict() if analysis else None,
                 "comparisons": [comp.to_dict() for comp in comparisons] if comparisons else []
@@ -246,3 +255,111 @@ async def analyze_communities_history(
             raise e
         logger.error(f"Error in community detection: {e}")
         raise HTTPException(detail=str(e), status_code=500)
+ 
+
+def format_date_safe(date_val):
+    if not date_val:
+        return ""
+    if isinstance(date_val, datetime):
+        return date_val.strftime("%Y-%m-%d")
+    try:
+        return datetime.fromisoformat(date_val).strftime("%Y-%m-%d")
+    except Exception:
+        return str(date_val)
+
+
+
+@router.get("/export/excel/{research_id}")
+async def export_excel_file(
+    research_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    research = await db.get(Research, research_id)
+    if not research or str(research.user_id) != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+
+    filters_result = await db.execute(select(ResearchFilter).where(ResearchFilter.research_id == research_id))
+    filters = filters_result.scalars().first()
+
+    analysis_result = await db.execute(select(NetworkAnalysis).where(NetworkAnalysis.research_id == research_id))
+    analysis = analysis_result.scalars().first()
+
+    comparisons_result = await db.execute(select(Comparisons).where(Comparisons.research_id == research_id))
+    comparisons = comparisons_result.scalars().all()
+
+    wb = Workbook()
+
+    ws_summary = wb.active
+    ws_summary.title = "Summary"
+    ws_summary.append([
+        "Research Name", "Platform", "Created At",
+        "Start Date", "End Date", "Message Count",
+        "Nodes", "Links", "Metric", "Communities"
+    ])
+    ws_summary.append([
+        research.research_name,
+        research.platform,
+        research.created_at.strftime("%Y-%m-%d"),
+        filters.start_date if filters else "",
+        filters.end_date if filters else "",
+        filters.min_messages if filters else "",
+        len(analysis.nodes) if analysis and analysis.nodes else "",
+        len(analysis.links) if analysis and analysis.links else "",
+        analysis.metric_name if analysis else "",
+        len(analysis.communities) if analysis and analysis.communities else ""
+    ])
+
+    ws_summary.append([])
+    ws_summary.append([
+        "Original File", "Comparison File",
+        "Original Nodes", "Comparison Nodes", "Node Diff", "Node %",
+        "Original Edges", "Comparison Edges", "Edge Diff", "Edge %",
+        "Common Nodes", "Original Density", "Comparison Density"
+    ])
+
+    for comp in comparisons:
+        stats = json.loads(comp.statistics or "{}")
+        ws_summary.append([
+            getattr(comp, "original_file_name", ""),
+            getattr(comp, "file_name", ""),
+            stats.get("original_node_count", ""),
+            stats.get("comparison_node_count", ""),
+            stats.get("node_difference", ""),
+            stats.get("node_change_percent", ""),
+            stats.get("original_link_count", ""),
+            stats.get("comparison_link_count", ""),
+            stats.get("link_difference", ""),
+            stats.get("link_change_percent", ""),
+            stats.get("common_nodes_count", ""),
+            stats.get("original_density", ""),
+            stats.get("comparison_density", "")
+        ])
+
+    ws_nodes = wb.create_sheet(title="Nodes")
+    node_headers = ["id", "name", "group", "degree", "messages", "pagerank", "closeness", "betweenness", "eigenvector"]
+    ws_nodes.append(node_headers)
+
+    for node in analysis.nodes:
+        ws_nodes.append([node.get(h, "") for h in node_headers])
+
+    ws_links = wb.create_sheet(title="Links")
+    ws_links.append(["source", "target", "weight"])
+    for link in analysis.links:
+        ws_links.append([
+            link.get("source", ""),
+            link.get("target", ""),
+            link.get("weight", "")
+        ])
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f"attachment; filename=research_{research_id}.xlsx"
+        }
+    )

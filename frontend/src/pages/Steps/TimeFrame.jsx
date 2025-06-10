@@ -44,6 +44,7 @@ const TimeFrame = ({ formData, handleInputChange }) => {
               <Form.Label className="form-label">Start Time (Optional)</Form.Label>
               <Form.Control
                 type="time"
+                lang="en"
                 name="timeFrame.startTime"
                 value={formData.timeFrame.startTime}
                 onChange={handleInputChange}
@@ -56,6 +57,8 @@ const TimeFrame = ({ formData, handleInputChange }) => {
               <Form.Label className="form-label">End Time (Optional)</Form.Label>
               <Form.Control
                 type="time"
+                lang="en"
+                dir="ltr"
                 name="timeFrame.endTime"
                 value={formData.timeFrame.endTime}
                 onChange={handleInputChange}

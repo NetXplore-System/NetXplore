@@ -17,6 +17,7 @@ const ResearchSetup = ({
   wikipediaUrlError,
   isUploading,
   wikipediaLoaded,
+  isUploadingFile,
 }) => {
   const handleUploadClick = () => {
     if (fileInputRef?.current) {
@@ -105,7 +106,7 @@ const ResearchSetup = ({
                 </Button>
               </Col>
             </Row>
-           
+
             {wikipediaUrlError ? (
               <div className="upload-error mt-2 d-flex align-items-center">
                 <ExclamationCircle className="me-2 text-danger" />
@@ -131,13 +132,31 @@ const ResearchSetup = ({
             <Form.Label className="form-label">Upload Data File*</Form.Label>
             <div className="file-upload-container d-flex align-items-center">
               <Button
-                variant="primary"
+                variant="dark"
                 className="upload-btn me-2"
                 onClick={handleUploadClick}
+                disabled={isUploadingFile}
               >
-                <Upload className="me-2" />
-                Choose File
+                {isUploadingFile ? (
+                  <>
+                    <Spinner
+                      as="span"
+                      animation="border"
+                      size="sm"
+                      role="status"
+                      aria-hidden="true"
+                      className="me-2"
+                    />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="me-2" />
+                    Choose File
+                  </>
+                )}
               </Button>
+
               <Form.Control
                 ref={fileInputRef}
                 type="file"
@@ -165,6 +184,7 @@ const ResearchSetup = ({
                 </div>
               )
             )}
+        
 
             <Form.Text className="text-muted">
               Upload a WhatsApp chat export (.txt)
