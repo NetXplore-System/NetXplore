@@ -18,6 +18,12 @@ from models import Research, ResearchFilter, NetworkAnalysis, Comparisons
 from auth_router import get_current_user
 from utils import apply_comparison_filters, find_common_nodes, mark_common_nodes, get_network_metrics
 
+import csv
+import io
+from fastapi.responses import StreamingResponse
+import json
+from datetime import datetime
+
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
@@ -246,3 +252,150 @@ async def analyze_communities_history(
             raise e
         logger.error(f"Error in community detection: {e}")
         raise HTTPException(detail=str(e), status_code=500)
+ 
+
+def format_date_safe(date_val):
+    if not date_val:
+        return ""
+    if isinstance(date_val, datetime):
+        return date_val.strftime("%Y-%m-%d")
+    try:
+        return datetime.fromisoformat(date_val).strftime("%Y-%m-%d")
+    except Exception:
+        return str(date_val)
+
+    
+@router.get("/export/history-csv")
+async def export_user_history_csv(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    user_id = current_user["user_id"]
+    query = select(Research).where(Research.user_id == user_id)
+    result = await db.execute(query)
+    researches = result.scalars().all()
+
+    output = io.StringIO()
+    output.write('\ufeff')  
+    writer = csv.writer(output)
+
+    writer.writerow([
+        "Research Name", "Platform", "Created At",
+        "Start Date", "End Date", "Message Count",
+        "Nodes", "Links", "Metric", "Communities"
+    ])
+
+    for research in researches:
+        filter_result = await db.execute(
+            select(ResearchFilter).where(ResearchFilter.research_id == research.research_id)
+        )
+        filters = filter_result.scalars().first()
+
+        analysis_result = await db.execute(
+            select(NetworkAnalysis).where(NetworkAnalysis.research_id == research.research_id)
+        )
+        analysis = analysis_result.scalars().first()
+
+        writer.writerow([
+            research.research_name,
+            research.platform,
+            research.created_at.strftime("%Y-%m-%d"),
+            format_date_safe(filters.start_date) if filters else "",
+            format_date_safe(filters.end_date) if filters else "",
+            filters.min_messages if filters else "",
+            len(analysis.nodes) if analysis and analysis.nodes else "",
+            len(analysis.links) if analysis and analysis.links else "",
+            analysis.metric_name if analysis else "",
+            len(analysis.communities) if analysis and analysis.communities else ""
+
+        ])
+
+
+    output.seek(0)
+    return StreamingResponse(output, media_type="text/csv", headers={
+        "Content-Disposition": "attachment; filename=research_history.csv"
+    })
+
+@router.get("/export/csv/{research_id}")
+async def export_single_research_csv(
+    research_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+
+    research = await db.get(Research, research_id)
+    if not research:
+        raise HTTPException(status_code=404, detail="Research not found")
+
+    if str(research.user_id) != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Access forbidden")
+
+    filters_result = await db.execute(select(ResearchFilter).where(ResearchFilter.research_id == research_id))
+    filters = filters_result.scalars().first()
+
+    analysis_result = await db.execute(select(NetworkAnalysis).where(NetworkAnalysis.research_id == research_id))
+    analysis = analysis_result.scalars().first()
+
+    comparison_result = await db.execute(select(Comparisons).where(Comparisons.research_id == research_id))
+    comparisons = comparison_result.scalars().all()
+
+    output = io.StringIO()
+    output.write('\ufeff')
+    writer = csv.writer(output)
+
+    writer.writerow([
+        "Research Name", "Platform", "Created At",
+        "Start Date", "End Date", "Message Count",
+        "Nodes", "Links", "Metric", "Communities",
+        "Original File",
+        "Comparison File",
+        "Node Count (Original)", "Node Count (Comparison)", "Node Difference", "Node Change %",
+        "Edge Count (Original)", "Edge Count (Comparison)", "Edge Difference", "Edge Change %",
+        "Common Nodes", 
+        "Network Density (Original)", "Network Density (Comparison)", "Density Difference", "Density Change %"
+
+    ])
+
+    for comparison in comparisons:
+        comparison_filters = json.loads(comparison.filters) if comparison and comparison.filters else {}
+        comparison_stats = json.loads(comparison.statistics) if comparison and comparison.statistics else {}
+
+        comp_timeframe = comparison_filters.get("timeFrame", {})
+        comp_limit = comparison_filters.get("limit", {})
+        comp_user_filters = comparison_filters.get("userFilters", {})
+        comp_config = comparison_filters.get("config", {})
+
+        writer.writerow([
+            research.research_name,
+            research.platform,
+            research.created_at.strftime("%Y-%m-%d"),
+            format_date_safe(filters.start_date) if filters else "",
+            format_date_safe(filters.end_date) if filters else "",
+            filters.min_messages if filters else "",
+            len(analysis.nodes) if analysis and analysis.nodes else "",
+            len(analysis.links) if analysis and analysis.links else "",
+            analysis.metric_name if analysis else "",
+            len(analysis.communities) if analysis and analysis.communities else "",
+
+            comparison.original_file_name or "unknown",
+            comparison.file_name or "Unnamed",
+            comparison_stats.get("original_node_count", ""),
+            comparison_stats.get("comparison_node_count", ""),
+            comparison_stats.get("node_difference", ""),
+            comparison_stats.get("node_change_percent", ""),
+            comparison_stats.get("original_link_count", ""),
+            comparison_stats.get("comparison_link_count", ""),
+            comparison_stats.get("link_difference", ""),
+            comparison_stats.get("link_change_percent", ""),
+            comparison_stats.get("common_nodes_count", ""),
+            comparison_stats.get("original_density", ""),
+            comparison_stats.get("comparison_density", ""),
+            comparison_stats.get("density_difference", ""),
+            comparison_stats.get("density_change_percent", "")
+
+        ])
+
+    output.seek(0)
+    return StreamingResponse(output, media_type="text/csv", headers={
+        "Content-Disposition": f"attachment; filename=research_{research_id}.csv"
+    })

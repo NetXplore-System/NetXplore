@@ -91,9 +91,9 @@ export const useNetworkData = (research) => {
                     links: networkData.links,
                 });
 
-                toast.success(`Detected ${data.communities.length} communities in the network.`);
+                console.log(`Detected ${data.communities.length} communities in the network.`);
             } else {
-                toast.error("No community data returned from server.");
+                console.error("No community data returned from server.");
             }
         } catch (error) {
             console.error("Error during community detection:", error);

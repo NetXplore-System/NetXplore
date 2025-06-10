@@ -63,7 +63,8 @@ async def save_research(
     use_history: bool = Query(False),
     normalize: bool = Query(False),
     history_length: int = Query(3),
-    message_weights: str = Query([5,3,2]),
+    # message_weights: str = Query([5,3,2]),
+    message_weights: Optional[str] = Query(None),
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     communities: Optional[str] = Form(None),
@@ -262,6 +263,8 @@ async def save_research(
                         messages=json.dumps(messages), 
                         filters=json.dumps(comp_filter),
                         statistics=json.dumps(comparison_stats), 
+                        file_name=comp_data.get("filename"),
+                        original_file_name=file_name 
                     )
                     db.add(new_comparison)
                 
