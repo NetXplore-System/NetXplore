@@ -58,6 +58,7 @@ const Dashboard = () => {
         setStats(data.stats || {});
       } catch (error) {
         console.error("Error loading dashboard data:", error);
+        toast.error("Failed to load dashboard data");
       } finally {
         setIsLoading(false);
       }

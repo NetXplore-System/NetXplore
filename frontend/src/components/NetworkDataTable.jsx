@@ -536,34 +536,6 @@ const NetworkDataTable = ({ networkData, onClose }) => {
                   </Col>
                 </>
               )}
-
-              {currentTab === "messages" && (
-                <>
-                  <Col md={4}>
-                    <div className="text-center stat-item">
-                      <h5>Total Messages</h5>
-                      <h2>{messageStats.totalMessages || 0}</h2>
-                    </div>
-                  </Col>
-                  <Col md={4}>
-                    <div className="text-center stat-item">
-                      <h5>Unique Senders</h5>
-                      <h2>{messageStats.uniqueSenders || 0}</h2>
-                    </div>
-                  </Col>
-                  <Col md={4}>
-                    <div className="text-center stat-item">
-                      <h5>Date Range</h5>
-                      <h2 style={{ fontSize: "1rem" }}>
-                        {messageStats.startDate && messageStats.endDate
-                          ? `${messageStats.startDate.toLocaleDateString()} - 
-                              ${messageStats.endDate.toLocaleDateString()}`
-                          : "-"}
-                      </h2>
-                    </div>
-                  </Col>
-                </>
-              )}
             </Row>
           </div>
         </Col>
