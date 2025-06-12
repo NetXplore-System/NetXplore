@@ -14,7 +14,7 @@ from fastapi.security import OAuth2PasswordBearer
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
-UPLOAD_FOLDER = "Uploads"
+UPLOAD_FOLDER = "uploads"
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
