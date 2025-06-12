@@ -1,17 +1,31 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
-import Modal from './Modal';
 import { PDFDownloadLink } from '@react-pdf/renderer';
+import { toast } from 'sonner';
+
+import Modal from './Modal';
 import Report, { formatFilterLabel } from './Report';
+
 import './made-report.css';
 
-const MadeReport = ({ selectedMetric, name, params, setShowDownload, hasComparison }) => {
+const MadeReport = ({
+    selectedMetric,
+    name,
+    fileName,
+    params,
+    setShowDownload,
+    hasComparison,
+    networkData,
+    communities,
+    comparisonFilters
+}) => {
     const { tableData } = useSelector((state) => state.table);
     const { main, comparison: { source, comparison } } = useSelector((state) => state.images);
     const { currentUser } = useSelector((state) => state.user);
 
     const [research, setResearch] = useState({
         name: name || 'unknown',
+        fileName: fileName || 'unknown',
         researcherName: currentUser?.name || 'unknown',
         date: new Date().toISOString().split('T')[0],
         filters: params ? Array.from(params).map(([key, value]) => `${key}: ${value}`) : [],
@@ -19,6 +33,8 @@ const MadeReport = ({ selectedMetric, name, params, setShowDownload, hasComparis
         hasComparison,
         metric: selectedMetric,
         stats: tableData || [],
+        networkData: networkData || {},
+        communities: communities || [],
     });
     const [show, setShow] = useState({
         images: [
@@ -27,9 +43,21 @@ const MadeReport = ({ selectedMetric, name, params, setShowDownload, hasComparis
             ...comparison.map((data) => ({ ...data, selected: true, description: '' })),
         ],
         filters: research.filters.map((_, index) => ({ index, selected: true })),
+        comparisonFilters: comparisonFilters?.map((filters) => {
+            return Object.entries({
+                ...filters.timeFrame,
+                anonymize: filters.config.anonymize,
+                ...(filters.config.directed ? filters.config : {}),
+                ...filters.limit,
+                ...filters.messageCriteria,
+                ...filters.userFilters
+            }).filter(([key, value]) => value !== '' && value !== null && value !== undefined && key !== 'type' && key !== 'enabled')
+                .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
+        }) || []
     });
 
-    const handleCange = (e, index) => {
+
+    const handleChange = (e, index) => {
         e.stopPropagation();
         const updatedImages = [...show.images];
         updatedImages[index].description = e.target.value;
@@ -43,10 +71,16 @@ const MadeReport = ({ selectedMetric, name, params, setShowDownload, hasComparis
             return { ...prev, [key]: updated };
         });
     }
+
     const closeModal = (e) => { e.stopPropagation(); setShowDownload(false) };
 
+
+    useEffect(() => {
+        !show.images.length && toast.info('It\'s recommended to add images to the report. You can\'t see the comparison without images.');
+    }, []);
+
     return (
-        <Modal onClose={closeModal}>
+        <Modal onClose={closeModal} showCloseButton={false}>
             <div className="general-style research-report-header flex-row " >
                 <h2>Research Report</h2>
                 <button className="close-btn" onClick={closeModal}>×</button>
@@ -61,10 +95,18 @@ const MadeReport = ({ selectedMetric, name, params, setShowDownload, hasComparis
                 <h3>Include Images</h3>
                 {show.images.map((image, index) => (
                     <div key={index} className="image-selection">
+                        <p className="image-description">
+                            {
+                                image.type === 'main' ? 'Main Image' :
+                                    image.type === 'source' ? 'Source Image' :
+                                        image.type === 'comparison' ? `Comparison Image (from comparison number: ${image.index + 1})` : 'Unknown Type'
+                            }
+                        </p>
                         <label>
                             <img src={image.data} alt={`Graph ${index + 1}`} style={{ height: '100px', width: '100px' }} />
                             <input
                                 type="checkbox"
+                                id={`image-selection-${index}`}
                                 checked={show.images[index]?.selected}
                                 onChange={() => handleToggle(index, 'images')}
                             />
@@ -73,9 +115,10 @@ const MadeReport = ({ selectedMetric, name, params, setShowDownload, hasComparis
                         <input
                             type="text"
                             placeholder="Image description"
+                            id={`image-description-${index}`}
                             maxLength={60}
                             value={show.images[index]?.description}
-                            onChange={e => handleCange(e, index)}
+                            onChange={e => handleChange(e, index)}
                         />
                     </div>
                 ))}
@@ -89,6 +132,7 @@ const MadeReport = ({ selectedMetric, name, params, setShowDownload, hasComparis
                         <label>
                             <input
                                 type="checkbox"
+                                id={`filter-selection-${index}`}
                                 checked={show.filters[index]?.selected}
                                 onChange={() => handleToggle(index, 'filters')}
                             />
@@ -99,26 +143,26 @@ const MadeReport = ({ selectedMetric, name, params, setShowDownload, hasComparis
                 {research.filters.length === 0 && <p>No filters available to include.</p>}
             </div>
             <form className="general-style research-report-form" >
-
                 <div>
-                    <label htmlFor="conclusion" className='mb-3'>Research Conclusion</label>
+                    <label htmlFor="conclusion" className='mb-3'>Research Conclusion. (is required)</label>
                     <textarea
                         id="conclusion"
                         value={research.conclusion}
-                        onChange={(e) => setResearch({ ...research, conclusion: e.target.value })}
-                        placeholder="Enter your research conclusion or findings. (is required)"
+                        onChange={(e) => setResearch(prevResearch => ({ ...prevResearch, conclusion: e.target.value }))}
+                        placeholder="Enter your research conclusion or findings."
+                        maxLength={500}
                     />
                 </div>
 
-                <div className="checkbox-group">
+                {hasComparison && <div className="comparison-checkbox">
                     <input
                         type="checkbox"
                         id="hasComparison"
-                        checked={research.hasComparison}
-                        onChange={(e) => setResearch({ ...research, hasComparison: e.target.checked })}
+                        checked={research.hasComparison && show.images.some(img => img.selected)}
+                        onChange={(e) => setResearch(prevResearch => ({ ...prevResearch, hasComparison: e.target.checked }))}
                     />
-                    <label htmlFor="hasComparison">This research includes comparison with other studies</label>
-                </div>
+                    <label htmlFor="hasComparison">Include Comparison</label>
+                </div>}
 
                 <div className="research-report-actions">
                     <button type="button" className="action-btn me-2 btn btn-primary" onClick={closeModal}>
@@ -137,7 +181,7 @@ const MadeReport = ({ selectedMetric, name, params, setShowDownload, hasComparis
                                 }, 1000);
                             }}
                         >
-                            {({ loading }) => (loading ? 'Preparing...' : 'Download Report')}
+                            {({ loading }) => (loading ? <><span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Preparing...</> : 'Download Report')}
                         </PDFDownloadLink>
                     )}
                 </div>

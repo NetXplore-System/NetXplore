@@ -1,20 +1,11 @@
 import os
 import logging
 import networkx as nx
-from collections import defaultdict
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
-from typing import Dict
-import json
 from graph_builder import build_graph_from_txt
 from analyzers.base_analyzer import BaseAnalyzer
-from utils import (
-    parse_date_time,
-    detect_date_format,
-    calculate_sequential_weights,
-    normalize_links_by_target,
-    # extract_data
-)
+
 
 UPLOAD_FOLDER = "uploads"
 logger = logging.getLogger(__name__)
@@ -55,7 +46,7 @@ class WhatsAppAnalyzer(BaseAnalyzer):
                 if not os.path.exists(txt_path):
                     raise HTTPException(status_code=404, detail=f"File {txt_path} not found")
 
-                graph_data = build_graph_from_txt(txt_path, platform="whatsapp", **kwargs)
+                graph_data = build_graph_from_txt(txt_path, platform="whatsapp", **{k: v for k, v in kwargs.items() if k != "algorithm"})
 
                 if not graph_data["nodes"] or not graph_data["links"]:
                     return JSONResponse({

@@ -72,8 +72,7 @@ const useFilters = (formData = null) => {
     const useHistoryAlgo = getValue(false, ["useHistoryAlgorithm"]);
     const normalized = getValue(false, ["isNormalized"]);
     
-    // Get messageWeight array
-    const messageWeight = get([0.2, 0.3, 0.5], ["messageWeight"]);
+    const messageWeights = get([0.2, 0.3, 0.5], ["messageWeights"]);
 
     if (start) params.append("start_date", start);
     if (end) params.append("end_date", end);
@@ -104,8 +103,8 @@ const useFilters = (formData = null) => {
     if (useHistoryAlgo) {
       params.append("history_length", formData?.historyLength || 3);
       
-      if (messageWeight && Array.isArray(messageWeight)) {
-        params.append("message_weights", JSON.stringify(messageWeight));
+      if (messageWeights && Array.isArray(messageWeights)) {
+        params.append("message_weights", JSON.stringify(messageWeights));
       }
     }
    

@@ -1,11 +1,8 @@
 from typing import List, Tuple, Any, Dict, Union
 from datetime import datetime
 from collections import defaultdict, deque
-import networkx as nx
 import re
-from collections import  defaultdict
 from typing import List, Tuple, Dict
-import os
 import logging
 
 logger = logging.getLogger(__name__)
@@ -207,26 +204,6 @@ def clean_filter_value(key: str, value: Any):
         return None
     return value
 
-# TODO: decide when we call this function 
-def delete_old_files():
-    """Delete files older than 20 hours based on their timestamp in the filename."""
-    now = datetime.now()
-
-    for filename in os.listdir(UPLOAD_FOLDER):
-        if "-" in filename and filename.endswith(".txt"):
-            name, timestamp_str = filename.rsplit("-", 1)
-            timestamp_str = timestamp_str.replace(".txt", "")
-
-            try:
-                file_time = datetime.fromtimestamp(int(timestamp_str) / 1000)
-                if now - file_time > timedelta(hours=20):
-                    file_path = os.path.join(UPLOAD_FOLDER, filename)
-                    os.remove(file_path)
-                    logger.info(f"Deleted old file: {file_path}")
-            except ValueError:
-                logger.warning(f"Skipping file with invalid timestamp format: {filename}")
-                
-                
 
 def calculate_comparison_stats(original_nodes, comparison_nodes, original_links=None, comparison_links=None):
     if not original_nodes or not comparison_nodes:

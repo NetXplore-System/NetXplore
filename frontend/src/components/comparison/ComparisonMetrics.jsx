@@ -17,7 +17,6 @@ import { addToComparison } from "../../redux/images/imagesSlice";
 import {
   FileBarGraph,
   InfoCircle,
-  CameraFill,
   FileEarmarkCheck,
   Eye,
   EyeSlash,
@@ -129,14 +128,14 @@ const ComparisonMetrics = ({
     source
       ? dispatch(
           addToComparison({
-            data: canvas[1].toDataURL("image/png"),
+            data: canvas[0].toDataURL("image/png"),
             type: "source",
             width: index > 1 ? "big" : "small",
           })
         )
       : dispatch(
           addToComparison({
-            data: canvas[i + 2].toDataURL("image/png"),
+            data: canvas[index + 1].toDataURL("image/png"),
             type: "comparison",
             index,
           })
@@ -244,7 +243,13 @@ const ComparisonMetrics = ({
                           <Button
                             variant="outline-secondary"
                             size="sm"
-                            onClick={handleScreenshot}
+                            onClick={(e) =>
+                              handleScreenshot(
+                                e,
+                                true,
+                                activeComparisonIndices.length
+                              )
+                            }
                           >
                             <CameraFill />
                           </Button>
@@ -294,12 +299,17 @@ const ComparisonMetrics = ({
                               <Button
                                 variant="outline-secondary"
                                 size="sm"
-                                onClick={handleScreenshot}
+                                onClick={(e) =>
+                                  handleScreenshot(
+                                    e,
+                                    false,
+                                    index
+                                  )
+                                }
                               >
                                 <CameraFill />
                               </Button>
                             </OverlayTrigger>
-
                             <Button
                               variant="outline-secondary"
                               size="sm"

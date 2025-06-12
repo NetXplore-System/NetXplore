@@ -18,8 +18,7 @@ from models import Research, ResearchFilter, NetworkAnalysis, Comparisons
 from auth_router import get_current_user
 from utils import apply_comparison_filters, find_common_nodes, mark_common_nodes, get_network_metrics
 
-import csv
-import io
+
 from fastapi.responses import StreamingResponse
 import json
 from datetime import datetime
@@ -88,7 +87,6 @@ async def get_user_history(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get all research history for a user including filters, analysis and comparisons."""
     try:
         user_uuid = uuid.UUID(user_id)
 
@@ -125,7 +123,7 @@ async def get_user_history(
             
            
             research_entry = {
-                **research.to_dict(),  
+                **research.to_dict(), 
                 "filters": filters.to_dict() if filters else None,
                 "analysis": analysis.to_dict() if analysis else None,
                 "comparisons": [comp.to_dict() for comp in comparisons] if comparisons else []

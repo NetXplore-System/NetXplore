@@ -101,6 +101,7 @@ class ResearchFilter(Base):
     use_history = Column(Boolean, default=False)
     normalize = Column(Boolean, default=False)
     history_length = Column(Integer, nullable=True)
+    message_weights = Column(JSONB, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(pytz.utc))
     
     def to_dict(self):
@@ -127,6 +128,7 @@ class ResearchFilter(Base):
             "use_history": self.use_history,
             "normalize": self.normalize,
             "history_length": self.history_length,
+            "message_weights": self.message_weights,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
 

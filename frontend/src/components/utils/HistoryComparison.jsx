@@ -71,8 +71,10 @@ const ComparisonHistory = ({ research }) => {
             {research?.comparisons?.length > 0 ?
                 <div className="comparison-history">
                     <div className="general-style mb-4 flex-row justify-content-between align-items-center">
-                        <h3 className="m-0 fw-bold">Comparisons History</h3>
-                        <p>Length: {research.comparisons.length}</p>
+                        <h3 className="m-0 fw-bold">Comparisons</h3>
+                        <p>
+                            Number of comparisons: {research.comparisons.length}
+                        </p>
                     </div>
                     <div className="comparison-history-content">
                         {research?.comparisons.map((comparison, index) => (
@@ -115,7 +117,6 @@ const ComparisonHistory = ({ research }) => {
                                             <Card.Body>
                                                 <div key={`stats-${index}`} className="mb-4">
                                                     {(() => {
-                                                        // const compData = research.comparisons[index];
                                                         const stats = calculateComparisonStats(
                                                             research?.analysis,
                                                             comparison

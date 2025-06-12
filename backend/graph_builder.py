@@ -3,12 +3,16 @@ import networkx as nx
 from datetime import datetime
 from collections import defaultdict
 import logging
-from utils import calculate_sequential_weights, normalize_links_by_target,MEDIA_RE, spam_messages
-from utils import parse_date_time
+from utils import (
+    calculate_sequential_weights, 
+    normalize_links_by_target,
+    parse_date_time,
+    MEDIA_RE,
+    spam_messages
+)
 
 logger = logging.getLogger("graph_builder")
 
-from collections import defaultdict
 
 def debug_check_target_weights(links):
     target_totals = defaultdict(float)
@@ -43,7 +47,6 @@ def build_graph_from_txt(
     message_weights=None,
     is_for_save=False,
     platform="wikipedia",
-    algorithm="louvain"  
 ):
    
 

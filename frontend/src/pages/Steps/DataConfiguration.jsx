@@ -14,80 +14,9 @@ const InfoTooltip = ({ text, id }) => (
   </OverlayTrigger>
 );
 
-const DataConfiguration = ({ formData, handleInputChange, setFormData }) => {
+const DataConfiguration = ({ formData, handleInputChange }) => {
 
-
-  const [userHasChangedWeight, setUserHasChangedWeight] = useState(false);
-
-
-  const handleRangeChange = (index, value) => {
-    const newValue = parseFloat(parseFloat(value).toFixed(1));
-    const newMessageWeight = [...formData.messageWeight];
-
-    newMessageWeight[index] = newValue;
-
-    if (index > 0) {
-      const firstWeight = newMessageWeight[0];
-      const remainingSum = 1.0 - firstWeight;
-
-      let otherWeightsSum = 0;
-      const otherIndices = [];
-
-      for (let i = 1; i < newMessageWeight.length; i++) {
-        if (i !== index) {
-          otherWeightsSum += newMessageWeight[i];
-          otherIndices.push(i);
-        }
-      }
-
-      const leftForOthers = remainingSum - newValue;
-
-      if (leftForOthers > 0 && otherWeightsSum > 0 && otherIndices.length > 0) {
-        const ratio = leftForOthers / otherWeightsSum;
-        otherIndices.forEach(i => {
-          newMessageWeight[i] = parseFloat((newMessageWeight[i] * ratio).toFixed(1));
-        });
-      } else if (otherIndices.length > 0) {
-        const minWeight = 0.1;
-        const remainingForOthers = Math.max(0, leftForOthers);
-        const weightPerOther = Math.max(minWeight, remainingForOthers / otherIndices.length);
-
-        otherIndices.forEach(i => {
-          newMessageWeight[i] = parseFloat(weightPerOther.toFixed(1));
-        });
-      }
-    } else {
-      const sum = newMessageWeight.reduce((acc, val) => acc + val, 0);
-      if (sum > 0) {
-        const normalizedWeights = newMessageWeight.map(weight =>
-          parseFloat((weight / sum).toFixed(1))
-        );
-        newMessageWeight.splice(0, newMessageWeight.length, ...normalizedWeights);
-      }
-    }
-
-    setFormData({
-      ...formData,
-      messageWeight: newMessageWeight
-    });
-  };
-
-  const messageWeights = formData.messageWeight || [];
-  const historyLength = parseInt(formData.historyLength) || 3;
-
-  const displayWeights = [...messageWeights];
-  while (displayWeights.length < historyLength) {
-    displayWeights.push(parseFloat((1.0 / historyLength).toFixed(1)));
-  }
-  while (displayWeights.length > historyLength) {
-    displayWeights.pop();
-  }
-
-  const roundedDisplayWeights = displayWeights.map(weight =>
-    parseFloat(weight.toFixed(1))
-  );
-
-  const totalSum = roundedDisplayWeights.reduce((sum, weight) => sum + weight, 0);
+  const totalSum = formData.messageWeights.reduce((sum, weight) => sum + weight, 0);
 
   return (
     <Card className="research-card">
@@ -238,21 +167,12 @@ const DataConfiguration = ({ formData, handleInputChange, setFormData }) => {
                     <div className="d-flex align-items-center">
                       <small className="text-muted me-2">
                         Sum: <strong>{totalSum.toFixed(1)}</strong>
-                        {Math.abs(totalSum - 1.0) > 0.01 && (
-                          <span className="text-warning ms-1">⚠ Will be normalized</span>
-                        )}
                       </small>
-                      {userHasChangedWeight && (
-                        <small className="text-success">✓ Custom</small>
-                      )}
-                      {!userHasChangedWeight && (
-                        <small className="text-info">Auto</small>
-                      )}
                     </div>
                   </div>
 
                   <div className="mt-3">
-                    {roundedDisplayWeights.slice(0, historyLength).map((weight, index) => {
+                    {formData.messageWeights.map((weight, index) => {
                       const messageNumber = index + 1;
                       const isFirst = index === 0;
 
@@ -261,7 +181,6 @@ const DataConfiguration = ({ formData, handleInputChange, setFormData }) => {
                           <div className="d-flex justify-content-between align-items-center mb-2">
                             <small className="text-muted fw-bold">
                               Message {messageNumber} {messageNumber === 1 ? '(most recent)' : messageNumber === 2 ? '(2nd recent)' : '(3rd recent)'}
-                              {isFirst && <span className="text-primary ms-1">🔒 Protected</span>}
                             </small>
                             <span className="text-primary fw-bold">{weight.toFixed(1)}</span>
                           </div>
@@ -271,11 +190,9 @@ const DataConfiguration = ({ formData, handleInputChange, setFormData }) => {
                               min="0.1"
                               max="1.0"
                               step="0.1"
+                              name={`messageWeights[${index}]`}
                               value={weight}
-                              onChange={(e) => {
-                                handleRangeChange(index, e.target.value);
-                                setUserHasChangedWeight(true);
-                              }}
+                              onChange={handleInputChange}
                               className="flex-grow-1"
                             />
                             <span className="ms-2 text-muted small">1.0</span>
@@ -290,9 +207,6 @@ const DataConfiguration = ({ formData, handleInputChange, setFormData }) => {
                       );
                     })}
                   </div>
-                  <Form.Text className="text-muted">
-                    <strong>Behavior:</strong> When you change the 2nd or 3rd weight, the 1st weight stays unchanged and other weights adjust automatically.
-                  </Form.Text>
                 </Form.Group>
 
                 <Form.Group className="mb-4 ms-5">

@@ -112,7 +112,7 @@ const ResearchWizard = () => {
     includeMessageContent: true,
     isDirectedGraph: false,
     useHistoryAlgorithm: false,
-    messageWeight: [0.5, 0.3, 0.2],
+    messageWeights: [0.5, 0.3, 0.2],
     historyLength: 3,
     isNormalized: false,
     timeFrame: {
@@ -388,38 +388,38 @@ const ResearchWizard = () => {
         await fetch(
           `${import.meta.env.VITE_API_URL}/convert-wikipedia-to-txt`,
           {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              filename: formData.uploadedFileName,
-              section_title: selectedSection || "Top",
-            }),
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            filename: formData.uploadedFileName,
+            section_title: selectedSection || "Top",
+          }),
           }
         );
 
         const data = await analyzeNetwork("wikipedia_data", finalParams);
 
-        if (data.nodes && data.links) {
-          dispatch(clearImages());
+            if (data.nodes && data.links) {
+              dispatch(clearImages());
 
           const communityData = await detectWikipediaCommunities(
             "wikipedia_data",
             finalParams
           );
-          const nodeCommunities = communityData.node_communities || {};
-          const updatedNodes = data.nodes.map((node) => {
-            const community = nodeCommunities[node.id?.toString().trim()];
-            return community !== undefined ? { ...node, community } : node;
-          });
+              const nodeCommunities = communityData.node_communities || {};
+              const updatedNodes = data.nodes.map((node) => {
+                const community = nodeCommunities[node.id?.toString().trim()];
+                return community !== undefined ? { ...node, community } : node;
+              });
 
-          data.nodes = updatedNodes;
-          setNetworkData(data);
-          setOriginalNetworkData(data);
-          setCommunities(communityData.communities || []);
-          setCommunityMap(nodeCommunities);
-        }
+              data.nodes = updatedNodes;
+              setNetworkData(data);
+              setOriginalNetworkData(data);
+              setCommunities(communityData.communities || []);
+              setCommunityMap(nodeCommunities);
+            }
       } else if (formData.platform === "whatsapp") {
         if (hasShownToastRef.current) return;
         hasShownToastRef.current = true;
@@ -429,19 +429,19 @@ const ResearchWizard = () => {
           finalParams
         );
 
-        if (data.nodes && data.links) {
-          dispatch(clearImages());
-          setNetworkData(data);
-          setOriginalNetworkData(data);
+            if (data.nodes && data.links) {
+              dispatch(clearImages());
+              setNetworkData(data);
+              setOriginalNetworkData(data);
 
           const communityData = await detectCommunities(
             formData.uploadedFileName,
             finalParams
           );
-          setCommunities(communityData.communities || []);
-          setCommunityMap(communityData.node_communities || {});
-          setShouldFetchCommunities(true);
-        }
+              setCommunities(communityData.communities || []);
+              setCommunityMap(communityData.node_communities || {});
+              setShouldFetchCommunities(true);
+            }
       } else {
         return;
       }
@@ -508,23 +508,31 @@ const ResearchWizard = () => {
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
 
-    if (name.startsWith("messageWeight")) {
-      const index = parseInt(name.replace("messageWeight", "")) - 1;
-      const newValue = parseFloat(value);
-
-      const newMessageWeight = [...formData.messageWeight];
-      newMessageWeight[index] = newValue;
-
-      const sum = newMessageWeight.reduce((acc, val) => acc + val, 0);
-      if (sum > 0) {
-        const normalizedWeights = newMessageWeight.map(
-          (weight) => weight / sum
-        );
-        setFormData({
-          ...formData,
-          messageWeight: normalizedWeights,
-        });
+    if (name.startsWith('messageWeights')) {
+      const match = name.match(/messageWeights\[(\d+)\]/);
+      const index = match[1]
+      const newValue = +parseFloat(value).toFixed(1);
+      const newMessageWeights = [...formData.messageWeights];
+      newMessageWeights[index] = newValue;
+      const sum = newMessageWeights.reduce((acc, val) => acc + val, 0);
+      if (sum > 1) {
+        toast.info("Total weight must be less than or equal to 1.");
+        return;
       }
+      setFormData(prev => ({
+        ...prev,
+        messageWeights: newMessageWeights
+      }));
+      return;
+    }
+
+    if (name.startsWith('historyLength')) {
+      const valueInt = +value;
+      setFormData(prev => ({
+        ...prev,
+        historyLength: valueInt,
+        messageWeights: valueInt === 2 ? [0.6, 0.4] : [0.5, 0.3, 0.2],
+      }));
       return;
     }
 
@@ -540,18 +548,18 @@ const ResearchWizard = () => {
       } else {
         newValue = value;
       }
-      setFormData({
-        ...formData,
+      setFormData(prev => ({
+        ...prev,
         [parent]: {
-          ...formData[parent],
+          ...prev[parent],
           [child]: newValue,
         },
-      });
+      }));
     } else {
-      setFormData({
-        ...formData,
+      setFormData(prev => ({
+        ...prev,
         [name]: type === "checkbox" ? checked : value,
-      });
+      }));
     }
 
     if (name === "isDirectedGraph" || name === "useHistoryAlgorithm") {
@@ -590,12 +598,12 @@ const ResearchWizard = () => {
     const comparisonData =
       comparison.comparisonNetworkData?.length > 0
         ? {
-            data: comparison.comparisonNetworkData.map((item, index) => ({
-              nodes: item.nodes,
-              links: item.links,
-              filename: comparison.comparisonData[index].filename,
-            })),
-            filters: comparison.comparisonFilterSettings,
+      data: comparison.comparisonNetworkData.map((item, index) => ({
+        nodes: item.nodes,
+        links: item.links,
+        filename: comparison.comparisonData[index].filename,
+      })),
+      filters: comparison.comparisonFilterSettings,
           }
         : {};
 
@@ -826,7 +834,7 @@ const ResearchWizard = () => {
     if (uploadError) return false;
   
     return true;
-  };  
+  };
 
   return (
     <Container fluid className="research-wizard-container">
@@ -850,7 +858,7 @@ const ResearchWizard = () => {
                   key={index}
                   className={`wizard-step ${isCompleted ? "completed" : ""} ${
                     isActive ? "active" : ""
-                  }`}
+                    }`}
                   onClick={() => {
                     if (canNavigateToStep(index)) {
                       setCurrentStep(index + 1);
