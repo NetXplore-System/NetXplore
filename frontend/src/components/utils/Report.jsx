@@ -447,9 +447,7 @@ const Report = ({ research, show }) => {
                                                     src={data.data}
                                                 />
                                             }
-                                            {data.description && (
-                                                <Text style={styles.imageCaption}>(Source Graph) - {data.description}</Text>
-                                            )}
+                                            <Text style={styles.imageCaption}>(Source Graph) - {data.description || ''}</Text>
                                         </View>
                                     ))}
                                 </View>
@@ -480,11 +478,9 @@ const Report = ({ research, show }) => {
                                                                 style={styles.comparisonImage}
                                                                 src={sourceComparisonImages[0]?.data}
                                                             />
-                                                            {sourceComparisonImages[0]?.description && (
                                                                 <Text style={styles.imageCaption}>
-                                                                    (Source Graph) - {sourceComparisonImages[0]?.description}
+                                                                    (Source Graph) - {sourceComparisonImages[0]?.description || ''}
                                                                 </Text>
-                                                            )}
                                                         </View>
                                                         :
                                                         <>
@@ -493,11 +489,9 @@ const Report = ({ research, show }) => {
                                                                     style={styles.bigSourceImage}
                                                                     src={sourceComparisonImages[0]?.data}
                                                                 />
-                                                                {sourceComparisonImages[0]?.description && (
-                                                                    <Text style={styles.imageCaption}>
-                                                                        (Source Graph) - {sourceComparisonImages[0]?.description}
-                                                                    </Text>
-                                                                )}
+                                                                <Text style={styles.imageCaption}>
+                                                                    (Source Graph) - {sourceComparisonImages[0]?.description || ''}
+                                                                </Text>
                                                             </View>
                                                         </>}
                                                 </>
@@ -508,9 +502,7 @@ const Report = ({ research, show }) => {
                                                         style={styles.comparisonImage}
                                                         src={image.data}
                                                     />
-                                                    {image.description && (
-                                                        <Text style={styles.imageCaption}>(Comparison Graph) - {image.description}</Text>
-                                                    )}
+                                                    <Text style={styles.imageCaption}>(Comparison Graph) - {image.description || ''}</Text>
                                                 </View>
                                             ))}
                                         </View>
