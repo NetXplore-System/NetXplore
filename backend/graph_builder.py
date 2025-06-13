@@ -47,6 +47,7 @@ def build_graph_from_txt(
     message_weights=None,
     is_for_save=False,
     platform="wikipedia",
+    algorithm=None
 ):
    
 

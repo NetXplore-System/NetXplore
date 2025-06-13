@@ -393,7 +393,7 @@ const ResearchWizard = () => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            filename: formData.uploadedFileName,
+            filename: formData.uploadedFileName.replace(".txt", ""), 
             section_title: selectedSection || "Top",
           }),
           }
