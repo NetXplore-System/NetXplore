@@ -17,7 +17,7 @@ import { addToComparison } from "../../redux/images/imagesSlice";
 import {
   FileBarGraph,
   InfoCircle,
-  FileEarmarkCheck,
+  CameraFill,
   Eye,
   EyeSlash,
 } from "react-bootstrap-icons";

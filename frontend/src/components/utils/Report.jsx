@@ -3,10 +3,8 @@ import { Fragment } from 'react';
 
 export const formatFilterLabel = (filter) => {
     const [key] = filter.split(':');
-    return key
-        .split('_')
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' ');
+    if (key.includes(' ')) return key.replace(/^./, c => c.toUpperCase());
+    return key.replace(/(?<!^)[A-Z]/g, ' $&').replace(/^./, c => c.toUpperCase());
 };
 
 Font.register({
@@ -373,29 +371,39 @@ const Report = ({ research, show }) => {
                             <Text style={styles.value}>{research.communities.length}</Text>
                         </View>
 
-                        <Text style={[styles.label, { fontSize: 11, marginTop: 10, marginBottom: 5 }]}>
-                            Community Details:
+                        <View style={styles.comparisonTable} wrap={false}>
+                            <View style={[styles.tableRow, { backgroundColor: '#F5F5F5' }]}>
+                                <Text style={styles.tableHeader}>Community</Text>
+                                <Text style={styles.tableHeader}>Members</Text>
+                                <Text style={styles.tableHeader}>Avg Between</Text>
+                                <Text style={styles.tableHeader}>Avg PageRank</Text>
+                                <Text style={styles.tableHeader}>Avg Messages</Text>
+                            </View>
+                            {research.communities.slice(0, 10).map((community, index) => (
+                                <View key={index} style={styles.tableRow}>
+                                    <Text style={styles.tableCell}>{community.id}</Text>
+                                    <Text style={styles.tableCell}>{community.size}</Text>
+                                    <Text style={styles.tableCell}>{community.avg_betweenness}</Text>
+                                    <Text style={styles.tableCell}>{community.avg_pagerank}</Text>
+                                    <Text style={styles.tableCell}>{community.avg_messages}</Text>
+                                </View>
+                            ))}
+                        </View>
+                        
+                        <Text style={[styles.label, { fontSize: 11, marginTop: 15, marginBottom: 5 }]}>
+                            Community Members:
                         </Text>
                         {research.communities.slice(0, 10).map((community, index) => (
                             <View key={index} style={[styles.metricHighlight, { marginTop: 5, padding: 8 }]}>
-                                <View style={styles.row}>
-                                    <Text style={[styles.label, { fontSize: 10, width: '40%' }]}>Community {community.id}:</Text>
-                                    <Text style={[styles.value, { fontSize: 10, width: '60%' }]}>{community.size} members</Text>
-                                </View>
-                                <View style={styles.row}>
-                                    <Text style={[styles.label, { fontSize: 9, width: '40%' }]}>Avg Betweenness:</Text>
-                                    <Text style={[styles.value, { fontSize: 9, width: '60%' }]}>{community.avg_betweenness}</Text>
-                                </View>
-                                <View style={styles.row}>
-                                    <Text style={[styles.label, { fontSize: 9, width: '40%' }]}>Avg PageRank:</Text>
-                                    <Text style={[styles.value, { fontSize: 9, width: '60%' }]}>{community.avg_pagerank}</Text>
-                                </View>
-                                <View style={styles.row}>
-                                    <Text style={[styles.label, { fontSize: 9, width: '40%' }]}>Avg Messages:</Text>
-                                    <Text style={[styles.value, { fontSize: 9, width: '60%' }]}>{community.avg_messages}</Text>
-                                </View>
+                                <Text style={[styles.label, { fontSize: 10, marginBottom: 3 }]}>
+                                    Community {community.id}:
+                                </Text>
+                                <Text style={[styles.value, { fontSize: 9 }]}>
+                                    {community.nodes?.join(', ') || 'No nodes available'}
+                                </Text>
                             </View>
                         ))}
+                        
                         {research.communities.length > 10 && (
                             <Text style={[styles.value, { fontSize: 10, marginTop: 5, fontStyle: 'italic' }]}>
                                 ... and {research.communities.length - 10} more communities
@@ -447,7 +455,7 @@ const Report = ({ research, show }) => {
                                                     src={data.data}
                                                 />
                                             }
-                                            <Text style={styles.imageCaption}>(Source Graph) - {data.description || ''}</Text>
+                                            <Text style={styles.imageCaption}>(Source Graph) {data.description && `- ${data.description}`}</Text>
                                         </View>
                                     ))}
                                 </View>
@@ -460,15 +468,15 @@ const Report = ({ research, show }) => {
                             const comparisonStats = research.stats.find(
                                 (state) => state.index === data[0].index
                             );
+                            const comparisonFile = research.comparisonFiles[index]
                             return (
                                 <Page key={`comparison-${index}`} style={styles.page}>
-                                    <Text style={styles.pageNumber}>Comparison Image</Text>
+                                    <Text style={styles.pageNumber}>Comparison Image {index + 1}</Text>
 
                                     <View style={styles.comparisonSection}>
                                         <Text style={styles.comparisonTitle}>
-                                            Comparison #{index + 1} Page: {comparisonStats?.fileName}
+                                            source: {research?.fileName}. comparison: {comparisonFile}.
                                         </Text>
-
                                         <View style={styles.comparisonImagesContainer}>
                                             {sourceComparisonImages.length === 1 &&
                                                 <>
@@ -479,7 +487,7 @@ const Report = ({ research, show }) => {
                                                                 src={sourceComparisonImages[0]?.data}
                                                             />
                                                                 <Text style={styles.imageCaption}>
-                                                                    (Source Graph) - {sourceComparisonImages[0]?.description || ''}
+                                                                    (Source Graph) {sourceComparisonImages[0]?.description && `- ${sourceComparisonImages[0]?.description}`}
                                                                 </Text>
                                                         </View>
                                                         :
@@ -490,7 +498,7 @@ const Report = ({ research, show }) => {
                                                                     src={sourceComparisonImages[0]?.data}
                                                                 />
                                                                 <Text style={styles.imageCaption}>
-                                                                    (Source Graph) - {sourceComparisonImages[0]?.description || ''}
+                                                                    (Source Graph) {sourceComparisonImages[0]?.description && `- ${sourceComparisonImages[0]?.description}`}
                                                                 </Text>
                                                             </View>
                                                         </>}
@@ -502,7 +510,7 @@ const Report = ({ research, show }) => {
                                                         style={styles.comparisonImage}
                                                         src={image.data}
                                                     />
-                                                    <Text style={styles.imageCaption}>(Comparison Graph) - {image.description || ''}</Text>
+                                                    <Text style={styles.imageCaption}>(Comparison Graph) {image.description && `- ${image.description}`}</Text>
                                                 </View>
                                             ))}
                                         </View>

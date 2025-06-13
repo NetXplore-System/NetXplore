@@ -4,8 +4,6 @@ import { useSelector } from "react-redux";
 import { Button, Card, Form, Col, Row } from "react-bootstrap";
 import { AiOutlineLoading } from "react-icons/ai";
 
-import "./update-research.css";
-import { GrConfigure } from "react-icons/gr";
 
 export default function UpdateResearch({
   research,

@@ -16,7 +16,6 @@ const imagesSlice = createSlice({
   reducers: {
     addToMain(state, action) {
       state.main.push({ ...action.payload, type: "main" });
-      toast.success("Image added to main list.");
     },
     addToComparison(state, action) {
       state.comparison[action.payload.type].push({

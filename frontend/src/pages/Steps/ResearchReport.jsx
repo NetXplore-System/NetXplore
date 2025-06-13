@@ -226,6 +226,7 @@ const ResearchReport = ({
               networkData={networkData}
               communities={communities}
               comparisonFilters={comparison.comparisonFilterSettings}
+              comparisonFiles={comparison.comparisonFiles}
             />
           </div>
         )}

@@ -17,7 +17,8 @@ const MadeReport = ({
     hasComparison,
     networkData,
     communities,
-    comparisonFilters
+    comparisonFilters,
+    comparisonFiles
 }) => {
     const { tableData } = useSelector((state) => state.table);
     const { main, comparison: { source, comparison } } = useSelector((state) => state.images);
@@ -35,6 +36,7 @@ const MadeReport = ({
         stats: tableData || [],
         networkData: networkData || {},
         communities: communities || [],
+        comparisonFiles: comparisonFiles || []
     });
     const [show, setShow] = useState({
         images: [
