@@ -49,14 +49,19 @@ def detect_date_format(first_line: str) -> list[str]:
 def parse_date_time(date_str: str | None, time_str: str | None) -> datetime | None:
     if not date_str:
         return None
+    
     try:
-        if time_str:
-            return datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M:%S")
+        if time_str and time_str.strip() and time_str != "None":
+            try:
+                return datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                return datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
         else:
             return datetime.strptime(f"{date_str} 00:00:00", "%Y-%m-%d %H:%M:%S")
-    except ValueError:
-        raise ValueError("Invalid date/time format. Expected format: YYYY-MM-DD and HH:MM:SS")
-
+            
+    except ValueError as e:
+        print(f"Error parsing date/time: '{date_str}' + '{time_str}' - {e}")
+        raise ValueError(f"Invalid date/time format. Expected format: YYYY-MM-DD and HH:MM:SS. Got: '{date_str}' + '{time_str}'")
 
 def apply_comparison_filters(network_data, node_filter, min_weight):
     if not network_data or "nodes" not in network_data or "links" not in network_data:
