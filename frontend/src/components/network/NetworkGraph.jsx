@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useMemo } from "react";
 import { ForceGraph2D } from "react-force-graph";
 import PropTypes from "prop-types";
 
@@ -16,53 +16,99 @@ const NetworkGraph = ({
   forceGraphRef,
   isDirectedGraph = false,
 }) => {
-  
-  useEffect(() => {
-    if (forceGraphRef.current) {
-      forceGraphRef.current.zoomToFit(400, 100);
-    }
-  }, [networkData, forceGraphRef]);
+  const graphParams = useMemo(() => {
+    const nodes = customizedNetworkData
+      ? customizedNetworkData.nodes
+      : filteredNodes;
+    const nodeCount = nodes.length;
+
+    const baseNodeSize = Math.max(8, Math.min(20, 100 / Math.sqrt(nodeCount)));
+    const linkDistance = Math.max(30, Math.min(120, 50 + nodeCount * 0.5));
+    const chargeStrength = Math.max(-300, Math.min(-50, -100 - nodeCount * 2));
+    const fontSize = Math.max(10, Math.min(16, 80 / Math.sqrt(nodeCount)));
+
+    return {
+      baseNodeSize,
+      linkDistance,
+      chargeStrength,
+      fontSize,
+      nodeCount,
+    };
+  }, [customizedNetworkData, filteredNodes]);
 
   useEffect(() => {
     if (forceGraphRef.current && networkData && networkData.nodes) {
       const graph = forceGraphRef.current;
-      const nodes = customizedNetworkData ? customizedNetworkData.nodes : filteredNodes;
-      const nodeCount = nodes.length;
-            
-      setTimeout(() => {
-        if (graph) {
-          try {
-            if (typeof graph.d3Force === 'function') {
-              
-              const chargeForce = graph.d3Force('charge');
-              if (chargeForce && typeof chargeForce.strength === 'function') {
-                chargeForce.strength(-150 * nodeCount);
-              }
-              
-              const linkForce = graph.d3Force('link');
-              if (linkForce && typeof linkForce.distance === 'function') {
-                 linkForce.distance(20 + nodeCount * 0.5);
 
+      const setupForces = () => {
+        try {
+          if (typeof graph.d3Force === "function") {
+            const chargeForce = graph.d3Force("charge");
+            if (chargeForce?.strength) {
+              chargeForce.strength(graphParams.chargeStrength);
+            }
 
+            const linkForce = graph.d3Force("link");
+            if (linkForce?.distance) {
+              linkForce.distance(graphParams.linkDistance);
+            }
 
-              }
-              
-              if (typeof graph.d3ReheatSimulation === 'function') {
-                graph.d3ReheatSimulation();
-              }
-              
-            } else {
-              console.warn('d3Force is not a function on the graph instance');}
-          } catch (error) {
-            console.error('Error setting forces:', error);}
+            graph.d3Force("center", graph.d3.forceCenter(0, 0));
+
+            graph.d3ReheatSimulation?.();
+          }
+        } catch (error) {
+          console.error("Error setting forces:", error);
         }
-      }, 300);
+      };
+
+      const timeout = setTimeout(setupForces, 100);
+      return () => clearTimeout(timeout);
     }
-  }, [networkData, customizedNetworkData, selectedMetric]);
+  }, [networkData, customizedNetworkData, selectedMetric, graphParams]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (forceGraphRef.current) {
+        forceGraphRef.current.zoomToFit(150, 50);
+      }
+    }, 200); 
+    return () => clearTimeout(timeout);
+  }, [networkData]);
 
   if (!networkData) {
     return <div>No network data available</div>;
   }
+
+  const getNodeRadius = (node) => {
+    const baseSize = graphParams.baseNodeSize;
+
+    if (selectedMetric === "PageRank Centrality") {
+      return Math.max(
+        baseSize * 0.7,
+        Math.min(baseSize * 2, node.pagerank * 500)
+      );
+    } else if (selectedMetric === "Eigenvector Centrality") {
+      return Math.max(
+        baseSize * 0.7,
+        Math.min(baseSize * 2, node.eigenvector * 80)
+      );
+    } else if (selectedMetric === "Closeness Centrality") {
+      return Math.max(
+        baseSize * 0.7,
+        Math.min(baseSize * 2, node.closeness * 80)
+      );
+    } else if (selectedMetric === "Betweenness Centrality") {
+      return Math.max(
+        baseSize * 0.7,
+        Math.min(baseSize * 2, node.betweenness * 100)
+      );
+    } else if (selectedMetric === "Degree Centrality") {
+      return Math.max(baseSize * 0.7, Math.min(baseSize * 2, node.degree * 3));
+    }
+
+    return node.size || baseSize;
+  };
 
   return (
     <div
@@ -71,196 +117,150 @@ const NetworkGraph = ({
         maxWidth: "100%",
         width: "100%",
         height: "700px",
-        overflowX: "hidden",
-        overflowY: "hidden",
+        overflow: "hidden",
         position: "relative",
         margin: "0 auto",
       }}
     >
       <ForceGraph2D
         ref={forceGraphRef}
-        key={customizedNetworkData ? "customized" : "default"}
+        key={`${customizedNetworkData ? "customized" : "default"}-${
+          graphParams.nodeCount
+        }`}
         graphData={{
           nodes: customizedNetworkData
             ? customizedNetworkData.nodes
             : filteredNodes,
-          links: customizedNetworkData
-            ? customizedNetworkData.links.map((link) => {
-                const sourceNode = customizedNetworkData.nodes.find(
-                  (node) =>
-                    (typeof link.source === "object" &&
-                      node.id === link.source.id) ||
-                    node.id === link.source
-                );
-
-                const targetNode = customizedNetworkData.nodes.find(
-                  (node) =>
-                    (typeof link.target === "object" &&
-                      node.id === link.target.id) ||
-                    node.id === link.target
-                );
-
-                return {
-                  source: sourceNode || link.source,
-                  target: targetNode || link.target,
-                  weight: link.weight || 1,
-                };
-              })
-            : filteredLinks.map((link) => {
-                const sourceNode = filteredNodes.find(
-                  (node) =>
-                    (typeof link.source === "object" &&
-                      node.id === link.source.id) ||
-                    node.id === link.source
-                );
-
-                const targetNode = filteredNodes.find(
-                  (node) =>
-                    (typeof link.target === "object" &&
-                      node.id === link.target.id) ||
-                    node.id === link.target
-                );
-
-                return {
-                  source: sourceNode || link.source,
-                  target: targetNode || link.target,
-                  weight: link.weight || 1,
-                };
-              }),
+          links: (customizedNetworkData
+            ? customizedNetworkData.links
+            : filteredLinks
+          ).map((link) => {
+            const nodes = customizedNetworkData
+              ? customizedNetworkData.nodes
+              : filteredNodes;
+            const sourceNode = nodes.find((node) =>
+              typeof link.source === "object"
+                ? node.id === link.source.id
+                : node.id === link.source
+            );
+            const targetNode = nodes.find((node) =>
+              typeof link.target === "object"
+                ? node.id === link.target.id
+                : node.id === link.target
+            );
+            return {
+              source: sourceNode || link.source,
+              target: targetNode || link.target,
+              weight: link.weight || 1,
+            };
+          }),
         }}
         directed={isDirectedGraph}
         width={showMetrics ? 1200 : 1500}
         height={700}
         fitView
-        fitViewPadding={100}     
+        fitViewPadding={100}
         nodeAutoColorBy={customizedNetworkData ? null : "id"}
-        linkWidth={(link) => Math.sqrt(link.weight || 1)}
-        linkColor={() => "gray"}
+        linkWidth={(link) =>
+          Math.max(1, Math.min(5, Math.sqrt(link.weight || 1)))
+        }
+        linkColor={() => "rgba(128, 128, 128, 0.6)"}
         enableNodeDrag={true}
-        cooldownTicks={400} 
-        d3AlphaDecay={0.005} 
-        d3VelocityDecay={0.7} 
-        d3ReheatOnLayout={true}
+        cooldownTicks={Math.min(200, graphParams.nodeCount * 2)}
+        d3AlphaDecay={0.02} 
+        d3VelocityDecay={0.8}
+        d3ReheatOnLayout={false} 
         onNodeClick={handleNodeClick}
-        onEngineStop={() => forceGraphRef.current?.zoomToFit(400, 100)}
+        onEngineStop={() => {
+          setTimeout(() => {
+            forceGraphRef.current?.zoomToFit(150, 50);
+          }, 100);
+        }}
         onNodeDragEnd={(node) => {
           node.fx = node.x;
           node.fy = node.y;
         }}
         linkCanvasObject={(link, ctx, globalScale) => {
           if (!link.source || !link.target) return;
-45
-          const sourceX = link.source.x;
-          const sourceY = link.source.y;
-          const targetX = link.target.x;
-          const targetY = link.target.y;
-
+          const { x: sourceX, y: sourceY } = link.source;
+          const { x: targetX, y: targetY } = link.target;
           const dx = targetX - sourceX;
           const dy = targetY - sourceY;
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist === 0) return;
 
+          const lineWidth = Math.max(
+            0.5,
+            Math.min(3, Math.sqrt(link.weight || 1))
+          );
+
           ctx.beginPath();
           ctx.moveTo(sourceX, sourceY);
           ctx.lineTo(targetX, targetY);
-          ctx.strokeStyle = "gray";
-          ctx.lineWidth = Math.sqrt(link.weight || 1);
+          ctx.strokeStyle = "rgba(128, 128, 128, 0.6)";
+          ctx.lineWidth = lineWidth;
           ctx.stroke();
 
-          if (isDirectedGraph) {
-            // Reduced arrowhead size
-            const minArrowLength = 5;
-            const minArrowWidth = 2.5;
-            const arrowLength = Math.max(minArrowLength, 8 / globalScale);
-            const arrowWidth = Math.max(minArrowWidth, 4 / globalScale);
-            const targetRadius =
-              link.target.size ||
-              (selectedMetric === "PageRank Centrality"
-                ? Math.max(10, link.target.pagerank * 500)
-                : selectedMetric === "Eigenvector Centrality"
-                ? Math.max(10, link.target.eigenvector * 60)
-                : selectedMetric === "Closeness Centrality"
-                ? Math.max(10, link.target.closeness * 50)
-                : selectedMetric === "Betweenness Centrality"
-                ? Math.max(10, link.target.betweenness * 80)
-                : selectedMetric === "Degree Centrality"
-                ? Math.max(10, link.target.degree * 80)
-                : 20);
+          const fontSize = Math.max(
+            8,
+            (graphParams.fontSize * 0.7) / globalScale
+          );
+          const label = link.weight || "1";
 
-            // Arrowhead tip
+          if (isDirectedGraph) {
+            const arrowLength = Math.max(4, 6 / globalScale);
+            const arrowAngle = Math.PI / 8;
+            const targetRadius = getNodeRadius(link.target);
             const arrowTipX = targetX - (dx * targetRadius) / dist;
             const arrowTipY = targetY - (dy * targetRadius) / dist;
             const angle = Math.atan2(dy, dx);
-            const arrowAngle = Math.PI / 8;
-            const arrowX1 = arrowTipX - arrowLength * Math.cos(angle - arrowAngle);
-            const arrowY1 = arrowTipY - arrowLength * Math.sin(angle - arrowAngle);
-            const arrowX2 = arrowTipX - arrowLength * Math.cos(angle + arrowAngle);
-            const arrowY2 = arrowTipY - arrowLength * Math.sin(angle + arrowAngle);
+            const arrowX1 =
+              arrowTipX - arrowLength * Math.cos(angle - arrowAngle);
+            const arrowY1 =
+              arrowTipY - arrowLength * Math.sin(angle - arrowAngle);
+            const arrowX2 =
+              arrowTipX - arrowLength * Math.cos(angle + arrowAngle);
+            const arrowY2 =
+              arrowTipY - arrowLength * Math.sin(angle + arrowAngle);
 
-            ctx.save();
             ctx.beginPath();
             ctx.moveTo(arrowTipX, arrowTipY);
             ctx.lineTo(arrowX1, arrowY1);
             ctx.lineTo(arrowX2, arrowY2);
             ctx.closePath();
-            ctx.fillStyle = "gray";
+            ctx.fillStyle = "rgba(128, 128, 128, 0.8)";
             ctx.fill();
-            ctx.restore();
 
-            // Place label just before the arrowhead, on the line
-            const labelDistFromTip = arrowLength + 6; // px before arrow tip
-            let labelX = arrowTipX - (dx / dist) * labelDistFromTip;
-            let labelY = arrowTipY - (dy / dist) * labelDistFromTip;
-            // Optionally, offset slightly perpendicular for clarity
-            const perpX = -dy / dist;
-            const perpY = dx / dist;
-            labelX += perpX * 2; // small offset
-            labelY += perpY * 2;
+            const labelX =
+              arrowTipX - (dx / dist) * (arrowLength + 4) + (-dy / dist) * 2;
+            const labelY =
+              arrowTipY - (dy / dist) * (arrowLength + 4) + (dx / dist) * 2;
 
-            const fontSize = 10 / globalScale;
-            ctx.save();
             ctx.font = `bold ${fontSize}px Sans-Serif`;
             ctx.fillStyle = "#333";
             ctx.strokeStyle = "white";
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 1;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
-            ctx.strokeText(link.weight || "1", labelX, labelY);
-            ctx.fillText(link.weight || "1", labelX, labelY);
-            ctx.restore();
+            ctx.strokeText(label, labelX, labelY);
+            ctx.fillText(label, labelX, labelY);
           } else {
-            // Undirected: label at midpoint
             const labelX = (sourceX + targetX) / 2;
             const labelY = (sourceY + targetY) / 2;
-            const fontSize = 10 / globalScale;
-            ctx.save();
+
             ctx.font = `bold ${fontSize}px Sans-Serif`;
             ctx.fillStyle = "#333";
             ctx.strokeStyle = "white";
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 1;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
-            ctx.strokeText(link.weight || "1", labelX, labelY);
-            ctx.fillText(link.weight || "1", labelX, labelY);
-            ctx.restore();
+            ctx.strokeText(label, labelX, labelY);
+            ctx.fillText(label, labelX, labelY);
           }
         }}
         nodeCanvasObject={(node, ctx, globalScale) => {
-          const fontSize = 12 / globalScale;
-
-          const radius =
-            node.size ||
-            (selectedMetric === "PageRank Centrality"
-              ? Math.max(10, node.pagerank * 500)
-              : selectedMetric === "Eigenvector Centrality"
-              ? Math.max(10, node.eigenvector * 60)
-              : selectedMetric === "Closeness Centrality"
-              ? Math.max(10, node.closeness * 50)
-              : selectedMetric === "Betweenness Centrality"
-              ? Math.max(10, node.betweenness * 80)
-              : selectedMetric === "Degree Centrality"
-              ? Math.max(10, node.degree * 80)
-              : 20);
+          const fontSize = graphParams.fontSize / globalScale;
+          const radius = getNodeRadius(node);
 
           ctx.save();
           ctx.beginPath();
@@ -272,87 +272,109 @@ const NetworkGraph = ({
             ? "#ff9900"
             : node.color ||
               (selectedMetric === "PageRank Centrality"
-                ? "orange"
+                ? "#ff8c00"
                 : selectedMetric === "Eigenvector Centrality"
-                ? "purple"
+                ? "#9932cc"
                 : selectedMetric === "Closeness Centrality"
-                ? "green"
+                ? "#32cd32"
                 : selectedMetric === "Betweenness Centrality"
-                ? "red"
+                ? "#dc143c"
                 : selectedMetric === "Degree Centrality"
-                ? "#231d81"
-                : "blue");
+                ? "#4169e1"
+                : "#1e90ff");
 
           ctx.fillStyle = nodeColor;
           ctx.fill();
 
           if (node.isHighlightedCommunity) {
-            ctx.save();
             ctx.shadowColor = "#F5BD20";
-            ctx.shadowBlur = 15;
-            ctx.shadowOffsetX = 0;
-            ctx.shadowOffsetY = 0;
+            ctx.shadowBlur = 10;
             ctx.strokeStyle = "#F5BD20";
             ctx.lineWidth = 2;
             ctx.stroke();
-            ctx.restore();
           } else if (isHighlighted) {
             ctx.strokeStyle = "#ffff00";
             ctx.lineWidth = 3;
             ctx.stroke();
           }
 
-          ctx.font = `${fontSize}px Sans-Serif`;
+          ctx.font = `bold ${fontSize}px Sans-Serif`;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           ctx.fillStyle = "white";
+          ctx.strokeStyle = "rgba(0,0,0,0.7)";
+          ctx.lineWidth = 0.5;
+          ctx.strokeText(node.id, node.x, node.y);
           ctx.fillText(node.id, node.x, node.y);
 
+          const metricFontSize = fontSize * 0.8;
+          ctx.font = `${metricFontSize}px Sans-Serif`;
+          const yOffset = radius + metricFontSize + 2;
+
           if (selectedMetric === "Degree Centrality") {
-            ctx.fillStyle = "#231d81";
-            ctx.fillText(`Deg: ${node.degree}`, node.x, node.y + radius + 5);
-          }
-          if (selectedMetric === "Betweenness Centrality") {
-            ctx.fillStyle = "DarkRed";
+            ctx.fillStyle = "#4169e1";
+            ctx.strokeStyle = "white";
+            ctx.strokeText(`Deg: ${node.degree}`, node.x, node.y + yOffset);
+            ctx.fillText(`Deg: ${node.degree}`, node.x, node.y + yOffset);
+          } else if (selectedMetric === "Betweenness Centrality") {
+            ctx.fillStyle = "#dc143c";
+            ctx.strokeStyle = "white";
+            ctx.strokeText(
+              `Btw: ${node.betweenness?.toFixed(2) || 0}`,
+              node.x,
+              node.y + yOffset
+            );
             ctx.fillText(
               `Btw: ${node.betweenness?.toFixed(2) || 0}`,
               node.x,
-              node.y + radius + 5
+              node.y + yOffset
             );
-          }
-          if (selectedMetric === "Closeness Centrality") {
-            ctx.fillStyle = "green";
+          } else if (selectedMetric === "Closeness Centrality") {
+            ctx.fillStyle = "#32cd32";
+            ctx.strokeStyle = "white";
+            ctx.strokeText(
+              `Cls: ${node.closeness?.toFixed(2) || 0}`,
+              node.x,
+              node.y + yOffset
+            );
             ctx.fillText(
               `Cls: ${node.closeness?.toFixed(2) || 0}`,
               node.x,
-              node.y + radius + 5
+              node.y + yOffset
             );
-          }
-          if (selectedMetric === "Eigenvector Centrality") {
-            ctx.fillStyle = "purple";
+          } else if (selectedMetric === "Eigenvector Centrality") {
+            ctx.fillStyle = "#9932cc";
+            ctx.strokeStyle = "white";
+            ctx.strokeText(
+              `Eig: ${node.eigenvector?.toFixed(4) || 0}`,
+              node.x,
+              node.y + yOffset
+            );
             ctx.fillText(
               `Eig: ${node.eigenvector?.toFixed(4) || 0}`,
               node.x,
-              node.y + radius + 5
+              node.y + yOffset
             );
-          }
-          if (selectedMetric === "PageRank Centrality") {
-            ctx.fillStyle = "orange";
+          } else if (selectedMetric === "PageRank Centrality") {
+            ctx.fillStyle = "#ff8c00";
+            ctx.strokeStyle = "white";
+            ctx.strokeText(
+              `PR: ${node.pagerank?.toFixed(4) || 0}`,
+              node.x,
+              node.y + yOffset
+            );
             ctx.fillText(
               `PR: ${node.pagerank?.toFixed(4) || 0}`,
               node.x,
-              node.y + radius + 5
+              node.y + yOffset
             );
           }
 
           ctx.restore();
         }}
         onNodeHover={(node) => {
-          if (node && networkWasRestored) {
-            document.body.style.cursor = "pointer";
-          } else {
-            document.body.style.cursor = "default";
-          }
+          document.body.style.cursor =
+            node && networkWasRestored ? "pointer" : "default";
         }}
       />
     </div>
