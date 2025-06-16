@@ -41,7 +41,10 @@ const NetworkGraph = ({
               
               const linkForce = graph.d3Force('link');
               if (linkForce && typeof linkForce.distance === 'function') {
-                linkForce.distance(60 + nodeCount * 3);
+                 linkForce.distance(20 + nodeCount * 0.5);
+
+
+
               }
               
               if (typeof graph.d3ReheatSimulation === 'function') {

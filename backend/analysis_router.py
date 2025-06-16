@@ -1,12 +1,7 @@
-import os
 import json
 import logging
-from collections import defaultdict
-from typing import Dict, Optional
+from typing import Optional
 
-import networkx as nx
-from community import community_louvain
-from networkx.algorithms import community as nx_community
 
 from fastapi import APIRouter, Query, HTTPException
 from fastapi.responses import JSONResponse
@@ -14,14 +9,10 @@ from fastapi.responses import JSONResponse
 from analyzers.factory import get_analyzer
 
 from utils import (
-    parse_date_time,
-    detect_date_format,
     apply_comparison_filters,
     find_common_nodes,
     mark_common_nodes,
     get_network_metrics,
-    calculate_sequential_weights,
-    normalize_links_by_target
 )
 
 
@@ -64,7 +55,6 @@ async def analyze_network(
     if message_weights:
         try:
             parsed_message_weights = json.loads(message_weights)
-            # Validate that it's a list of numbers
             if not isinstance(parsed_message_weights, list) or not all(isinstance(x, (int, float)) for x in parsed_message_weights):
                 raise ValueError("message_weights must be a list of numbers")
         except (json.JSONDecodeError, ValueError) as e:

@@ -233,9 +233,9 @@ export const useNetworkFilters = (networkData, setNetworkData, originalNetworkDa
                 links: filteredLinks,
             });
 
-            toast.success(
-                `Showing only intra-community links and hiding isolated nodes. Removed ${networkData.links.length - filteredLinks.length} cross-community links.`
-            );
+            // toast.success(
+            //     `Showing only intra-community links and hiding isolated nodes. Removed ${networkData.links.length - filteredLinks.length} cross-community links.`
+            // );
         } else {
             const restoredNodes = originalNetworkData.nodes.map((node) => {
                 const currentNode = networkData.nodes.find((n) => n.id === node.id);

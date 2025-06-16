@@ -14,7 +14,7 @@ export const fetchWithAuth = async (url, options = {}) => {
   const response = await fetch(url, { ...options, headers });
 
   if (response.status === 401 || response.status === 403) {
-    toast.error("Session expired. Please log in again.");
+    // toast.error("Session expired. Please log in again.");
     localStorage.removeItem("user");
     localStorage.removeItem("token");
     store.dispatch(logoutUser());

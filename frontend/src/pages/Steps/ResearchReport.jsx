@@ -1,11 +1,20 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Card, Row, Col, Button } from "react-bootstrap";
-import { FileBarGraph, Download, CheckCircleFill } from "react-bootstrap-icons";
-import { useDispatch, useSelector } from "react-redux";
-import { addToMain } from "../../redux/images/imagesSlice";
+import { FileBarGraph, CheckCircleFill } from "react-bootstrap-icons";
 import MadeReport from "../../components/utils/MadeReport";
 
 import "../../styles/ResearchReport.css";
+
+const addFeild = (map, obj) => {
+  for (const [key, value] of Object.entries(obj)) {
+    if (value) {
+      map.set(
+        key.replace(/(?<!^)[A-Z]/g, ' $&'),
+        typeof value === "boolean" ? (value ? "Yes" : "No") : value.toString()
+      );
+    }
+  }
+};
 
 const ResearchReport = ({
   formData,
@@ -13,64 +22,49 @@ const ResearchReport = ({
   communities,
   selectedMetric,
   comparison,
-  handleSaveResearch,
 }) => {
   const [showDownload, setShowDownload] = useState(false);
-  const { main } = useSelector((state) => state.images);
-  const dispatch = useDispatch();
 
   const createParamsMap = () => {
     const params = new Map();
 
-    if (formData.timeFrame.startDate) {
-      params.set("start_date", formData.timeFrame.startDate);
-    }
-    if (formData.timeFrame.endDate) {
-      params.set("end_date", formData.timeFrame.endDate);
-    }
-
-    if (formData.includeMessageContent) {
-      if (formData.messageCriteria.minLength > 1) {
-        params.set("min_message_length", formData.messageCriteria.minLength);
-      }
-      if (formData.messageCriteria.maxLength) {
-        params.set("max_message_length", formData.messageCriteria.maxLength);
-      }
-      if (formData.messageCriteria.keywords) {
-        params.set("keywords", formData.messageCriteria.keywords);
+    for (const [key, value] of Object.entries(formData.limit)) {
+      if (key === "enabled") {
+        params.set("Enabled Limit", value ? "Yes" : "No");
+      } else if (key !== "type") {
+        params.set(
+          key.replace(/(?<!^)[A-Z]/g, ' $&'),
+          typeof value === "boolean" ? (value ? "Yes" : "No") : value.toString()
+        );
       }
     }
 
-    if (formData.userFilters.minMessages > 1) {
-      params.set("min_messages", formData.userFilters.minMessages);
-    }
-    if (formData.userFilters.maxMessages) {
-      params.set("max_messages", formData.userFilters.maxMessages);
-    }
-    if (formData.userFilters.usernameFilter) {
-      params.set("username_filter", formData.userFilters.usernameFilter);
+    for (const [key, value] of Object.entries(formData)) {
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        !Array.isArray(value) &&
+        key !== "Network" &&
+        key !== "limit" &&
+        key !== "file"
+      ) {
+        addFeild(params, value);
+      }
+      if (typeof value === "boolean" && key !== "comparisonEnabled") {
+        params.set(
+          key.replace(/(?<!^)[A-Z]/g, ' $&'),
+          value ? "Yes" : "No"
+        );
+      }
+      if (key === "messageWeights") {
+        params.set("Message Weights", JSON.stringify(value));
+      }
+
     }
 
     return params;
   };
 
-  const generateNetworkStats = () => {
-    if (!networkData) return null;
-
-    const { nodes, links } = networkData;
-    const numNodes = nodes.length;
-    const numEdges = links.length;
-
-    const density =
-      numNodes > 1 ? (2 * numEdges) / (numNodes * (numNodes - 1)) : 0;
-
-    return {
-      numNodes,
-      numEdges,
-      density: density.toFixed(4),
-      communityCount: communities?.length || 0,
-    };
-  };
 
   const handleGenerateReport = () => {
     setShowDownload(true);
@@ -126,7 +120,7 @@ const ResearchReport = ({
                   {formData.timeFrame.startDate
                     ? `${formData.timeFrame.startDate} to ${
                         formData.timeFrame.endDate || "Present"
-                      }`
+                    }`
                     : "All dates"}
                 </div>
               </div>
@@ -223,9 +217,16 @@ const ResearchReport = ({
             <MadeReport
               selectedMetric={selectedMetric}
               name={formData.name}
+              fileName={
+                formData.uploadedFileName || formData.fileName
+              }
               params={createParamsMap()}
               setShowDownload={setShowDownload}
               hasComparison={comparison.comparisonNetworkData.length > 0}
+              networkData={networkData}
+              communities={communities}
+              comparisonFilters={comparison.comparisonFilterSettings}
+              comparisonFiles={comparison.comparisonFiles}
             />
           </div>
         )}

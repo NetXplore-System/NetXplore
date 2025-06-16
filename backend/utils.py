@@ -1,11 +1,8 @@
 from typing import List, Tuple, Any, Dict, Union
 from datetime import datetime
 from collections import defaultdict, deque
-import networkx as nx
 import re
-from collections import  defaultdict
 from typing import List, Tuple, Dict
-import os
 import logging
 
 logger = logging.getLogger(__name__)
@@ -52,14 +49,19 @@ def detect_date_format(first_line: str) -> list[str]:
 def parse_date_time(date_str: str | None, time_str: str | None) -> datetime | None:
     if not date_str:
         return None
+    
     try:
-        if time_str:
-            return datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M:%S")
+        if time_str and time_str.strip() and time_str != "None":
+            try:
+                return datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                return datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
         else:
             return datetime.strptime(f"{date_str} 00:00:00", "%Y-%m-%d %H:%M:%S")
-    except ValueError:
-        raise ValueError("Invalid date/time format. Expected format: YYYY-MM-DD and HH:MM:SS")
-
+            
+    except ValueError as e:
+        print(f"Error parsing date/time: '{date_str}' + '{time_str}' - {e}")
+        raise ValueError(f"Invalid date/time format. Expected format: YYYY-MM-DD and HH:MM:SS. Got: '{date_str}' + '{time_str}'")
 
 def apply_comparison_filters(network_data, node_filter, min_weight):
     if not network_data or "nodes" not in network_data or "links" not in network_data:
@@ -207,26 +209,6 @@ def clean_filter_value(key: str, value: Any):
         return None
     return value
 
-# TODO: decide when we call this function 
-def delete_old_files():
-    """Delete files older than 20 hours based on their timestamp in the filename."""
-    now = datetime.now()
-
-    for filename in os.listdir(UPLOAD_FOLDER):
-        if "-" in filename and filename.endswith(".txt"):
-            name, timestamp_str = filename.rsplit("-", 1)
-            timestamp_str = timestamp_str.replace(".txt", "")
-
-            try:
-                file_time = datetime.fromtimestamp(int(timestamp_str) / 1000)
-                if now - file_time > timedelta(hours=20):
-                    file_path = os.path.join(UPLOAD_FOLDER, filename)
-                    os.remove(file_path)
-                    logger.info(f"Deleted old file: {file_path}")
-            except ValueError:
-                logger.warning(f"Skipping file with invalid timestamp format: {filename}")
-                
-                
 
 def calculate_comparison_stats(original_nodes, comparison_nodes, original_links=None, comparison_links=None):
     if not original_nodes or not comparison_nodes:

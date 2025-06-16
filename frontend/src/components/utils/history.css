@@ -9,7 +9,7 @@
 }
 
 .react-tooltip {
-  z-index: 9999 !important;
+  z-index: 999 !important;
 }
 
 .loader-container,
@@ -710,10 +710,6 @@
   outline: none;
 }
 
-.update-history button {
-  border-radius: 30px;
-  padding: 10px 20px;
-}
 
 .update-history .generic-button {
   background-color: #050d2d;

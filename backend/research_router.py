@@ -2,7 +2,6 @@ import os
 import json
 import logging
 from typing import List, Optional
-from datetime import datetime
 
 from fastapi import APIRouter, Form, Query, Depends, HTTPException
 from fastapi.responses import JSONResponse
@@ -57,14 +56,12 @@ async def save_research(
     selected_users: str = Query(None),
     username: str = Query(None),
     anonymize: bool = Query(False),
-    algorithm: str = Query("louvain"),
     include_messages: bool = Query(True),
     directed: bool = Query(False),
     use_history: bool = Query(False),
     normalize: bool = Query(False),
     history_length: int = Query(3),
-    # message_weights: str = Query([5,3,2]),
-    message_weights: Optional[str] = Query(None),
+    message_weights: str = Query([5,3,2]),
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     communities: Optional[str] = Form(None),
@@ -78,7 +75,6 @@ async def save_research(
         if platform == "wikipedia" and file_name.endswith(".txt"):
             file_name = file_name[:-4]
         
-        # Parse message_weights from string to list of floats
         parsed_message_weights = None
         if message_weights:
             try:
@@ -115,7 +111,6 @@ async def save_research(
             is_for_save=True
         )
         
-        # data = data if isinstance(data, dict) else json.loads(data.body)
         if isinstance(data, dict):
             pass  
         elif hasattr(data, "body"):
@@ -169,11 +164,11 @@ async def save_research(
             selected_users=selected_users,
             filter_by_username=username,
             anonymize=anonymize,
-            algorithm=algorithm,
             directed=directed,
             use_history=use_history,
             normalize=normalize,
-            history_length=history_length if use_history else None
+            history_length=history_length if use_history else None,
+            message_weights=parsed_message_weights if use_history else None,
         )
         db.add(new_filter) 
         parsed_communities = json.loads(communities) if communities not in [None, "", "[]"] else []
@@ -197,7 +192,6 @@ async def save_research(
                 
                 for comp_data, comp_filter in zip(comparison_data, comparison_filters):
                     
-                    # Parse message_weights for comparison
                     comp_message_weights = comp_filter.get("config", {}).get("messageWeights")
                     parsed_comp_message_weights = None
                     if comp_message_weights:
@@ -233,12 +227,11 @@ async def save_research(
                         directed=comp_filter.get("config", {}).get("directed", False),
                         use_history=comp_filter.get("config", {}).get("history", False),
                         normalize=comp_filter.get("config", {}).get("normalized", False),
-                        history_length=int(comp_filter.get("config", {}).get("messageCount", 3)),
-                        message_weights=parsed_comp_message_weights,
+                        history_length=int(comp_filter.get("config", {}).get("messageCount", 3)) if comp_filter.get("config", {}).get("history", False) else None,
+                        message_weights=parsed_comp_message_weights if comp_filter.get("config", {}).get("history", False) else None,
                         is_for_save=True
                     )
 
-                    # messages = json.loads(messages.body).get("messages", [])
                     if isinstance(messages, dict):
                         messages = messages.get("messages", [])
                     elif hasattr(messages, "body"):
@@ -400,7 +393,6 @@ async def update_research_data(
         filters_data.pop("max_message_length", None)
         filters_data.pop("top_active_users", None)
         filters_data.pop("filter_by_username", None)
-        filters_data.pop("algorithm", None)
         filters_data.pop("specific_users", None)
         analyzer = get_analyzer(research.platform)
 

@@ -1,11 +1,10 @@
 import { Page, Text, View, Document, StyleSheet, Font, Image } from '@react-pdf/renderer';
+import { Fragment } from 'react';
 
 export const formatFilterLabel = (filter) => {
     const [key] = filter.split(':');
-    return key
-        .split('_')
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1)) // Capitalize each word
-        .join(' ');
+    if (key.includes(' ')) return key.replace(/^./, c => c.toUpperCase());
+    return key.replace(/(?<!^)[A-Z]/g, ' $&').replace(/^./, c => c.toUpperCase());
 };
 
 Font.register({
@@ -133,7 +132,7 @@ const styles = StyleSheet.create({
         border: '1px solid #EEE',
     },
     comparisonImage: {
-        width: '75%', 
+        width: '75%',
         height: 300,
         borderRadius: 4,
         border: '1px solid #EEE',
@@ -146,45 +145,52 @@ const styles = StyleSheet.create({
     },
     comparisonImagesContainer: {
         flexDirection: 'row',
-        flexWrap: 'wrap', 
-        justifyContent: 'center', 
+        flexWrap: 'wrap',
+        justifyContent: 'center',
     },
     comparisonImageContainer: {
         flexBasis: '100%',
-        display: 'flex', 
+        display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         textAlign: 'center',
-        marginBottom: 10, 
+        marginBottom: 10,
     },
     comparisonTable: {
         width: '100%',
-        marginTop: 115,
-        marginBottom: 15,
+        marginTop: 25,
+        marginBottom: 20,
+        borderRadius: 8,
+        overflow: 'hidden',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        border: '1px solid #E0E0E0',
     },
     tableRow: {
         flexDirection: 'row',
         borderBottomWidth: 1,
-        borderBottomColor: '#DDD',
-        backgroundColor: '#FFF',
+        borderBottomColor: '#E8E8E8',
+        backgroundColor: '#FFFFFF',
+        minHeight: 35,
+        alignItems: 'center',
     },
     tableHeader: {
         width: '20%',
-        padding: 8,
-        backgroundColor: '#F5F5F5',
-        fontSize: 10,
+        padding: 10,
+        backgroundColor: '#158582',
+        fontSize: 11,
         fontWeight: 'bold',
-        color: '#333',
+        color: '#FFFFFF',
         textAlign: 'center',
-        borderBottom: 1,
-        borderBottomColor: '#DDD',
+        borderRight: '1px solid #FFFFFF',
     },
     tableCell: {
         width: '20%',
-        padding: 8,
+        padding: 10,
         fontSize: 10,
         textAlign: 'center',
-        color: '#444',
+        color: '#333',
+        borderRight: '1px solid #F0F0F0',
+        backgroundColor: '#FAFAFA',
     },
     footer: {
         position: 'absolute',
@@ -232,8 +238,27 @@ const Report = ({ research, show }) => {
 
     const groupedComparisonArray = Object.entries(groupedComparisonImages).map(([_, images]) => ([...images]));
     groupedComparisonArray.sort((a, b) => a.index - b.index);
-    
+
     const filters = show.filters.filter((filter) => filter.selected).map((filter) => research.filters[filter.index]);
+
+    const getTopNodesByMetric = (nodes, metric, count = 5) => {
+        return [...nodes]
+            .sort((a, b) => b[metric] - a[metric])
+            .slice(0, count);
+    };
+
+    const getNetworkStats = () => {
+        if (!research.networkData || !research.networkData.nodes || !research.networkData.links) return null;
+
+        const totalNodes = research.networkData.nodes.length;
+        const totalLinks = research.networkData.links.length;
+        const avgDegree = totalNodes > 0 ? (totalLinks * 2 / totalNodes).toFixed(2) : 0;
+        const totalMessages = research.networkData.nodes.reduce((sum, node) => sum + (node.messages || 0), 0);
+
+        return { totalNodes, totalLinks, avgDegree, totalMessages };
+    };
+
+    const networkStats = getNetworkStats();
 
     return (
         <Document>
@@ -241,20 +266,20 @@ const Report = ({ research, show }) => {
                 <View style={styles.header}>
                     <Text style={styles.headerTitle}>Research Report</Text>
                 </View>
-                {mainImages.length && (
+                {mainImages.length > 0 && (
                     <View style={styles.graphSection}>
                         <Text style={styles.graphTitle}>Network Graph Visualization</Text>
-                        {mainImages.map((image) =>
-                            <>
+                        {mainImages.map((image, index) =>
+                            <Fragment key={index}>
                                 <Image
                                     style={styles.graphImage}
                                     src={image.data}
                                     alt="Network Graph"
                                 />
                                 <Text style={styles.imageCaption}>
-                                    {image.description && ` - ${image.description}`}
+                                    (Main Graph) {image.description && ` - ${image.description}`}
                                 </Text>
-                            </>
+                            </Fragment>
 
                         )}
                     </View>
@@ -269,6 +294,10 @@ const Report = ({ research, show }) => {
                         <Text style={styles.label}>Researcher:</Text>
                         <Text style={styles.value}>{research.researcherName}</Text>
                     </View>
+                    <View style={styles.row}>
+                        <Text style={styles.label}>File:</Text>
+                        <Text style={styles.value}>{research.fileName}</Text>
+                    </View>
                     <View style={styles.metricHighlight}>
                         <Text style={styles.metricText}>
                             Primary Analysis Metric: {research.metric || 'No specific metric selected'}
@@ -276,7 +305,114 @@ const Report = ({ research, show }) => {
                     </View>
                 </View>
 
-                {filters && <View style={styles.section} wrap={false}>
+                {networkStats !== null && (
+                    <View style={styles.section} wrap={false}>
+                        <Text style={styles.sectionTitle}>Network Statistics</Text>
+                        <View style={styles.row}>
+                            <Text style={styles.label}>Total Nodes:</Text>
+                            <Text style={styles.value}>{networkStats.totalNodes}</Text>
+                        </View>
+                        <View style={styles.row}>
+                            <Text style={styles.label}>Total Links:</Text>
+                            <Text style={styles.value}>{networkStats.totalLinks}</Text>
+                        </View>
+                        <View style={styles.row}>
+                            <Text style={styles.label}>Average Degree:</Text>
+                            <Text style={styles.value}>{networkStats.avgDegree}</Text>
+                        </View>
+                        <View style={styles.row}>
+                            <Text style={styles.label}>Total Messages:</Text>
+                            <Text style={styles.value}>{networkStats.totalMessages}</Text>
+                        </View>
+                    </View>
+                )}
+
+                {research.networkData?.nodes?.length > 0 && (
+                    <View style={styles.section} wrap={false}>
+                        <Text style={styles.sectionTitle}>Top Nodes by Centrality Measures</Text>
+
+                        <Text style={[styles.label, { fontSize: 11, marginTop: 10, marginBottom: 5 }]}>
+                            Top 5 by Betweenness Centrality:
+                        </Text>
+                        {getTopNodesByMetric(research.networkData.nodes, 'betweenness').map((node, index) => (
+                            <View key={index} style={styles.row}>
+                                <Text style={[styles.label, { width: '50%', fontSize: 10 }]}>{node.name}:</Text>
+                                <Text style={[styles.value, { width: '50%', fontSize: 10 }]}>{node.betweenness}</Text>
+                            </View>
+                        ))}
+
+                        <Text style={[styles.label, { fontSize: 11, marginTop: 10, marginBottom: 5 }]}>
+                            Top 5 by PageRank:
+                        </Text>
+                        {getTopNodesByMetric(research.networkData.nodes, 'pagerank').map((node, index) => (
+                            <View key={index} style={styles.row}>
+                                <Text style={[styles.label, { width: '50%', fontSize: 10 }]}>{node.name}:</Text>
+                                <Text style={[styles.value, { width: '50%', fontSize: 10 }]}>{node.pagerank}</Text>
+                            </View>
+                        ))}
+
+                        <Text style={[styles.label, { fontSize: 11, marginTop: 10, marginBottom: 5 }]}>
+                            Top 5 by Message Count:
+                        </Text>
+                        {getTopNodesByMetric(research.networkData.nodes, 'messages').map((node, index) => (
+                            <View key={index} style={styles.row}>
+                                <Text style={[styles.label, { width: '50%', fontSize: 10 }]}>{node.name}:</Text>
+                                <Text style={[styles.value, { width: '50%', fontSize: 10 }]}>{node.messages} messages</Text>
+                            </View>
+                        ))}
+                    </View>
+                )}
+
+                {research.communities.length > 0 && (
+                    <View style={styles.section} wrap={false}>
+                        <Text style={styles.sectionTitle}>Community Analysis</Text>
+                        <View style={styles.row}>
+                            <Text style={styles.label}>Total Communities:</Text>
+                            <Text style={styles.value}>{research.communities.length}</Text>
+                        </View>
+
+                        <View style={styles.comparisonTable} wrap={false}>
+                            <View style={[styles.tableRow, { backgroundColor: '#F5F5F5' }]}>
+                                <Text style={styles.tableHeader}>Community</Text>
+                                <Text style={styles.tableHeader}>Members</Text>
+                                <Text style={styles.tableHeader}>Avg Between</Text>
+                                <Text style={styles.tableHeader}>Avg PageRank</Text>
+                                <Text style={styles.tableHeader}>Avg Messages</Text>
+                            </View>
+                            {research.communities.slice(0, 10).map((community, index) => (
+                                <View key={index} style={styles.tableRow}>
+                                    <Text style={styles.tableCell}>{community.id}</Text>
+                                    <Text style={styles.tableCell}>{community.size}</Text>
+                                    <Text style={styles.tableCell}>{community.avg_betweenness}</Text>
+                                    <Text style={styles.tableCell}>{community.avg_pagerank}</Text>
+                                    <Text style={styles.tableCell}>{community.avg_messages}</Text>
+                                </View>
+                            ))}
+                        </View>
+                        
+                        <Text style={[styles.label, { fontSize: 11, marginTop: 15, marginBottom: 5 }]}>
+                            Community Members:
+                        </Text>
+                        {research.communities.slice(0, 10).map((community, index) => (
+                            <View key={index} style={[styles.metricHighlight, { marginTop: 5, padding: 8 }]}>
+                                <Text style={[styles.label, { fontSize: 10, marginBottom: 3 }]}>
+                                    Community {community.id}:
+                                </Text>
+                                <Text style={[styles.value, { fontSize: 9 }]}>
+                                    {community.nodes?.join(', ') || 'No nodes available'}
+                                </Text>
+                            </View>
+                        ))}
+                        
+                        {research.communities.length > 10 && (
+                            <Text style={[styles.value, { fontSize: 10, marginTop: 5, fontStyle: 'italic' }]}>
+                                ... and {research.communities.length - 10} more communities
+                            </Text>
+                        )}
+                    </View>
+                )}
+
+                {filters.length > 0 && <View style={styles.section} wrap={false}>
                     <Text style={styles.sectionTitle}>Applied Filters</Text>
                     <View style={styles.filtersContainer}>
                         {filters.map((filter, index) => (
@@ -319,9 +455,7 @@ const Report = ({ research, show }) => {
                                                     src={data.data}
                                                 />
                                             }
-                                            {data.description && (
-                                                <Text style={styles.imageCaption}>{data.description}</Text>
-                                            )}
+                                            <Text style={styles.imageCaption}>(Source Graph) {data.description && `- ${data.description}`}</Text>
                                         </View>
                                     ))}
                                 </View>
@@ -334,15 +468,15 @@ const Report = ({ research, show }) => {
                             const comparisonStats = research.stats.find(
                                 (state) => state.index === data[0].index
                             );
+                            const comparisonFile = research.comparisonFiles[index]
                             return (
                                 <Page key={`comparison-${index}`} style={styles.page}>
-                                    <Text style={styles.pageNumber}>Comparison Image</Text>
+                                    <Text style={styles.pageNumber}>Comparison Image {index + 1}</Text>
 
                                     <View style={styles.comparisonSection}>
                                         <Text style={styles.comparisonTitle}>
-                                            Comparison #{index + 1} Page: {comparisonStats?.fileName}
+                                            source: {research?.fileName}. comparison: {comparisonFile}.
                                         </Text>
-
                                         <View style={styles.comparisonImagesContainer}>
                                             {sourceComparisonImages.length === 1 &&
                                                 <>
@@ -352,11 +486,9 @@ const Report = ({ research, show }) => {
                                                                 style={styles.comparisonImage}
                                                                 src={sourceComparisonImages[0]?.data}
                                                             />
-                                                            {sourceComparisonImages[0]?.description && (
                                                                 <Text style={styles.imageCaption}>
-                                                                    {sourceComparisonImages[0]?.description}
+                                                                    (Source Graph) {sourceComparisonImages[0]?.description && `- ${sourceComparisonImages[0]?.description}`}
                                                                 </Text>
-                                                            )}
                                                         </View>
                                                         :
                                                         <>
@@ -365,11 +497,9 @@ const Report = ({ research, show }) => {
                                                                     style={styles.bigSourceImage}
                                                                     src={sourceComparisonImages[0]?.data}
                                                                 />
-                                                                {sourceComparisonImages[0]?.description && (
-                                                                    <Text style={styles.imageCaption}>
-                                                                        {sourceComparisonImages[0]?.description}
-                                                                    </Text>
-                                                                )}
+                                                                <Text style={styles.imageCaption}>
+                                                                    (Source Graph) {sourceComparisonImages[0]?.description && `- ${sourceComparisonImages[0]?.description}`}
+                                                                </Text>
                                                             </View>
                                                         </>}
                                                 </>
@@ -380,9 +510,7 @@ const Report = ({ research, show }) => {
                                                         style={styles.comparisonImage}
                                                         src={image.data}
                                                     />
-                                                    {image.description && (
-                                                        <Text style={styles.imageCaption}>{image.description}</Text>
-                                                    )}
+                                                    <Text style={styles.imageCaption}>(Comparison Graph) {image.description && `- ${image.description}`}</Text>
                                                 </View>
                                             ))}
                                         </View>
@@ -390,8 +518,8 @@ const Report = ({ research, show }) => {
                                         <View style={styles.comparisonTable} wrap={false}>
                                             <View style={[styles.tableRow, { backgroundColor: '#F5F5F5' }]}>
                                                 <Text style={styles.tableHeader}>Metric</Text>
-                                                <Text style={styles.tableHeader}>Original Network</Text>
-                                                <Text style={styles.tableHeader}>Comparison Network</Text>
+                                                <Text style={styles.tableHeader}>Original</Text>
+                                                <Text style={styles.tableHeader}>Comparison</Text>
                                                 <Text style={styles.tableHeader}>Difference</Text>
                                                 <Text style={styles.tableHeader}>Change %</Text>
                                             </View>
@@ -405,12 +533,12 @@ const Report = ({ research, show }) => {
                                                     {comparisonStats?.comparisonNodeCount}
                                                 </Text>
                                                 <Text style={styles.tableCell}>
-                                                    {comparisonStats?.nodeDifference > 0
+                                                    {(comparisonStats?.nodeDifference > 0
                                                         ? `+${comparisonStats.nodeDifference}`
-                                                        : comparisonStats?.nodeDifference}
+                                                        : comparisonStats?.nodeDifference) || ''}
                                                 </Text>
                                                 <Text style={styles.tableCell}>
-                                                    {comparisonStats?.nodeChangePercent}%
+                                                    {`${comparisonStats?.nodeChangePercent || ''}${comparisonStats?.nodeChangePercent ? '%' : ''}`}
                                                 </Text>
                                             </View>
 
@@ -423,12 +551,12 @@ const Report = ({ research, show }) => {
                                                     {comparisonStats?.comparisonLinkCount}
                                                 </Text>
                                                 <Text style={styles.tableCell}>
-                                                    {comparisonStats?.linkDifference > 0
+                                                    {(comparisonStats?.linkDifference > 0
                                                         ? `+${comparisonStats.linkDifference}`
-                                                        : comparisonStats?.linkDifference}
+                                                        : comparisonStats?.linkDifference) || ''}
                                                 </Text>
                                                 <Text style={styles.tableCell}>
-                                                    {comparisonStats?.linkChangePercent}%
+                                                    {`${comparisonStats?.linkChangePercent || ''}${comparisonStats?.linkChangePercent ? '%' : ''}`}
                                                 </Text>
                                             </View>
 
@@ -445,6 +573,18 @@ const Report = ({ research, show }) => {
                                                     ).toFixed(2)}
                                                     % of original network
                                                 </Text>
+                                            </View>
+                                        </View>
+
+                                        <View style={styles.section} wrap={false}>
+                                            <Text style={styles.sectionTitle}>Applied Filters (comparison #{index + 1})</Text>
+                                            <View style={styles.filtersContainer}>
+                                                {show.comparisonFilters[index] && Object.entries(show.comparisonFilters[index])
+                                                    .map(([key, value], filterIndex) => (
+                                                        <Text key={filterIndex} style={styles.filterItem}>
+                                                            {formatFilterLabel(key) + ': ' + (value || 'false')}
+                                                        </Text>
+                                                    ))}
                                             </View>
                                         </View>
                                     </View>

@@ -25,12 +25,12 @@ import {
   Badge,
 } from "react-bootstrap";
 
+
 import Loader from "../components/utils/Loader";
 import Modal from "../components/utils/Modal";
 import ResearchHistory from "../components/utils/ResearcHistoryComp";
 import UpdateResearch from "../components/utils/UpdateResearch";
 import ComparisonHistory from "../components/utils/HistoryComparison";
-import MadeReport from "../components/utils/MadeReport";
 
 import "../components/utils/history.css";
 import { deleteResearch } from "../components/utils/ApiService";
@@ -43,12 +43,10 @@ const History = () => {
   const queryParams = new URLSearchParams(location.search);
   const viewResearchId = queryParams.get("view");
   const [research, setResearch] = useState(null);
-  const [showDownload, setShowDownload] = useState(false);
   const [action, setAction] = useState({
     inAction: false,
     ids: [],
   });
-
   const [searchTerm, setSearchTerm] = useState("");
   const [sortConfig, setSortConfig] = useState({
     key: null,
@@ -86,9 +84,7 @@ const History = () => {
         },
       },
       {
-        duration: 5000,
         closeButton: true,
-        position: "top-center",
       }
     );
   };
@@ -103,44 +99,53 @@ const History = () => {
     );
   };
 
-  const handleReportGeneration = (researchItem) => {
-    const params = new Map();
-
-    if (researchItem.filters) {
-      const filters = Array.isArray(researchItem.filters)
-        ? researchItem.filters[0]
-        : researchItem.filters;
-
-      Object.entries(filters).forEach(([key, value]) => {
-        if (
-          value !== null &&
-          value !== undefined &&
-          value !== "" &&
-          key !== "filter_id" &&
-          key !== "research_id" &&
-          key !== "created_at" &&
-          key !== "id" &&
-          key !== "user_id" &&
-          key !== "research_name"
-        ) {
-          params.set(key, value);
-        }
-      });
-    }
-
-    setResearch({
-      ...researchItem,
-      button: "report",
-      selectedMetric: researchItem?.metric || "louvain",
-      params: params,
-      hasComparison: researchItem.has_comparison || false,
-    });
-    setShowDownload(true);
-  };
 
   const closeModal = () => {
     setResearch(null);
   };
+
+  useEffect(() => {
+    async function getUserHistory() {
+      try {
+        setLoading(true);
+        const history = await fetch(
+          `${import.meta.env.VITE_API_URL}/history/${user?.currentUser?.id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${user?.token}`,
+            },
+          }
+        );
+        if (!history.ok) {
+          const { detail } = await history.json();
+          console.error("Error response:", detail);
+          toast.error("Error fetching user history");
+          return;
+        }
+
+        const data = await history.json();
+        if (!data.history.length) {
+          toast.error("Don't find history. Please create research");
+          return;
+        }
+        setUserHistory(data.history);
+        if (viewResearchId) {
+          const target = data.history.find(
+            (item) => item.id === viewResearchId
+          );
+          if (target) {
+            setResearch({ ...target, button: "view" });
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching user history:", error);
+        toast.error("Error fetching user history");
+      } finally {
+        setLoading(false);
+      }
+    }
+    getUserHistory();
+  }, [user]);
 
   const handleSort = (key) => {
     let direction = "asc";
@@ -232,55 +237,6 @@ const History = () => {
 
   const stats = getHistoryStats();
 
-  useEffect(() => {
-    async function getUserHistory() {
-      try {
-        setLoading(true);
-        const history = await fetch(
-          `${import.meta.env.VITE_API_URL}/history/${user?.currentUser?.id}`,
-          {
-            headers: {
-              Authorization: `Bearer ${user?.token}`,
-            },
-          }
-        );
-        if (!history.ok) {
-          const { detail } = await history.json();
-          console.error("Error response:", detail);
-          toast.error("Error fetching user history");
-          return;
-        }
-
-        const data = await history.json();
-        if (!data.history.length) {
-          toast.error("Don't find history. Please create research");
-          return;
-        }
-        setUserHistory(data.history);
-        if (viewResearchId) {
-          const target = data.history.find(
-            (item) => item.id === viewResearchId
-          );
-          if (target) {
-            setResearch({ ...target, button: "view" });
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching user history:", error);
-        toast.error("Error fetching user history");
-      } finally {
-        setLoading(false);
-      }
-    }
-    getUserHistory();
-  }, [user]);
-
-  useEffect(() => {
-    if (!showDownload) {
-      setResearch(null);
-    }
-  }, [showDownload]);
-
   const handleDownloadCSV = async (researchId) => {
     try {
       const response = await fetch(
@@ -316,7 +272,7 @@ const History = () => {
   return (
     <div className="history-container">
       {research && (
-        <Modal onClose={closeModal}>
+        <Modal onClose={closeModal} showCloseButton={true}>
           {research.button === "view" && (
             <ResearchHistory research={research} />
           )}
@@ -330,18 +286,8 @@ const History = () => {
           {research.button === "compare" && (
             <ComparisonHistory research={research} />
           )}
-          {research.button === "report" && showDownload && (
-            <MadeReport
-              selectedMetric={research.selectedMetric}
-              name={research.research_name}
-              params={research.params}
-              setShowDownload={setShowDownload}
-              hasComparison={research?.comparisons?.length ? true : false}
-            />
-          )}
         </Modal>
       )}
-
       <Card className={`history-table mt-4 ${loading ? "h-75" : ""}`}>
         <Card.Header>
           <div className="d-flex justify-content-between align-items-center">

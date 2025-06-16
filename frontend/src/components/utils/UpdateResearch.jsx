@@ -1,8 +1,9 @@
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { useSelector } from "react-redux";
-import { Button, Card, Form } from "react-bootstrap";
+import { Button, Card, Form, Col, Row } from "react-bootstrap";
 import { AiOutlineLoading } from "react-icons/ai";
+
 
 export default function UpdateResearch({
   research,
@@ -33,8 +34,10 @@ export default function UpdateResearch({
       use_history: research.filters?.use_history || false,
       normalize: research.filters?.normalize || false,
       history_length: research.filters?.history_length || null,
+      message_weights: research.filters?.message_weights || null,
     },
   });
+
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState(null);
   const fileRef = useRef(null);
@@ -54,10 +57,6 @@ export default function UpdateResearch({
               use_history: newValue ? prevData.filters.use_history : false,
             },
           };
-        } else if (name === "use_history" && !prevData.filters.directed) {
-          return prevData;
-        } else if (name === "history_length" && (!prevData.filters.directed || !prevData.filters.use_history)) {
-          return prevData;
         } else {
           return {
             ...prevData,
@@ -85,12 +84,29 @@ export default function UpdateResearch({
     try {
       const originalFilters = research.filters || {};
       const currentFilters = researchData.filters;
-      const filtersChanged = Object.keys(currentFilters).some(
-        (key) => { currentFilters[key] !== originalFilters[key] && console.log(key, currentFilters, originalFilters); return currentFilters[key] !== originalFilters[key] }
-      );
+      const nameOrdescriptionChanged =
+        researchData.research_name !== research.research_name ||
+        researchData.description !== research.description;
 
-      if (filtersChanged && !file) {
-        toast.error("Please upload a file if you change the filters.");
+      const filtersChanged = Object.keys(currentFilters).some((key) => {
+        if (Array.isArray(currentFilters[key])) {
+          return JSON.stringify(currentFilters[key]) !== JSON.stringify(originalFilters[key]);
+        }
+        return currentFilters[key] !== originalFilters[key];
+      });
+
+      if (!nameOrdescriptionChanged && !filtersChanged) {
+        toast.error("No changes detected. Please modify the research data before saving.");
+        setLoading(false);
+        return;
+      }
+
+      const sum = currentFilters.message_weights
+        ? currentFilters.message_weights.reduce((acc, val) => acc + Number(val), 0)
+        : 1;
+      if (filtersChanged && (!file || sum !== 1)) {
+        if (sum !== 1) toast.error("Total weight must equal 1. Please adjust the weights.");
+        if (!file) toast.error("Please upload the file you used for the research if filters have changed.");
         setLoading(false);
         return;
       }
@@ -98,13 +114,15 @@ export default function UpdateResearch({
       if (file) {
         const formData = new FormData();
         formData.append("file", file);
+        formData.append("platform", "whatsapp");
         const res = await fetch(`${import.meta.env.VITE_API_URL}/upload`, {
           method: "POST",
           body: formData,
         });
         if (!res.ok) {
+          const errorData = await res.json();
           toast.error("Error uploading file");
-          console.error("Error uploading file:", res);
+          console.error("Error uploading file:", errorData);
           setLoading(false);
           return;
         }
@@ -155,6 +173,26 @@ export default function UpdateResearch({
     e.preventDefault();
     fileRef.current.click();
   };
+  const handleMessageWeightChange = (weightIndex, delta) => {
+
+    const newWeights = [...researchData.filters.message_weights];
+    newWeights[weightIndex] = +Number(newWeights[weightIndex] + delta).toFixed(1);
+    const sum = newWeights.reduce((acc, val) => acc + Number(val), 0);
+    if (sum > 1) {
+      toast.error("Total weight cannot exceed 1. Please adjust the weights.");
+      return;
+    }
+
+    setResearchData((prevData) => {
+      return {
+        ...prevData,
+        filters: {
+          ...prevData.filters,
+          message_weights: newWeights,
+        },
+      };
+    });
+  };
 
   return (
     <Card className="update-history">
@@ -189,7 +227,8 @@ export default function UpdateResearch({
             key === "anonymize" ||
               key === "directed" ||
               key === "use_history" ||
-              key === "history_length"
+              key === "history_length" ||
+              key === "message_weights"
               ? null
               : (
                 <Form.Group className="column" key={key}>
@@ -239,6 +278,51 @@ export default function UpdateResearch({
               disabled={!researchData.filters.directed || !researchData.filters.use_history}
             />
           </Form.Group>
+          {researchData.filters?.message_weights?.length &&
+            researchData.filters.directed &&
+            researchData.filters.use_history &&
+            <Row className="mb-3">
+              <Col md={12} className="mb-3">
+                <h6 className="filter-section-title">
+                  Message Weight Distribution
+                </h6>
+              </Col>
+              {researchData.filters.message_weights.map((weight, index) => (
+                <Col md={4} key={`weight-${index}`}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>
+                      {index === 0
+                        ? "Most Recent Message"
+                        : index === 1
+                          ? "2nd Previous Message"
+                          : "3rd Previous Message"} Weight
+                    </Form.Label>
+                    <div className="d-flex align-items-center">
+                      <Button
+                        variant="outline-secondary"
+                        size="sm"
+                        onClick={() => handleMessageWeightChange(index, -0.1)}
+                        disabled={weight <= 0.1}
+                      >
+                        -
+                      </Button>
+                      <div className="mx-3 text-center" style={{ minWidth: "60px" }}>
+                        <strong>{weight.toFixed(1)}</strong>
+                      </div>
+                      <Button
+                        variant="outline-secondary"
+                        size="sm"
+                        onClick={() => handleMessageWeightChange(index, 0.1)}
+                        disabled={weight >= 0.9}
+                      >
+                        +
+                      </Button>
+                    </div>
+                  </Form.Group>
+                </Col>
+              ))}
+            </Row>
+          }
           <div className="column full-width">
             <button className="generic-button" onClick={handleFileClick}>
               Upload File

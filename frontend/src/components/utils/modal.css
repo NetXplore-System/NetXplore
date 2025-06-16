@@ -23,27 +23,42 @@
     overflow-y: auto;
 }
 
-/* Webkit browsers (Chrome, Safari, newer Edge) */
 .dialog-content::-webkit-scrollbar {
-    width: 8px;  /* Width of the scrollbar */
+    width: 8px;  
 }
 
 .dialog-content::-webkit-scrollbar-track {
-    background: #f1f1f1;  /* Color of the track */
+    background: #f1f1f1;
     border-radius: 4px;
 }
 
 .dialog-content::-webkit-scrollbar-thumb {
-    background: #888;  /* Color of the scroll thumb */
+    background: #888;
     border-radius: 4px;
 }
 
 .dialog-content::-webkit-scrollbar-thumb:hover {
-    background: #555;  /* Color when hovering over the scroll thumb */
+    background: #555;
 }
 
-/* Firefox */
 .dialog-content {
-    scrollbar-width: thin;  /* "auto" or "thin" */
-    scrollbar-color: #888 #f1f1f1;  /* thumb and track color */
+    scrollbar-width: thin; 
+    scrollbar-color: #888 #f1f1f1;
+}
+
+.modal-close-btn {
+  position: absolute;
+  top: 8px;
+  right: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 5px;
+  color: #666;
+  transition: color 0.2s ease;
+  z-index: 1000;
+}
+
+.modal-close-btn:hover {
+  color: #000;
 }

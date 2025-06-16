@@ -106,7 +106,7 @@ const ComparativeAnalysis = ({
   const handleFilterChange = (index, newFilters) => {
     const updatedFilterSettings = [...localFilterSettings];
     updatedFilterSettings[index] = newFilters;
-    setLocalFilterSettings(updatedFilterSettings);
+    setLocalFilterSettings(() => updatedFilterSettings);
     checkActiveFilters(index, newFilters);
 
     if (newFilters.filterUpdated) {
@@ -116,7 +116,7 @@ const ComparativeAnalysis = ({
         ...newFilters,
         filterUpdated: undefined,
       };
-      setComparisonData(updatedData);
+      setComparisonData(() => updatedData);
     }
   };
 
@@ -139,7 +139,20 @@ const ComparativeAnalysis = ({
     itemFilters,
     isWikipediaData = false
   ) => {
+    
+    const sumWeight = itemFilters?.config?.messageWeights?.reduce(
+      (acc, weight) => acc + weight,
+      0
+    );
+    if (sumWeight !== 1) {
+      toast.error(
+        "Message weights must sum to 1. Please adjust the weights."
+      );
+      return;
+    }
+
     setIsAnalyzing(true);
+
 
     const actualIsWikipediaData =
       isWikipediaData ||
@@ -270,6 +283,14 @@ const ComparativeAnalysis = ({
         count: 50,
         fromEnd: false,
         type: "messages",
+      },
+      config: {
+        directed: false,
+        anonymize: false,
+        history: false,
+        messageCount: 3,
+        normalized: false,
+        messageWeights: [0.5, 0.3, 0.2],
       },
     });
 
