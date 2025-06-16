@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { Container, Row, Col, Card, Button, Badge } from "react-bootstrap";
+import {
+  Container,
+  Row,
+  Col,
+  Card,
+  Button,
+  Badge,
+  OverlayTrigger,
+  Tooltip,
+} from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import {
@@ -155,7 +164,19 @@ const Dashboard = () => {
             {
               icon: <FaLayerGroup />,
               count: stats.total_nodes || 0,
-              label: "Total Nodes",
+              label: (
+                <OverlayTrigger
+                  placement="top"
+                  overlay={
+                    <Tooltip id="tooltip-total-nodes">
+                      The total number of unique participants (nodes) across all
+                      your researches
+                    </Tooltip>
+                  }
+                >
+                  <span>Total Nodes</span>
+                </OverlayTrigger>
+              ),
               delay: 0.4,
             },
           ].map(({ icon, count, label, delay, onClick }, index) => (
