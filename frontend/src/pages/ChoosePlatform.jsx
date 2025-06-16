@@ -8,10 +8,10 @@ const ChoosePlatform = () => {
   const navigate = useNavigate();
 
   return (
-    <Container className="choose-platform">
+    <Container fluid className="choose-platform">
       <h2 className="title">Choose Platform</h2>
-      <Row className="justify-content-center align-items-center">
-        <Col md={6} lg={4} className="text-center mb-4">
+      <Row className="justify-content-center align-items-center m-4">
+        <Col md={6} lg={3} className="text-center mb-4">
           <Card
             className="option-card"
             onClick={() =>
@@ -31,7 +31,7 @@ const ChoosePlatform = () => {
             </div>
           </Card>
         </Col>
-        <Col md={6} lg={4} className="text-center mb-4">
+        <Col md={6} lg={3} className="text-center mb-4">
           <Card
             className="option-card"
             onClick={() =>
