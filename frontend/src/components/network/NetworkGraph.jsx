@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useMemo } from "react";
 import { ForceGraph2D } from "react-force-graph";
 import PropTypes from "prop-types";
-
+import * as d3 from "d3-force";
 const NetworkGraph = ({
   networkData,
   filteredNodes = [],
@@ -53,8 +53,7 @@ const NetworkGraph = ({
               linkForce.distance(graphParams.linkDistance);
             }
 
-            graph.d3Force("center", graph.d3.forceCenter(0, 0));
-
+            graph.d3Force("center", d3.forceCenter(0, 0));
             graph.d3ReheatSimulation?.();
           }
         } catch (error) {
@@ -72,7 +71,7 @@ const NetworkGraph = ({
       if (forceGraphRef.current) {
         forceGraphRef.current.zoomToFit(150, 50);
       }
-    }, 200); 
+    }, 200);
     return () => clearTimeout(timeout);
   }, [networkData]);
 
@@ -167,9 +166,9 @@ const NetworkGraph = ({
         linkColor={() => "rgba(128, 128, 128, 0.6)"}
         enableNodeDrag={true}
         cooldownTicks={Math.min(200, graphParams.nodeCount * 2)}
-        d3AlphaDecay={0.02} 
+        d3AlphaDecay={0.02}
         d3VelocityDecay={0.8}
-        d3ReheatOnLayout={false} 
+        d3ReheatOnLayout={false}
         onNodeClick={handleNodeClick}
         onEngineStop={() => {
           setTimeout(() => {
@@ -307,7 +306,7 @@ const NetworkGraph = ({
           ctx.strokeText(node.id, node.x, node.y);
           ctx.fillText(node.id, node.x, node.y);
 
-          const metricFontSize = fontSize * 0.8;
+          const metricFontSize = fontSize * 1.1;
           ctx.font = `${metricFontSize}px Sans-Serif`;
           const yOffset = radius + metricFontSize + 2;
 
