@@ -216,23 +216,37 @@ export const saveToDB = async (
   platform = "whatsapp",
   communities = []
 ) => {
-
   try {
     const formData = new FormData();
 
     formData.append("research_name", name);
     formData.append("researcher_id", id);
     formData.append("description", description);
-    comparison?.data && formData.append("comparison_data", JSON.stringify(comparison.data));
-    comparison?.filters && formData.append("comparison_filters", JSON.stringify(comparison.filters));
     formData.append("file_name", file);
     formData.append("selected_metric", selectedMetric);
     formData.append("platform", platform);
     formData.append("communities", JSON.stringify(communities || []));
 
+    if (comparison?.data) {
+      formData.append("comparison_data", JSON.stringify(comparison.data));
+    }
+    if (comparison?.filters) {
+      formData.append("comparison_filters", JSON.stringify(comparison.filters));
+    }
+
+    params.set("platform", platform);
+    params.set("message_weights", JSON.stringify([0.5, 0.3, 0.2]));
+    params.set("limit", "50");
+    params.set("limit_type", "first");
+    params.set("anonymize", "false");
+    params.set("normalize", "false");
+    params.set("directed", "false");
+    params.set("use_history", "false");
+    params.set("include_messages", "true");
+    params.set("history_length", "3");
 
     const response = await fetch(
-     `${BASE_URL}/save-research?${params.toString()}`,
+      `${BASE_URL}/save-research?${params.toString()}`,
       {
         method: "POST",
         body: formData,
@@ -241,6 +255,7 @@ export const saveToDB = async (
         },
       }
     );
+
     if (!response.ok) {
       const { detail } = await response.json();
       console.error("Error response:", detail);
@@ -248,7 +263,6 @@ export const saveToDB = async (
     }
 
     return "Research saved successfully!";
-
   } catch (error) {
     console.error("Save error:", error);
     throw new Error("An error occurred while saving the research.");
