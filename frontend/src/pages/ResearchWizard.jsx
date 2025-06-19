@@ -25,6 +25,7 @@ import {
   fetchWikipediaData,
   // analyzeWikipediaNetwork,
   detectWikipediaCommunities,
+  deleteUploadedFile,
 } from "../components/utils/ApiService";
 import { saveToDB } from "../components/utils/ApiService";
 
@@ -49,6 +50,7 @@ const ResearchWizard = () => {
   const [wikipediaLoaded, setWikipediaLoaded] = useState(false);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [isDataValid, setIsDataValid] = useState(false);
+  const [showDeleteMessage, setShowDeleteMessage] = useState(false);
 
   const ALL_STEPS = {
     SETUP: "Setup",
@@ -388,38 +390,38 @@ const ResearchWizard = () => {
         await fetch(
           `${import.meta.env.VITE_API_URL}/convert-wikipedia-to-txt`,
           {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            filename: formData.uploadedFileName.replace(".txt", ""), 
-            section_title: selectedSection || "Top",
-          }),
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              filename: formData.uploadedFileName.replace(".txt", ""),
+              section_title: selectedSection || "Top",
+            }),
           }
         );
 
         const data = await analyzeNetwork("wikipedia_data", finalParams);
 
-            if (data.nodes && data.links) {
-              dispatch(clearImages());
+        if (data.nodes && data.links) {
+          dispatch(clearImages());
 
           const communityData = await detectWikipediaCommunities(
             "wikipedia_data",
             finalParams
           );
-              const nodeCommunities = communityData.node_communities || {};
-              const updatedNodes = data.nodes.map((node) => {
-                const community = nodeCommunities[node.id?.toString().trim()];
-                return community !== undefined ? { ...node, community } : node;
-              });
+          const nodeCommunities = communityData.node_communities || {};
+          const updatedNodes = data.nodes.map((node) => {
+            const community = nodeCommunities[node.id?.toString().trim()];
+            return community !== undefined ? { ...node, community } : node;
+          });
 
-              data.nodes = updatedNodes;
-              setNetworkData(data);
-              setOriginalNetworkData(data);
-              setCommunities(communityData.communities || []);
-              setCommunityMap(nodeCommunities);
-            }
+          data.nodes = updatedNodes;
+          setNetworkData(data);
+          setOriginalNetworkData(data);
+          setCommunities(communityData.communities || []);
+          setCommunityMap(nodeCommunities);
+        }
       } else if (formData.platform === "whatsapp") {
         if (hasShownToastRef.current) return;
         hasShownToastRef.current = true;
@@ -429,19 +431,19 @@ const ResearchWizard = () => {
           finalParams
         );
 
-            if (data.nodes && data.links) {
-              dispatch(clearImages());
-              setNetworkData(data);
-              setOriginalNetworkData(data);
+        if (data.nodes && data.links) {
+          dispatch(clearImages());
+          setNetworkData(data);
+          setOriginalNetworkData(data);
 
           const communityData = await detectCommunities(
             formData.uploadedFileName,
             finalParams
           );
-              setCommunities(communityData.communities || []);
-              setCommunityMap(communityData.node_communities || {});
-              setShouldFetchCommunities(true);
-            }
+          setCommunities(communityData.communities || []);
+          setCommunityMap(communityData.node_communities || {});
+          setShouldFetchCommunities(true);
+        }
       } else {
         return;
       }
@@ -508,9 +510,9 @@ const ResearchWizard = () => {
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
 
-    if (name.startsWith('messageWeights')) {
+    if (name.startsWith("messageWeights")) {
       const match = name.match(/messageWeights\[(\d+)\]/);
-      const index = match[1]
+      const index = match[1];
       const newValue = +parseFloat(value).toFixed(1);
       const newMessageWeights = [...formData.messageWeights];
       newMessageWeights[index] = newValue;
@@ -519,16 +521,16 @@ const ResearchWizard = () => {
         toast.info("Total weight must be less than or equal to 1.");
         return;
       }
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        messageWeights: newMessageWeights
+        messageWeights: newMessageWeights,
       }));
       return;
     }
 
-    if (name.startsWith('historyLength')) {
+    if (name.startsWith("historyLength")) {
       const valueInt = +value;
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         historyLength: valueInt,
         messageWeights: valueInt === 2 ? [0.6, 0.4] : [0.5, 0.3, 0.2],
@@ -548,7 +550,7 @@ const ResearchWizard = () => {
       } else {
         newValue = value;
       }
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         [parent]: {
           ...prev[parent],
@@ -556,7 +558,7 @@ const ResearchWizard = () => {
         },
       }));
     } else {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         [name]: type === "checkbox" ? checked : value,
       }));
@@ -598,12 +600,12 @@ const ResearchWizard = () => {
     const comparisonData =
       comparison.comparisonNetworkData?.length > 0
         ? {
-      data: comparison.comparisonNetworkData.map((item, index) => ({
-        nodes: item.nodes,
-        links: item.links,
-        filename: comparison.comparisonData[index].filename,
-      })),
-      filters: comparison.comparisonFilterSettings,
+            data: comparison.comparisonNetworkData.map((item, index) => ({
+              nodes: item.nodes,
+              links: item.links,
+              filename: comparison.comparisonData[index].filename,
+            })),
+            filters: comparison.comparisonFilterSettings,
           }
         : {};
 
@@ -828,11 +830,11 @@ const ResearchWizard = () => {
 
   const canNavigateToStep = (targetStepIndex) => {
     if (targetStepIndex === 0) return true;
-  
+
     if (!formData.name?.trim()) return false;
     if (!formData.uploadedFileName || !isDataValid) return false;
     if (uploadError) return false;
-  
+
     return true;
   };
 
@@ -858,7 +860,7 @@ const ResearchWizard = () => {
                   key={index}
                   className={`wizard-step ${isCompleted ? "completed" : ""} ${
                     isActive ? "active" : ""
-                    }`}
+                  }`}
                   onClick={() => {
                     if (canNavigateToStep(index)) {
                       setCurrentStep(index + 1);
@@ -916,19 +918,99 @@ const ResearchWizard = () => {
         <Modal.Header closeButton>
           <Modal.Title>Save Research</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        {/* <Modal.Body>
           Would you like to save your research to your account?
+        </Modal.Body> */}
+        <Modal.Body>
+          {showDeleteMessage ? (
+            <div className="text-center">
+              <div className="mt-2 fw-bold text-success">
+                The file was deleted.
+              </div>
+              <div className="text-muted">
+                Redirecting to platform selection...
+              </div>
+            </div>
+          ) : (
+            <>
+              <p>Would you like to save your research to your account?</p>
+              <div
+                style={{
+                  backgroundColor: "#eef6ff",
+                  borderRadius: "6px",
+                  padding: "8px 12px",
+                  fontSize: "0.85rem",
+                  color: "#0c63e4",
+                  marginTop: "10px",
+                }}
+              >
+                <strong>Note:</strong> Clicking <strong>"No, thanks"</strong>{" "}
+                will permanently delete this research and return you to the
+                platform selection screen.
+              </div>
+            </>
+          )}
         </Modal.Body>
+
         <Modal.Footer>
           <Button
             variant="secondary"
-            onClick={() => {
-              setShowSaveModal(false);
-              toast.info("Research completed but was not saved.");
+            onClick={async () => {
+              try {
+                const filesToDelete = [];
+
+                if (formData.uploadedFileName) {
+                  filesToDelete.push(formData.uploadedFileName);
+                  if (formData.platform === "wikipedia") {
+                    filesToDelete.push(
+                      formData.uploadedFileName.replace(".txt", ".json")
+                    );
+                  }
+                }
+
+                if (comparison?.comparisonData?.length > 0) {
+                  for (const file of comparison.comparisonData) {
+                    if (file.filename) {
+                      const txtFilename = file.filename.endsWith(".txt")
+                        ? file.filename
+                        : `${file.filename}.txt`;
+
+                      filesToDelete.push(txtFilename);
+
+                      if (
+                        txtFilename.startsWith("comparison_wikipedia_data_")
+                      ) {
+                        const jsonFilename = txtFilename.replace(
+                          ".txt",
+                          ".json"
+                        );
+                        filesToDelete.push(jsonFilename);
+                      }
+                    }
+                  }
+                }
+
+                for (const filename of filesToDelete) {
+                  try {
+                    await deleteUploadedFile(filename);
+                  } catch (err) {
+                    console.warn("Failed to delete:", filename, err.message);
+                  }
+                }
+
+                setShowDeleteMessage(true);
+                setTimeout(() => {
+                  setShowSaveModal(false);
+                  navigate("/choose-platform");
+                }, 1700);
+              } catch (err) {
+                toast.error("Failed to delete file(s).");
+              }
             }}
           >
             No, thanks
           </Button>
+
           <Button
             variant="primary"
             onClick={async () => {
