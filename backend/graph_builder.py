@@ -199,20 +199,30 @@ def build_graph_from_txt(
         return filtered_lines
 
     def process_wikipedia_messages(lines, filters):
-        
         print(f"Processing {len(lines)} lines as Wikipedia format...")
-        
-        # כאן תוכל להוסיף לוגיקה ספציפית לעיבוד ויקיפדיה
-        # לעת עתה, נחזיר רשימה ריקה או נטפל בפורמט הבסיסי
-        
+
         filtered_lines = []
-        
         for line in lines:
-            if line.strip() and not line.startswith('#'):
-                filtered_lines.append(("WikiUser", line.strip()))
-        
+            if not line.strip() or line.startswith('#'):
+                continue
+
+            match = re.match(r"\[(.*?)\] (.*?) -> (.*?): (.*)", line)
+            if match:
+                datetime_str, user, reply_to, text = match.groups()
+            else:
+                match_simple = re.match(r"\[(.*?)\] (.*?): (.*)", line)
+                if match_simple:
+                    datetime_str, user, text = match_simple.groups()
+                    reply_to = None
+                else:
+                    continue
+
+            filtered_lines.append((user.strip(), text.strip(), reply_to.strip() if reply_to else None))
+
         print(f"Wikipedia processing summary: {len(filtered_lines)} messages")
         return filtered_lines
+
+
 
     usernames = set()
     user_message_count = defaultdict(int)
@@ -282,15 +292,25 @@ def build_graph_from_txt(
         print(f"Applied limit filter: {original_count} -> {len(filtered_lines)} messages")
 
     all_messages = []
-    for user, text in filtered_lines:
+    for msg in filtered_lines:
+        if platform == "wikipedia":
+            user, text, reply_to = msg
+        else:
+            user, text = msg
+            reply_to = None  
+
         if anonymize:
             if user not in anonymized_map:
                 anonymized_map[user] = f"User_{len(anonymized_map) + 1}"
             user = anonymized_map[user]
-        
+            if reply_to and reply_to not in anonymized_map:
+                anonymized_map[reply_to] = f"User_{len(anonymized_map) + 1}"
+            reply_to = anonymized_map.get(reply_to, reply_to)
+
         usernames.add(user)
         user_message_count[user] += 1
-        all_messages.append((user, text))
+        all_messages.append((user, text, reply_to) if platform == "wikipedia" else (user, text))
+
 
     print(f"Unique users found: {len(usernames)}")
     print(f"Total messages: {len(all_messages)}")
@@ -305,11 +325,23 @@ def build_graph_from_txt(
     else:
         print("Using simple sequential algorithm...")
         previous_user = None
-        for user, _ in all_messages:
-            if previous_user and previous_user != user:
-                edge = (user, previous_user) if directed else tuple(sorted([user, previous_user]))
-                edges_counter[edge] += 1
-            previous_user = user
+        for msg in all_messages:
+            if len(msg) == 3:
+                user, _, reply_to = msg
+                if reply_to and reply_to != user:
+                    edge = (user, reply_to) if directed else tuple(sorted([user, reply_to]))
+                    edges_counter[edge] += 1
+                elif previous_user and previous_user != user:
+                    edge = (user, previous_user) if directed else tuple(sorted([user, previous_user]))
+                    edges_counter[edge] += 1
+                previous_user = user
+            elif len(msg) == 2:
+                user, _ = msg
+                if previous_user and previous_user != user:
+                    edge = (user, previous_user) if directed else tuple(sorted([user, previous_user]))
+                    edges_counter[edge] += 1
+                previous_user = user
+
 
     if min_messages or max_messages or active_users or selected_users:
         print("Applying user filters...")

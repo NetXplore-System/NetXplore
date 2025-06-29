@@ -652,7 +652,7 @@ def extract_main_content(soup, url):
 
 
 @router.post("/convert-wikipedia-to-txt")
-async def convert_to_txt(request: Request):
+async def convert_wikipedia_to_txt(request: Request):
     data = await request.json()
     filename = data.get("filename")
     section_title = data.get("section_title")
@@ -675,15 +675,14 @@ async def convert_to_txt(request: Request):
         raise HTTPException(status_code=404, detail="Section not found")
 
     txt_lines = []
-    for comment in selected_section["comments"]:
+    prev_username = None
+
+    for i, comment in enumerate(selected_section["comments"]):
         try:
             timestamp = comment["timestamp"]
-            username = comment["username"]  
-            
-            text = comment["text"]
-            
-            text = clean_comment_text_for_txt(text)
-            
+            username = comment["username"]
+            text = clean_comment_text_for_txt(comment["text"])
+
             timestamp_match_he = re.match(r"(\d+):(\d+), (\d+) ב([א-ת]+) (\d+)", timestamp)
             timestamp_match_en = re.match(r"(\d+):(\d+), (\d+) ([A-Za-z]+) (\d+)", timestamp)
             timestamp_match_alt = re.match(r"(\d+):(\d+), (\d+)/(\d+)/(\d+)", timestamp)
@@ -695,50 +694,47 @@ async def convert_to_txt(request: Request):
                     "יולי": "07", "אוגוסט": "08", "ספטמבר": "09", "אוקטובר": "10", "נובמבר": "11", "דצמבר": "12"
                 }
                 month = month_map_he.get(month_he, "01")
-                whatsapp_date = f"{day.zfill(2)}/{month}/{year}"
             elif timestamp_match_en:
                 hour, minute, day, month_en, year = timestamp_match_en.groups()
                 month_map_en = {
-                    "January": "01", "February": "02", "March": "03", "April": "04",
-                    "May": "05", "June": "06", "July": "07", "August": "08", "September": "09",
-                    "October": "10", "November": "11", "December": "12"
+                    "January": "01", "February": "02", "March": "03", "April": "04", "May": "05", "June": "06",
+                    "July": "07", "August": "08", "September": "09", "October": "10", "November": "11", "December": "12"
                 }
                 month = month_map_en.get(month_en, "01")
-                whatsapp_date = f"{day.zfill(2)}/{month}/{year}"
             elif timestamp_match_alt:
                 hour, minute, day, month, year = timestamp_match_alt.groups()
-                whatsapp_date = f"{day.zfill(2)}/{month.zfill(2)}/{year}"
             else:
                 all_numbers = re.findall(r'\d+', timestamp)
                 if len(all_numbers) >= 5:
                     hour, minute, day, month, year = all_numbers[:5]
-                    whatsapp_date = f"{day.zfill(2)}/{month.zfill(2)}/{year}"
                 else:
-                    whatsapp_date = "01/01/2000"
-                    hour, minute = "12", "00"
+                    day, month, year, hour, minute = "01", "01", "2000", "12", "00"
 
+            whatsapp_date = f"{day.zfill(2)}/{month.zfill(2)}/{year}"
             whatsapp_time = f"{hour.zfill(2)}:{minute.zfill(2)}:00"
             whatsapp_timestamp = f"[{whatsapp_date}, {whatsapp_time}]"
-            
+
             line = f"{whatsapp_timestamp} {username}: {text}"
-            
+            if prev_username and prev_username != username:
+                line += f" (reply_to: {prev_username})"
+
+            prev_username = username
+
         except Exception as e:
-            username = comment.get('username', 'Unknown')
-            text = comment.get('text', '')
+            username = comment.get("username", "Unknown")
+            text = comment.get("text", "")
             line = f"[01/01/2000, 12:00:00] {username}: {text}"
 
         txt_lines.append(line)
 
     os.makedirs(base_path, exist_ok=True)
-    txt_content = "\n".join(txt_lines)
-
     with open(txt_path, "w", encoding="utf-8") as txt_file:
-        txt_file.write(txt_content)
+        txt_file.write("\n".join(txt_lines))
 
     graph_data = build_graph_from_txt(txt_path)
 
     return {
-        "message": "TXT created",
+        "message": "TXT created with clean user names and reply info",
         "path": txt_path,
         "nodes": graph_data["nodes"],
         "links": graph_data["links"]

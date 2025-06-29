@@ -66,10 +66,16 @@ class WikipediaAnalyzer(BaseAnalyzer):
             node_communities = {}
 
             if algorithm == "louvain":
-                partition = community_louvain.best_partition(G)
+                try:
+                    partition = community_louvain.best_partition(G)
+                except Exception as e:
+                    logger.error(f"[Wikipedia] Louvain partitioning failed: {e}")
+                    raise HTTPException(status_code=500, detail=f"Louvain community detection failed: {str(e)}")
+                    
                 node_communities = partition
                 for node, cid in partition.items():
                     communities.setdefault(cid, []).append(node)
+
 
             elif algorithm == "girvan_newman":
                 communities_iter = nx_community.girvan_newman(G)
