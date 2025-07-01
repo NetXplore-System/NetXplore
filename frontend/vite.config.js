@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
     preview: {
       port: parseInt(env.PORT) || 4173,
       host: true,
-      allowedHosts: ['netxplore-frontend.onrender.com'],
+      allowedHosts: ['https://netxplore.onrender.com'],
     },
   }
 })
