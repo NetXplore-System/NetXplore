@@ -54,32 +54,32 @@ const DiscussionSectionPicker = ({
 
   return (
     <div className="discussion-section-picker">
-      {sortedOptions.length > 0 && (
-        <div className="section-stats-row">
+      <div className="section-stats-row">
+        {sortedOptions.length > 0 && (
           <div className="stats-label">
             Found: <span className="stats-number">{sortedOptions.length}</span>{" "}
             sections with <span className="stats-number">{totalComments}</span>{" "}
             comments
           </div>
-          <div className="filters-inline">
-            <input
-              type="text"
-              placeholder="Search by title..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="filter-input"
-            />
-            <select
-              value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value)}
-              className="filter-select"
-            >
-              <option value="desc">Most comments</option>
-              <option value="asc">Least comments</option>
-            </select>
-          </div>
+        )}
+        <div className="filters-inline">
+          <input
+            type="text"
+            placeholder="Search by title..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="filter-input"
+          />
+          <select
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value)}
+            className="filter-select"
+          >
+            <option value="desc">Most comments</option>
+            <option value="asc">Least comments</option>
+          </select>
         </div>
-      )}
+      </div>
 
       {sortedOptions.length > 0 ? (
         <div className="sections-grid">
