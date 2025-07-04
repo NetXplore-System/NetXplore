@@ -469,13 +469,19 @@ const Report = ({ research, show }) => {
                                 (state) => state.index === data[0].index
                             );
                             const comparisonFile = research.comparisonFiles[index]
+                            const getFileName = (file) => {
+                                if (!file) return 'unknown';
+                                if (typeof file === 'string') return file;
+                                if (file && typeof file === 'object' && file.name) return file.name;
+                                return 'unknown';
+                            };
                             return (
                                 <Page key={`comparison-${index}`} style={styles.page}>
                                     <Text style={styles.pageNumber}>Comparison Image {index + 1}</Text>
 
                                     <View style={styles.comparisonSection}>
                                         <Text style={styles.comparisonTitle}>
-                                            source: {research?.fileName}. comparison: {comparisonFile}.
+                                            source: {research?.fileName}. comparison: {getFileName(comparisonFile)}.
                                         </Text>
                                         <View style={styles.comparisonImagesContainer}>
                                             {sourceComparisonImages.length === 1 &&
