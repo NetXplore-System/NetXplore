@@ -1,8 +1,7 @@
-from typing import List, Tuple, Any, Dict, Union
+from typing import List, Tuple, Any, Dict, TypedDict, Dict, List, DefaultDict
 from datetime import datetime
 from collections import defaultdict, deque
 import re
-from typing import List, Tuple, Dict
 import logging
 
 logger = logging.getLogger(__name__)
@@ -37,6 +36,10 @@ spam_messages = [
 ]
 UPLOAD_FOLDER = "./uploads/" 
 
+class LinkDict(TypedDict):
+    source: str
+    target: str
+    weight: float
 
 def detect_date_format(first_line: str) -> list[str]:
     if re.search(r"\[\d{1,2}[.]\d{1,2}[.]\d{4},\s\d{2}:\d{2}:\d{2}\]", first_line):
@@ -140,7 +143,7 @@ def get_network_metrics(original_data, comparison_data, metrics_list):
 def calculate_sequential_weights(
     sequence: List[Tuple[str, str]],
     n_prev: int = 3,
-    message_weights: List[float] = None
+    message_weights: List[float] | None = None
 ) -> Dict[Tuple[str, str], float]:
     
     if n_prev < 1:
@@ -155,7 +158,7 @@ def calculate_sequential_weights(
    
 
     window: deque = deque(maxlen=n_prev)
-    edge_weights: Dict[Tuple[str, str], float] = defaultdict(float)
+    edge_weights: DefaultDict[Tuple[str, str], float] = defaultdict(float)
 
     for current_sender, _ in sequence:
         for idx, previous_sender in enumerate(reversed(window)):
@@ -171,23 +174,22 @@ def calculate_sequential_weights(
 
 
 def normalize_links_by_target(
-    links: List[Dict[str, Union[str, float]]], 
+    links: List[LinkDict], 
     debug: bool = False
-) -> List[Dict[str, Union[str, float]]]:
-    
+) -> List[LinkDict]:
     if not links:
         return []
     
-    totals: Dict[str, float] = defaultdict(float)
+    totals: DefaultDict[str, float] = defaultdict(float)
     for link in links:
-        if "target" not in link or "weight" not in link:
+        if "source" not in link or "weight" not in link:
             raise ValueError(f"Invalid link structure: {link}")
-        totals[link["target"]] += link["weight"]
+        totals[link["source"]] += float(link["weight"])
     
     normalized_links = []
     for link in links:
         new_link = link.copy()
-        denom = totals[link["target"]]
+        denom = totals[link["source"]]
         if denom > 0:
             new_link["weight"] = round(link["weight"] / denom, 4)
         else:
