@@ -1,6 +1,19 @@
 import { Page, Text, View, Document, StyleSheet, Font, Image } from '@react-pdf/renderer';
 import { Fragment } from 'react';
 
+
+const toPlainLatin = s =>
+    s.normalize('NFKD')
+     .replace(/[\u0300-\u036f]/g, '');
+
+const clean = (text) => {
+    if (!text || typeof text !== 'string') return typeof text === 'number' ? text : '';
+    let cleanText = text.replace(/(?!(\*|#|\d))[\p{Extended_Pictographic}\p{Emoji_Component}]|[\u0030-\u0039]\ufe0f?[\u20e3]|[\u002A\u0023]?\ufe0f?[\u20e3]/gu, '');
+    if (cleanText.includes(',')) cleanText = cleanText.split(',')?.map(toPlainLatin).join(', ');
+    console.log(cleanText);
+    return cleanText === "" ? 'emoji-removed' : cleanText;
+}
+
 export const formatFilterLabel = (filter) => {
     const [key] = filter.split(':');
     if (key.includes(' ')) return key.replace(/^./, c => c.toUpperCase());
@@ -242,9 +255,13 @@ const Report = ({ research, show }) => {
     const filters = show.filters.filter((filter) => filter.selected).map((filter) => research.filters[filter.index]);
 
     const getTopNodesByMetric = (nodes, metric, count = 5) => {
-        return [...nodes]
+        const sortedNodes = [...nodes]
             .sort((a, b) => b[metric] - a[metric])
             .slice(0, count);
+        return sortedNodes.map((node) => ({
+            ...node,
+            name: clean(node.name)
+        }));
     };
 
     const getNetworkStats = () => {
@@ -399,7 +416,7 @@ const Report = ({ research, show }) => {
                                     Community {community.id}:
                                 </Text>
                                 <Text style={[styles.value, { fontSize: 9 }]}>
-                                    {community.nodes?.join(', ') || 'No nodes available'}
+                                    {clean(community.nodes?.join(', ')) || 'No nodes available'}
                                 </Text>
                             </View>
                         ))}
@@ -470,7 +487,7 @@ const Report = ({ research, show }) => {
                             Community Members:
                         </Text>
                         {research.communities.slice(0, 9).map((community, index) => {
-                            const communityMembers = community.nodes?.slice(0, 10).join(', ') || 'No nodes available';
+                            const communityMembers = clean(community.nodes?.slice(0, 10).join(', ')) || 'No nodes available';
                             return (
                             <View key={index} style={[styles.metricHighlight, { marginTop: 5, padding: 8 }]}>
                                 <Text style={[styles.label, { fontSize: 10, marginBottom: 3 }]}>
