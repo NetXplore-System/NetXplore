@@ -191,7 +191,7 @@ def normalize_links_by_target(
         new_link = link.copy()
         denom = totals[link["source"]]
         if denom > 0:
-            new_link["weight"] = round(link["weight"] / denom, 4)
+            new_link["weight"] = round(link["weight"] / denom, 2)
         else:
             new_link["weight"] = 0.0
         normalized_links.append(new_link)

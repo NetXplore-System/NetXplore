@@ -363,7 +363,7 @@ const Report = ({ research, show }) => {
                     </View>
                 )}
 
-                {research.communities.length > 0 && (
+                {research.communities.length > 0 && research.communities.length < 5 && (
                     <View style={styles.section} wrap={false}>
                         <Text style={styles.sectionTitle}>Community Analysis</Text>
                         <View style={styles.row}>
@@ -434,6 +434,62 @@ const Report = ({ research, show }) => {
                     </View>
                 )}
             </Page>
+
+            {research.communities.length > 5 && (
+                <>
+                    <Page key="communities" style={styles.page}>
+                    {/* <View style={styles.section} wrap={false}> */}
+                        <Text style={styles.sectionTitle}>Community Analysis</Text>
+                        <View style={styles.row}>
+                            <Text style={styles.label}>Total Communities:</Text>
+                            <Text style={styles.value}>{research.communities.length}</Text>
+                        </View>
+
+                        <View style={styles.comparisonTable} wrap={false}>
+                            <View style={[styles.tableRow, { backgroundColor: '#F5F5F5' }]}>
+                                <Text style={styles.tableHeader}>Community</Text>
+                                <Text style={styles.tableHeader}>Members</Text>
+                                <Text style={styles.tableHeader}>Avg Between</Text>
+                                <Text style={styles.tableHeader}>Avg PageRank</Text>
+                                <Text style={styles.tableHeader}>Avg Messages</Text>
+                            </View>
+                            {research.communities.slice(0, 15).map((community, index) => (
+                                <View key={index} style={styles.tableRow}>
+                                    <Text style={styles.tableCell}>{community.id}</Text>
+                                    <Text style={styles.tableCell}>{community.size}</Text>
+                                    <Text style={styles.tableCell}>{community.avg_betweenness}</Text>
+                                    <Text style={styles.tableCell}>{community.avg_pagerank}</Text>
+                                    <Text style={styles.tableCell}>{community.avg_messages}</Text>
+                                </View>
+                            ))}
+                        </View>
+                    </Page>
+
+                    <Page key="communities-members" style={styles.page}>
+                        <Text style={[styles.label, { fontSize: 11, marginTop: 15, marginBottom: 5 }]}>
+                            Community Members:
+                        </Text>
+                        {research.communities.slice(0, 9).map((community, index) => {
+                            const communityMembers = community.nodes?.slice(0, 10).join(', ') || 'No nodes available';
+                            return (
+                            <View key={index} style={[styles.metricHighlight, { marginTop: 5, padding: 8 }]}>
+                                <Text style={[styles.label, { fontSize: 10, marginBottom: 3 }]}>
+                                    Community {community.id}:
+                                </Text>
+                                <Text style={[styles.value, { fontSize: 9 }]}>
+                                    {community.nodes?.length > 10 ? `${communityMembers} and ${community.nodes?.length - 10} more nodes` : communityMembers }
+                                </Text>
+                            </View>
+                        )})}
+                        
+                        {research.communities.length > 10 && (
+                            <Text style={[styles.value, { fontSize: 10, marginTop: 5, fontStyle: 'italic' }]}>
+                                ... and {research.communities.length - 10} more communities
+                            </Text>
+                        )}
+                    </Page>
+                </>
+            )}
 
             {research.hasComparison ? (
                 <>
