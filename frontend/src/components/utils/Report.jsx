@@ -9,8 +9,7 @@ const toPlainLatin = s =>
 const clean = (text) => {
     if (!text || typeof text !== 'string') return typeof text === 'number' ? text : '';
     let cleanText = text.replace(/(?!(\*|#|\d))[\p{Extended_Pictographic}\p{Emoji_Component}]|[\u0030-\u0039]\ufe0f?[\u20e3]|[\u002A\u0023]?\ufe0f?[\u20e3]/gu, '');
-    if (cleanText.includes(',')) cleanText = cleanText.split(',')?.map(toPlainLatin).join(', ');
-    console.log(cleanText);
+    cleanText = cleanText.includes(',') ? cleanText.split(',').map(toPlainLatin).join(', ') : toPlainLatin(cleanText);
     return cleanText === "" ? 'emoji-removed' : cleanText;
 }
 
@@ -380,7 +379,7 @@ const Report = ({ research, show }) => {
                     </View>
                 )}
 
-                {research.communities.length > 0 && research.communities.length < 5 && (
+                {research.communities.length > 0 && research.communities.length <= 5 && (
                     <View style={styles.section} wrap={false}>
                         <Text style={styles.sectionTitle}>Community Analysis</Text>
                         <View style={styles.row}>
@@ -455,7 +454,6 @@ const Report = ({ research, show }) => {
             {research.communities.length > 5 && (
                 <>
                     <Page key="communities" style={styles.page}>
-                    {/* <View style={styles.section} wrap={false}> */}
                         <Text style={styles.sectionTitle}>Community Analysis</Text>
                         <View style={styles.row}>
                             <Text style={styles.label}>Total Communities:</Text>
