@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import Modal from './Modal';
 import Report, { formatFilterLabel } from './Report';
 
-import './made-report.css';
+import '../../styles/made-report.css';
 
 const MadeReport = ({
     selectedMetric,
